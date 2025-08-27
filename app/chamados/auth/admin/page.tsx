@@ -68,7 +68,7 @@ export default function ChamadosAuthPage() {
         );
 
         // Verificar se o usuário existe no sistema de chamados
-        const userDocRef = doc(db, 'chamados/users', userCredential.user.uid);
+        const userDocRef = doc(db, 'chamados_users', userCredential.user.uid);
         const userSnap = await getDoc(userDocRef);
 
         if (!userSnap.exists()) {
@@ -121,11 +121,11 @@ export default function ChamadosAuthPage() {
         }
         // adminmaster não precisa de empresa
 
-        await setDoc(doc(db, 'chamados/users', userCredential.user.uid), userData);
+        await setDoc(doc(db, 'chamados_users', userCredential.user.uid), userData);
 
         // Se é empresa, criar documento da empresa também
         if (activeTab === 'empresa') {
-          await setDoc(doc(db, 'chamados/empresas', userCredential.user.uid), {
+          await setDoc(doc(db, 'chamados_empresas', userCredential.user.uid), {
             nome: formData.empresaNome || formData.displayName,
             ownerUid: userCredential.user.uid,
             ownerEmail: formData.email,

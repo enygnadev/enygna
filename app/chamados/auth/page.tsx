@@ -51,7 +51,7 @@ export default function ChamadosAuthPage() {
       }
 
       // Verificar na coleção específica do sistema de chamados
-      const chamadosUserRef = doc(db, 'chamados/users', auth.currentUser?.uid || '');
+      const chamadosUserRef = doc(db, 'chamados_users', auth.currentUser?.uid || '');
       const chamadosUserSnap = await getDoc(chamadosUserRef);
       
       if (chamadosUserSnap.exists()) {
