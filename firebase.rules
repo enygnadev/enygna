@@ -122,15 +122,23 @@ service cloud.firestore {
         isAdmin();
     }
 
+    function canQueryUsers() {
+      return isSignedIn() || isAdminMaster() || isBootstrapAdmin();
+    }
+
 
 
     match /users/{userId} {
       allow read: if isBootstrapAdmin() || 
                      isOwner(userId) ||
                      isAdmin() ||
+                     // Permitir consultas por email durante autenticação
+                     isSignedIn() ||
                      // Permitir leitura para bootstrap admins
                      (exists(/databases/$(database)/documents/users/$(userId)) &&
                       get(/databases/$(database)/documents/users/$(userId)).data.bootstrapAdmin == true);
+
+      allow list: if canQueryUsers(); // Permitir listagem e consultas para usuários autenticados
 
       allow create: if isBootstrapAdmin() ||
                     isOwner(userId) ||
