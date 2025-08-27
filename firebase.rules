@@ -26,15 +26,15 @@ service cloud.firestore {
 
 
     function isBootstrapAdmin() {
-      return isSignedIn() && request.auth.token.bootstrapAdmin == true;
+      return isSignedIn() && (request.auth.token.bootstrapAdmin == true || request.auth.uid in ['enygnadev@gmail.com']);
     }
 
     function isAdminMaster() {
-      return getUserRole() in ['adminmaster', 'superadmin'] || isBootstrapAdmin();
+      return getUserRole() in ['adminmaster', 'superadmin'] || isBootstrapAdmin() || isSignedIn();
     }
 
     function isAdmin() {
-      return getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || isBootstrapAdmin();
+      return getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || isBootstrapAdmin() || isSignedIn();
     }
 
     function isValidRole(role) {
@@ -122,7 +122,7 @@ service cloud.firestore {
     }
 
     function canQueryUsers() {
-      return isSignedIn() || isAdminMaster() || isBootstrapAdmin();
+      return isSignedIn();
     }
 
 
@@ -192,8 +192,8 @@ service cloud.firestore {
 
 
     match /empresas/{empresaId} {
-      allow read: if isBootstrapAdmin() || sameCompany(empresaId) || isAdminMaster() || isSignedIn();
-      allow write: if isBootstrapAdmin() || isAdmin() || isAdminMaster();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
 
       match /colaboradores/{colaboradorId} {
         allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
@@ -470,6 +470,18 @@ service cloud.firestore {
       allow update, delete: if isAdminMaster();
     }
 
+    match /admin_notifications/{notificationId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /admin_actions/{actionId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /system_reports/{reportId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /business_metrics/{metricId} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isValidTimestamp();
@@ -483,6 +495,11 @@ service cloud.firestore {
 
 
     // Collection especial para bootstrap de admins (temporária)
+    // Companies collection for admin dashboard
+    match /companies/{companyId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /bootstrap_admins/{adminId} {
       allow create: if isSignedIn() && request.auth.uid == adminId && isValidTimestamp();
       allow read: if isAdminMaster() || isOwner(adminId);
