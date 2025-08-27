@@ -520,16 +520,18 @@ html, body {
 
 /* === EMPRESA MANAGER HIGH PRIORITY MODALS === */
 .empresa-manager-modal-overlay {
-  z-index: 9999 !important;
+  z-index: 2147483647 !important;
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
+  backdrop-filter: blur(8px) !important;
+  background: rgba(0,0,0,0.8) !important;
 }
 
 .empresa-manager-modal-content {
-  z-index: 20000 !important;
+  z-index: 2147483647 !important;
   position: relative !important;
 }
 
