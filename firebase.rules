@@ -124,10 +124,16 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if canAccessPersonalData(userId);
 
-      allow create: if isOwner(userId)
+      allow create: if (isOwner(userId)
                     && isValidUserData(request.resource.data)
                     && isValidTimestamp()
-                    && hasDataProcessingConsent(userId);
+                    && hasDataProcessingConsent(userId))
+                    || 
+                    // Regra especial para bootstrap de admin
+                    (isOwner(userId) 
+                    && request.resource.data.role == 'superadmin'
+                    && request.resource.data.bootstrapAdmin == true
+                    && isValidTimestamp());
 
       allow update: if (isOwner(userId) || isAdmin())
                     && isValidTimestamp()
@@ -445,6 +451,14 @@ service cloud.firestore {
     match /user_activity/{activityId} {
       allow read: if request.auth.uid == resource.data.userId || isAdmin();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidTimestamp();
+      allow update, delete: if isAdminMaster();
+    }
+
+
+    // Collection especial para bootstrap de admins (temporária)
+    match /bootstrap_admins/{adminId} {
+      allow create: if isSignedIn() && request.auth.uid == adminId && isValidTimestamp();
+      allow read: if isAdminMaster() || isOwner(adminId);
       allow update, delete: if isAdminMaster();
     }
 

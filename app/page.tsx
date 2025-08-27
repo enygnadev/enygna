@@ -503,6 +503,36 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
               size="medium"
               style={{ marginTop: '0.5rem' }}
             />
+            
+              <a 
+                href="/admin" 
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                👑 Admin Master
+              </a>
+              <a 
+                href="/bootstrap-admin" 
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🚨 Bootstrap Admin (TEMPORÁRIO)
+              </a>
         </div>
 
         <div className="hero-social-proof">
