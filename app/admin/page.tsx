@@ -1549,6 +1549,30 @@ export default function AdminMasterPage() {
             topCompanies: analytics?.topCompanies || []
           };
           break;
+        case 'chamados':
+          // Relatório específico do sistema de chamados
+          const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
+          reportData.data = {
+            totalEmpresas: empresasChamados.length,
+            empresasAtivas: empresasChamados.filter(e => e.ativo).length,
+            totalTickets: 0, // Será implementado com consulta real
+            ticketsAbertos: 0,
+            ticketsResolvidos: 0,
+            tempoMedioResolucao: 0,
+            empresas: empresasChamados.map(e => ({
+              id: e.id,
+              nome: e.nome,
+              email: e.email,
+              plano: e.plano,
+              ativo: e.ativo,
+              criadoEm: e.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
       }
 
       const reportRef = await addDoc(collection(db, 'system_reports'), reportData);
@@ -1614,6 +1638,25 @@ export default function AdminMasterPage() {
         case 'reports':
           data = reports;
           filename = 'relatorios.json';
+          break;
+        case 'chamados':
+          // Exportar dados específicos do sistema de chamados
+          const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
+          data = {
+            empresas: empresasChamados,
+            estatisticas: {
+              totalEmpresas: empresasChamados.length,
+              empresasAtivas: empresasChamados.filter(e => e.ativo).length,
+              totalTickets: 0, // Implementar consulta real
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'chamados',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_chamados_dados.json';
           break;
       }
 
@@ -4778,6 +4821,19 @@ export default function AdminMasterPage() {
 
         {activeTab === 'sistema-chamados' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Gestão de Empresas do Sistema de Chamados */}
+            <EmpresaManager 
+              sistema="chamados" 
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa selecionada para chamados:', empresa);
+                // Navegar para gestão específica da empresa no sistema de chamados
+                alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
+              }}
+            />
+
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
@@ -4786,44 +4842,48 @@ export default function AdminMasterPage() {
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
               <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                🎫 Gestão do Sistema de Chamados
+                🎫 Estatísticas do Sistema de Chamados
               </h3>
 
               {/* Estatísticas */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>0</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>
+                    {/* Buscar tickets abertos */}
+                    0
+                  </div>
                   <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Abertos</div>
                 </div>
                 <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>0</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>
+                    {/* Buscar empresas ativas no sistema de chamados */}
+                    {empresas.filter(e => e.sistemasAtivos?.includes('chamados')).length}
+                  </div>
                   <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Empresas Ativas</div>
                 </div>
                 <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>0</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>
+                    {/* Buscar colaboradores do sistema de chamados */}
+                    0
+                  </div>
                   <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Colaboradores</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(139,92,246,0.1)', borderRadius: '12px', border: '1px solid rgba(139,92,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#c4b5fd' }}>
+                    {/* Buscar tickets resolvidos */}
+                    0
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Resolvidos</div>
                 </div>
               </div>
 
               {/* Ações de Gerenciamento */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                 <button
-                  onClick={() => {/* Criar empresa */}}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700'
+                  onClick={() => {
+                    // Navegar para gestão de usuários do sistema de chamados
+                    window.open('/chamados/admin', '_blank');
                   }}
-                >
-                  🏢 Criar Nova Empresa
-                </button>
-                <button
-                  onClick={() => {/* Criar colaborador */}}
                   style={{
                     padding: '1.5rem',
                     background: 'linear-gradient(45deg, #10b981, #059669)',
@@ -4832,13 +4892,25 @@ export default function AdminMasterPage() {
                     color: 'white',
                     cursor: 'pointer',
                     fontSize: '1rem',
-                    fontWeight: '700'
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,185,129,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  👤 Criar Colaborador
+                  👤 Gerenciar Colaboradores
                 </button>
                 <button
-                  onClick={() => {/* Ver relatórios */}}
+                  onClick={() => {
+                    // Navegar para todos os chamados
+                    window.open('/chamados', '_blank');
+                  }}
                   style={{
                     padding: '1.5rem',
                     background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
@@ -4847,13 +4919,25 @@ export default function AdminMasterPage() {
                     color: 'white',
                     cursor: 'pointer',
                     fontSize: '1rem',
-                    fontWeight: '700'
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139,92,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  📊 Relatórios
+                  🎫 Ver Todos os Chamados
                 </button>
                 <button
-                  onClick={() => {/* Configurações */}}
+                  onClick={() => {
+                    // Gerar relatório específico do sistema de chamados
+                    generateReport('chamados');
+                  }}
                   style={{
                     padding: '1.5rem',
                     background: 'linear-gradient(45deg, #f59e0b, #d97706)',
@@ -4862,10 +4946,46 @@ export default function AdminMasterPage() {
                     color: 'white',
                     cursor: 'pointer',
                     fontSize: '1rem',
-                    fontWeight: '700'
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  ⚙️ Configurações
+                  📊 Relatórios de Chamados
+                </button>
+                <button
+                  onClick={() => {
+                    // Exportar dados do sistema de chamados
+                    exportData('chamados');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(239,68,68,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📥 Exportar Dados
                 </button>
               </div>
             </div>
