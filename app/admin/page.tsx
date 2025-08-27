@@ -1310,7 +1310,7 @@ export default function AdminMasterPage() {
 
         // Filtrar no cliente para evitar índices complexos
         const recentEvents = events.filter(event => {
-          const eventTime = event.timestamp?.toDate?.()?.getTime() || 
+          const eventTime = event.timestamp?.toDate?.()?.getTime?.() || 
                            event.timestamp?.getTime?.() || 
                            Date.now();
           return eventTime > last24Hours;
@@ -2893,7 +2893,8 @@ export default function AdminMasterPage() {
           { id: 'sistema-chamados', label: 'Sistema Chamados', icon: '🎫' },
           { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
           { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
-          { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' }
+          { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' },
+          { id: 'cria-contas', label: 'Cria Contas', icon: '➕' } // Adicionada a nova aba
         ].map(tab => (
           <button
             key={tab.id}
@@ -3332,7 +3333,7 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'companies' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem',zIndex: 9999 }} className="companies-section">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', zIndex: 9999 }} className="companies-section">
 
             {/* Gestão Unificada de Empresas */}
             <EmpresaManager 
@@ -3350,7 +3351,6 @@ export default function AdminMasterPage() {
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
               padding: '1.5rem',
-            zIndex: 1,
               borderRadius: '20px',
               border: '2px solid rgba(255,255,255,0.1)',
               display: 'flex',
@@ -3369,7 +3369,6 @@ export default function AdminMasterPage() {
                   border: '2px solid rgba(255,255,255,0.2)',
                   borderRadius: '12px',
                   color: 'white',
-                  zIndex: 1,
                   fontSize: '1rem',
                   minWidth: '300px',
                   backdropFilter: 'blur(10px)'
@@ -3401,7 +3400,6 @@ export default function AdminMasterPage() {
                   border: '2px solid rgba(255,255,255,0.2)',
                   borderRadius: '12px',
                   color: 'white',
-                  zIndex: 1,
                   fontSize: '1rem',
                   backdropFilter: 'blur(10px)'
                 }}
@@ -3435,7 +3433,6 @@ export default function AdminMasterPage() {
                   background: "rgba(255,255,255,0.05)",
                   backdropFilter: "blur(30px)",
                   borderRadius: "20px",
-                  zIndex: 1, // ✅ camelCase e número
                   border: "2px solid rgba(255,255,255,0.1)",
                   overflow: "hidden",
                 }}
@@ -3445,7 +3442,6 @@ export default function AdminMasterPage() {
                 borderBottom: '2px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.05)',
                 display: 'flex',
-                zIndex: 1, // ✅ camelCase e número
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
@@ -3454,7 +3450,6 @@ export default function AdminMasterPage() {
                   fontSize: '1.5rem', 
                   fontWeight: '700',
                   display: 'flex',
-                zIndex: 1, // ✅ camelCase e número
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}>
@@ -4836,7 +4831,7 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'sistema-chamados' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' , zIndex: 9999 , }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Gestão de Empresas do Sistema de Chamados */}
             <EmpresaManager 
               sistema="chamados" 
@@ -5088,6 +5083,280 @@ export default function AdminMasterPage() {
               <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
                 🔒 Controle de Acesso
               </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Nova Aba: Cria Contas */}
+        {activeTab === 'cria-contas' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Gestão de Empresas - Sistema de Chamados */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                🎫 Criar Contas - Sistema de Chamados
+              </h3>
+              <EmpresaManager 
+                sistema="chamados" 
+                allowCreate={true}
+                allowEdit={true}
+                allowDelete={isSuperAdmin}
+                onEmpresaSelect={(empresa) => {
+                  console.log('Empresa selecionada para chamados:', empresa);
+                  alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
+                }}
+              />
+            </div>
+
+            {/* Gestão de Empresas - Sistema de Ponto */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                ⏰ Criar Contas - Sistema de Ponto
+              </h3>
+              <EmpresaManager 
+                sistema="ponto" 
+                allowCreate={true}
+                allowEdit={true}
+                allowDelete={isSuperAdmin}
+                onEmpresaSelect={(empresa) => {
+                  console.log('Empresa selecionada:', empresa);
+                  alert(`Empresa ${empresa.nome} selecionada para o sistema de ponto`);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sistema-chamados' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Gestão de Empresas do Sistema de Chamados */}
+            <EmpresaManager 
+              sistema="chamados" 
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa selecionada para chamados:', empresa);
+                // Navegar para gestão específica da empresa no sistema de chamados
+                alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
+              }}
+            />
+
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                🎫 Estatísticas do Sistema de Chamados
+              </h3>
+
+              {/* Estatísticas */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>
+                    {/* Buscar tickets abertos */}
+                    0
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Abertos</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>
+                    {/* Buscar empresas ativas no sistema de chamados */}
+                    {empresas.filter(e => e.sistemasAtivos?.includes('chamados')).length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Empresas Ativas</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>
+                    {/* Buscar colaboradores do sistema de chamados */}
+                    0
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Colaboradores</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(139,92,246,0.1)', borderRadius: '12px', border: '1px solid rgba(139,92,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#c4b5fd' }}>
+                    {/* Buscar tickets resolvidos */}
+                    0
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Resolvidos</div>
+                </div>
+              </div>
+
+              {/* Ações de Gerenciamento */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <button
+                  onClick={() => {
+                    // Navegar para gestão de usuários do sistema de chamados
+                    window.open('/chamados/admin', '_blank');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,185,129,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  👤 Gerenciar Colaboradores
+                </button>
+                <button
+                  onClick={() => {
+                    // Navegar para todos os chamados
+                    window.open('/chamados', '_blank');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139,92,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  🎫 Ver Todos os Chamados
+                </button>
+                <button
+                  onClick={() => {
+                    // Gerar relatório específico do sistema de chamados
+                    generateReport('chamados');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📊 Relatórios de Chamados
+                </button>
+                <button
+                  onClick={() => {
+                    // Exportar dados do sistema de chamados
+                    exportData('chamados');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(239,68,68,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📥 Exportar Dados
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'cria-contas' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Gestão de Empresas - Sistema de Chamados */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                🎫 Criar Contas - Sistema de Chamados
+              </h3>
+              <EmpresaManager 
+                sistema="chamados" 
+                allowCreate={true}
+                allowEdit={true}
+                allowDelete={isSuperAdmin}
+                onEmpresaSelect={(empresa) => {
+                  console.log('Empresa selecionada para chamados:', empresa);
+                  alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
+                }}
+              />
+            </div>
+
+            {/* Gestão de Empresas - Sistema de Ponto */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                ⏰ Criar Contas - Sistema de Ponto
+              </h3>
+              <EmpresaManager 
+                sistema="ponto" 
+                allowCreate={true}
+                allowEdit={true}
+                allowDelete={isSuperAdmin}
+                onEmpresaSelect={(empresa) => {
+                  console.log('Empresa selecionada:', empresa);
+                  alert(`Empresa ${empresa.nome} selecionada para o sistema de ponto`);
+                }}
+              />
             </div>
           </div>
         )}
