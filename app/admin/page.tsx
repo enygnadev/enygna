@@ -1853,51 +1853,52 @@ export default function AdminMasterPage() {
   // Se não for super admin, mostrar tela de login para admin
   if (!isSuperAdmin) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        color: 'white',
-        position: 'relative'
-      }}>
+      <>
         <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
-          animation: 'pulse 4s ease-in-out infinite alternate'
-        }}></div>
-
-        <div style={{
-          textAlign: 'center',
-          padding: '4rem',
-          background: 'rgba(0,0,0,0.4)',
-          borderRadius: '32px',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(255,255,255,0.1)',
-          maxWidth: '600px',
-          position: 'relative',
-          zIndex: 10,
-          boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          color: 'white',
+          position: 'relative'
         }}>
-          <div style={{ 
-            fontSize: '5rem', 
-            marginBottom: '2rem',
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
-          }}>🚫</div>
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
+            animation: 'pulse 4s ease-in-out infinite alternate'
+          }}></div>
 
-          <h1 style={{ 
-            fontSize: '3rem', 
-            fontWeight: '900', 
-            marginBottom: '1.5rem',
-            background: 'linear-gradient(45deg, #ffffff, #fecaca)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+          <div style={{
+            textAlign: 'center',
+            padding: '4rem',
+            background: 'rgba(0,0,0,0.4)',
+            borderRadius: '32px',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(255,255,255,0.1)',
+            maxWidth: '600px',
+            position: 'relative',
+            zIndex: 10,
+            boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
           }}>
-            ACESSO RESTRITO
-          </h1>
+            <div style={{ 
+              fontSize: '5rem', 
+              marginBottom: '2rem',
+              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
+            }}>🚫</div>
+
+            <h1 style={{ 
+              fontSize: '3rem', 
+              fontWeight: '900', 
+              marginBottom: '1.5rem',
+              background: 'linear-gradient(45deg, #ffffff, #fecaca)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+            }}>
+              ACESSO RESTRITO
+            </h1>
 
           <div style={{
             background: 'rgba(239,68,68,0.2)',
@@ -2404,7 +2405,8 @@ export default function AdminMasterPage() {
             }
           }
         `}</style>
-      </div>
+        </div>
+      </>
     );
   }
 
