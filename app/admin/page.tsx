@@ -39,10 +39,13 @@ import EmpresaManager from '@/src/components/EmpresaManager';
 interface Company {
   id: string;
   name: string;
+  nome?: string; // Campo para nome em português
   email: string;
   createdAt: any;
-  plan: string;
+  criadoEm?: any; // Campo para data de criação em português
+  plan?: string; // Campo para plano
   active: boolean;
+  ativo?: boolean; // Campo para status ativo em português
   employees: number;
   monthlyRevenue: number;
   lastActivity: any;
@@ -816,9 +819,13 @@ export default function AdminMasterPage() {
           {
             id: 'demo-empresa-1',
             name: 'Empresa Demo 1',
+            nome: 'Empresa Demo 1',
             email: 'contato@demo1.com',
             createdAt: new Date(),
+            criadoEm: new Date(),
+            plan: 'basic',
             active: true,
+            ativo: true,
             employees: 10,
             monthlyRevenue: 15000,
             lastActivity: new Date(),
@@ -4395,7 +4402,7 @@ export default function AdminMasterPage() {
                 alignItems: 'center'
               }}>
                 <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '700' }}>
-                  📜 Relatórios Gerados
+                  📋 Relatórios Gerados
                 </h4>
                 <button
                   onClick={() => exportData('reports')}
