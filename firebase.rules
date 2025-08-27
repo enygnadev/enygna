@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -360,19 +359,19 @@ service cloud.firestore {
     }
 
     match /audit_logs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isAdminMaster();
       allow create: if isSignedIn() && isValidTimestamp();
       allow update, delete: if false; 
     }
 
     match /performance_metrics/{metricId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isAdminMaster();
       allow create: if isSignedIn() && isValidTimestamp();
       allow update, delete: if isAdminMaster();
     }
 
     match /error_reports/{errorId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isAdminMaster();
       allow create: if isSignedIn() && isValidTimestamp();
       allow update, delete: if isAdminMaster();
     }
@@ -384,7 +383,7 @@ service cloud.firestore {
     }
 
     match /system_alerts/{alertId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isAdminMaster();
       allow create: if isSignedIn() && isValidTimestamp();
       allow update, delete: if isAdminMaster();
     }

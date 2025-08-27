@@ -675,7 +675,8 @@ export default function AdminMasterPage() {
           const userSnap = await getDoc(docRef(db, "users", user.uid));
           if (userSnap.exists()) {
             const userData = userSnap.data();
-            if (userData.role === "superadmin") {
+            // Verifica se é superadmin, adminmaster ou bootstrap admin
+            if (userData.role === "superadmin" || userData.role === "adminmaster" || userData.bootstrapAdmin === true) {
               setIsSuperAdmin(true);
               setUser(user);
 
@@ -694,6 +695,25 @@ export default function AdminMasterPage() {
                 setShowTutorial(true);
               }
             } else {
+              setIsSuperAdmin(false);
+            }
+          } else {
+            // Se o documento não existe mas o usuário está logado, 
+            // pode ser um bootstrap admin criado externamente
+            try {
+              const idTokenResult = await user.getIdTokenResult();
+              if (idTokenResult.claims.bootstrapAdmin || 
+                  idTokenResult.claims.role === 'superadmin' || 
+                  idTokenResult.claims.role === 'adminmaster') {
+                setIsSuperAdmin(true);
+                setUser(user);
+                await loadAllData();
+                initializeIntelligenceCenter();
+              } else {
+                setIsSuperAdmin(false);
+              }
+            } catch (tokenError) {
+              console.error("Erro ao verificar token:", tokenError);
               setIsSuperAdmin(false);
             }
           }
@@ -1610,9 +1630,20 @@ export default function AdminMasterPage() {
           // Bootstrap admin tem controle total
           const isBootstrap = userData.bootstrapAdmin === true;
           const isSuperAdmin = userData.role === 'superadmin';
-          setIsSuperAdmin(isBootstrap || isSuperAdmin);
+          const isAdminMaster = userData.role === 'adminmaster';
+          setIsSuperAdmin(isBootstrap || isSuperAdmin || isAdminMaster);
         } else {
-          setIsSuperAdmin(false);
+          // Verificar claims do token se documento não existir
+          try {
+            const idTokenResult = await user.getIdTokenResult();
+            const hasAdminClaims = idTokenResult.claims.bootstrapAdmin || 
+                                  idTokenResult.claims.role === 'superadmin' || 
+                                  idTokenResult.claims.role === 'adminmaster';
+            setIsSuperAdmin(hasAdminClaims);
+          } catch (tokenError) {
+            console.error('Erro ao verificar token:', tokenError);
+            setIsSuperAdmin(false);
+          }
         }
       } catch (error) {
         console.error('Erro ao verificar acesso super admin:', error);
