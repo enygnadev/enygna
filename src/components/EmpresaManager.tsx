@@ -98,11 +98,9 @@ export default function EmpresaManager({
     endereco: '',
     ativo: true,
     plano: 'free',
-    configuracoes: {
-      geofencing: false,
-      selfieObrigatoria: false,
-      notificacaoEmail: true
-    },
+    geofencing: false,
+    selfieObrigatoria: false,
+    notificacaoEmail: true,
     sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos'] : [sistema]
   });
 
@@ -398,17 +396,17 @@ export default function EmpresaManager({
   const openEditModal = (empresa: Empresa) => {
     setSelectedEmpresa(empresa);
     setFormData({
-      nome: empresa.nome,
-      email: empresa.email,
-      // Não preenche a senha aqui, apenas limpa se já houver algum valor
-      senha: '',
+      nome: empresa.nome || '',
+      email: empresa.email || '',
+      senha: '', // Não preenche a senha aqui, apenas limpa se já houver algum valor
       cnpj: empresa.cnpj || '',
       telefone: empresa.telefone || '',
       endereco: empresa.endereco || '',
-      plano: empresa.plano,
-      geofencing: empresa.configuracoes?.geofencing || false,
-      selfieObrigatoria: empresa.configuracoes?.selfieObrigatoria || false,
-      notificacaoEmail: empresa.configuracoes?.notificacaoEmail || true,
+      ativo: empresa.ativo ?? true,
+      plano: empresa.plano || 'free',
+      geofencing: empresa.configuracoes?.geofencing ?? false,
+      selfieObrigatoria: empresa.configuracoes?.selfieObrigatoria ?? false,
+      notificacaoEmail: empresa.configuracoes?.notificacaoEmail ?? true,
       sistemasAtivos: empresa.sistemasAtivos || []
     });
     setShowEditModal(true);
@@ -422,6 +420,7 @@ export default function EmpresaManager({
       cnpj: '',
       telefone: '',
       endereco: '',
+      ativo: true,
       plano: 'free',
       geofencing: false,
       selfieObrigatoria: false,
