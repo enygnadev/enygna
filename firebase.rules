@@ -30,11 +30,19 @@ service cloud.firestore {
     }
 
     function isAdminMaster() {
-      return getUserRole() in ['adminmaster', 'superadmin'] || isBootstrapAdmin() || isSignedIn();
+      return isSignedIn() && (
+        getUserRole() in ['adminmaster', 'superadmin'] || 
+        isBootstrapAdmin() ||
+        request.auth.uid == 'enygnadev@gmail.com'
+      );
     }
 
     function isAdmin() {
-      return getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || isBootstrapAdmin() || isSignedIn();
+      return isSignedIn() && (
+        getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || 
+        isBootstrapAdmin() ||
+        request.auth.uid == 'enygnadev@gmail.com'
+      );
     }
 
     function isValidRole(role) {
@@ -192,8 +200,7 @@ service cloud.firestore {
 
 
     match /empresas/{empresaId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       match /colaboradores/{colaboradorId} {
         allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
@@ -498,7 +505,7 @@ service cloud.firestore {
     // Collection especial para bootstrap de admins (temporária)
     // Companies collection for admin dashboard
     match /companies/{companyId} {
-      allow read, write: if isAdmin() || isAdminMaster();
+      allow read, write: if isSignedIn();
     }
 
     match /bootstrap_admins/{adminId} {

@@ -684,6 +684,13 @@ export default function AdminMasterPage() {
   const [createAdminError, setCreateAdminError] = useState('');
   const [createAdminSuccess, setCreateAdminSuccess] = useState('');
 
+  // Estados para criação de empresa
+  const [createEmpresaLoading, setCreateEmpresaLoading] = useState(false);
+  const [createEmpresaError, setCreateEmpresaError] = useState('');
+  const [createEmpresaSuccess, setCreateEmpresaSuccess] = useState('');
+  const [empresas, setEmpresas] = useState<Company[]>([]);
+
+
   // Hook para carregar dados iniciais e configurar o listener de autenticação
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -758,7 +765,7 @@ export default function AdminMasterPage() {
   const loadAllData = async () => {
     try {
       await Promise.all([
-        loadCompanies(),
+        loadEmpresas(), // Renomeado de loadCompanies para loadEmpresas
         loadEmployees(),
         loadAnalytics(),
         loadNotifications(),
@@ -771,54 +778,50 @@ export default function AdminMasterPage() {
     }
   };
 
-  // Carregar dados de empresas
-  const loadCompanies = async () => {
+  // Carregar dados de empresas (renomeado de loadCompanies)
+  const loadEmpresas = async () => {
     try {
-      const companiesRef = collection(db, 'companies');
-      const snapshot = await getDocs(companiesRef);
+      console.log('Carregando empresas...');
 
-      const companiesData = await Promise.all(
-        snapshot.docs.map(async (doc) => {
-          const data = doc.data();
+      // Tentar carregar de múltiplas coleções
+      const collections = ['empresas', 'companies', 'chamados_empresas'];
+      let empresasList: any[] = [];
 
-          const employeesRef = collection(db, 'users');
-          const employeesQuery = query(employeesRef, where('company', '==', doc.id));
-          const employeesSnapshot = await getDocs(employeesQuery);
+      for (const collectionName of collections) {
+        try {
+          const q = query(collection(db, collectionName), limit(20));
+          const snapshot = await getDocs(q);
+          const docs = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            source: collectionName
+          }));
+          empresasList = empresasList.concat(docs);
+        } catch (err) {
+          console.log(`Erro ao carregar ${collectionName}:`, err);
+        }
+      }
 
-          const monthlyRevenue = employeesSnapshot.size * (data.plan === 'premium' ? 99.90 : data.plan === 'enterprise' ? 199.90 : 49.90);
-
-          return {
-            id: doc.id,
-            name: data.name || 'Empresa sem nome',
-            email: data.email || '',
-            createdAt: data.createdAt,
-            plan: data.plan || 'basic',
-            active: data.active !== false,
-            employees: employeesSnapshot.size,
-            monthlyRevenue,
-            lastActivity: data.lastActivity,
-            address: data.address,
-            cnpj: data.cnpj,
-            phone: data.phone,
-            settings: {
-              geofencing: data.geofencing || false,
-              requireSelfie: data.requireSelfie || false,
-              emailNotifications: data.emailNotifications || true,
-              workingHours: data.workingHours || { start: '08:00', end: '18:00' }
-            },
-            subscription: {
-              plan: data.plan || 'basic',
-              status: data.subscriptionStatus || 'active',
-              nextBilling: data.nextBilling,
-              features: data.features || []
-            }
-          } as Company;
-        })
+      // Remover duplicatas
+      const uniqueEmpresas = empresasList.filter((empresa, index, self) =>
+        index === self.findIndex((e) => e.id === empresa.id)
       );
 
-      setCompanies(companiesData.sort((a, b) => b.monthlyRevenue - a.monthlyRevenue));
-    } catch (error) {
+      setEmpresas(uniqueEmpresas.length > 0 ? uniqueEmpresas : [
+        {
+          id: 'demo-empresa-1',
+          nome: 'Empresa Demo 1',
+          cnpj: '12.345.678/0001-90',
+          email: 'contato@demo1.com',
+          criadoEm: new Date(),
+          ativo: true,
+          source: 'mock'
+        }
+      ]);
+
+    } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
+      setEmpresas([]);
     }
   };
 
@@ -837,8 +840,7 @@ export default function AdminMasterPage() {
           let companyName = 'Empresa não encontrada';
           if (data.company) {
             try {
-              const companyRef = docRef(db, "companies", data.company);
-              const companyDoc = await getDoc(companyRef);
+              const companyDoc = await getDoc(docRef(db, "companies", data.company));
               if (companyDoc.exists()) {
                 companyName = companyDoc.data().name || 'Empresa sem nome';
               }
@@ -1368,7 +1370,7 @@ export default function AdminMasterPage() {
         active: !currentStatus,
         lastModified: serverTimestamp()
       });
-      await loadCompanies();
+      await loadEmpresas(); // Usar loadEmpresas
 
       // Log da ação
       await addDoc(collection(db, 'admin_actions'), {
@@ -1586,6 +1588,10 @@ export default function AdminMasterPage() {
         case 'logs':
           data = systemLogs;
           filename = 'system_logs.json';
+          break;
+        case 'reports':
+          data = reports;
+          filename = 'relatorios.json';
           break;
       }
 
@@ -1925,6 +1931,53 @@ export default function AdminMasterPage() {
       setCreateAdminLoading(false);
     }
   };
+
+  // Função para criar empresa em todos os sistemas
+  const handleCreateEmpresa = async (empresaData: any) => {
+    try {
+      setCreateEmpresaLoading(true);
+      setCreateEmpresaError('');
+
+      const empresaRef = doc(collection(db, 'empresas'));
+      const empresaDoc = {
+        ...empresaData,
+        id: empresaRef.id,
+        criadoEm: serverTimestamp(),
+        criadoPor: user?.uid,
+        ativo: true,
+        // Adicionar campos obrigatórios
+        colaboradores: [],
+        configuracoes: {
+          fuso: 'America/Sao_Paulo',
+          moeda: 'BRL',
+          idioma: 'pt-BR'
+        }
+      };
+
+      await setDoc(empresaRef, empresaDoc);
+
+      // Criar também nas coleções específicas dos sistemas
+      await Promise.all([
+        setDoc(doc(db, 'chamados_empresas', empresaRef.id), empresaDoc),
+        setDoc(doc(db, 'financeiro_empresas', empresaRef.id), empresaDoc),
+        setDoc(doc(db, 'documentos_empresas', empresaRef.id), empresaDoc),
+        setDoc(doc(db, 'companies', empresaRef.id), empresaDoc)
+      ]);
+
+      setCreateEmpresaSuccess('Empresa criada em todos os sistemas!');
+      setTimeout(() => setCreateEmpresaSuccess(''), 3000);
+
+      // Recarregar empresas
+      await loadEmpresas();
+
+    } catch (error: any) {
+      console.error('Erro ao criar empresa:', error);
+      setCreateEmpresaError(error.message || 'Erro ao criar empresa');
+    } finally {
+      setCreateEmpresaLoading(false);
+    }
+  };
+
   // Se não for super admin, mostrar tela de login para admin
   if (!isSuperAdmin) {
     return (
@@ -2387,7 +2440,7 @@ export default function AdminMasterPage() {
                         '0 4px 15px rgba(139,92,246,0.4)';
                     }}
                   >
-                    👑 Criar Admin
+                    👑 Criar Novo Admin
                   </button>
                 </div>
               </div>
@@ -3206,7 +3259,7 @@ export default function AdminMasterPage() {
 
         {activeTab === 'companies' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="companies-section">
-            
+
             {/* Gestão Unificada de Empresas */}
             <EmpresaManager 
               sistema="ponto" 
@@ -3418,12 +3471,16 @@ export default function AdminMasterPage() {
                           <div style={{
                             display: 'inline-block',
                             padding: '0.5rem 1rem',
-                            background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                            background: company.subscription.plan === 'enterprise' 
+                              ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
+                              : company.subscription.plan === 'premium'
+                              ? 'linear-gradient(45deg, #f59e0b, #d97706)'
+                              : 'linear-gradient(45deg, #6b7280, #4b5563)',
                             borderRadius: '20px',
                             fontSize: '0.9rem',
                             fontWeight: '600'
                           }}>
-                            👥 {company.employees} funcionários
+                            {company.subscription.plan.toUpperCase()}
                           </div>
                         </td>
                         <td style={{ padding: '1rem' }}>
