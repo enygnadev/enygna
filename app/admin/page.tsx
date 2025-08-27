@@ -674,6 +674,7 @@ export default function AdminMasterPage() {
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showEmpresaModal, setShowEmpresaModal] = useState(false); // Estado para o modal de criação de empresa
+  const [selectedSistema, setSelectedSistema] = useState<string>(''); // Estado para sistema selecionado no modal
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -5197,50 +5198,277 @@ export default function AdminMasterPage() {
         {/* Nova Aba: Cria Contas */}
         {activeTab === 'cria-contas' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Gestão de Empresas - Sistema de Chamados */}
+            {/* Botão Central para Nova Empresa */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
-              padding: '2rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)'
+              padding: '4rem 2rem',
+              borderRadius: '24px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              textAlign: 'center'
             }}>
-              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                🎫 Criar Contas - Sistema de Chamados
-              </h3>
-              <EmpresaManager 
-                sistema="chamados" 
-                allowCreate={true}
-                allowEdit={true}
-                allowDelete={isSuperAdmin}
-                onEmpresaSelect={(empresa) => {
-                  console.log('Empresa selecionada para chamados:', empresa);
-                  alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
-                }}
-              />
-            </div>
+              <div style={{
+                fontSize: '4rem',
+                marginBottom: '2rem',
+                background: 'linear-gradient(45deg, #8b5cf6, #06b6d4)',
+                borderRadius: '50%',
+                width: '120px',
+                height: '120px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 2rem auto',
+                animation: 'pulse 2s infinite'
+              }}>
+                🏢
+              </div>
+              
+              <h2 style={{ 
+                margin: '0 0 1rem 0', 
+                fontSize: '2.5rem', 
+                fontWeight: '900',
+                background: 'linear-gradient(45deg, #ffffff, #e0e7ff)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Gestão Completa de Empresas
+              </h2>
+              
+              <p style={{ 
+                fontSize: '1.2rem', 
+                opacity: 0.8, 
+                marginBottom: '3rem',
+                maxWidth: '600px',
+                margin: '0 auto 3rem auto'
+              }}>
+                Crie e gerencie empresas para todos os sistemas integrados: Chamados, Ponto, Frota, Financeiro e Documentos.
+              </p>
 
-            {/* Gestão de Empresas - Sistema de Ponto */}
+              <button
+                onClick={() => setShowEmpresaModal(true)}
+                style={{
+                  padding: '1.5rem 3rem',
+                  background: 'linear-gradient(45deg, #16a34a, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  fontSize: '1.3rem',
+                  fontWeight: '700',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 8px 25px rgba(22,163,74,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  margin: '0 auto'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 15px 35px rgba(22,163,74,0.6)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(22,163,74,0.4)';
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>➕</span>
+                Nova Empresa Completa
+              </button>
+
+              <div style={{
+                marginTop: '3rem',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                maxWidth: '800px',
+                margin: '3rem auto 0 auto'
+              }}>
+                {[
+                  { icon: '🎫', name: 'Sistema de Chamados', color: 'rgba(59,130,246,0.2)' },
+                  { icon: '⏰', name: 'Sistema de Ponto', color: 'rgba(16,185,129,0.2)' },
+                  { icon: '🚗', name: 'Sistema de Frota', color: 'rgba(245,158,11,0.2)' },
+                  { icon: '💰', name: 'Sistema Financeiro', color: 'rgba(139,92,246,0.2)' },
+                  { icon: '📁', name: 'Sistema de Documentos', color: 'rgba(239,68,68,0.2)' }
+                ].map((sistema, index) => (
+                  <div key={index} style={{
+                    padding: '1rem',
+                    background: sistema.color,
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{sistema.icon}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{sistema.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Completo para Gestão de Empresas */}
+        {showEmpresaModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.95)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(20px)',
+            padding: 'clamp(0.5rem, 2vw, 1rem)'
+          }}>
             <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(30px)',
-              padding: '2rem',
-              borderRadius: '20px',
+              background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
+              padding: 'clamp(1rem, 4vw, 2rem)',
+              borderRadius: 'clamp(16px, 4vw, 24px)',
+              width: 'min(95vw, 1200px)',
+              maxHeight: '95vh',
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                ⏰ Criar Contas - Sistema de Ponto
-              </h3>
-              <EmpresaManager 
-                sistema="ponto" 
-                allowCreate={true}
-                allowEdit={true}
-                allowDelete={isSuperAdmin}
-                onEmpresaSelect={(empresa) => {
-                  console.log('Empresa selecionada:', empresa);
-                  alert(`Empresa ${empresa.nome} selecionada para o sistema de ponto`);
-                }}
-              />
+              {/* Header do Modal */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '2rem',
+                paddingBottom: '1rem',
+                borderBottom: '2px solid rgba(255,255,255,0.1)'
+              }}>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontSize: '2rem', 
+                  fontWeight: '900',
+                  background: 'linear-gradient(45deg, #ffffff, #e0e7ff)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  🏢 Gestão Completa de Empresas
+                </h2>
+                <button
+                  onClick={() => setShowEmpresaModal(false)}
+                  style={{
+                    padding: '0.75rem',
+                    background: 'rgba(239,68,68,0.2)',
+                    border: '2px solid rgba(239,68,68,0.3)',
+                    borderRadius: '12px',
+                    color: '#fca5a5',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(239,68,68,0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(239,68,68,0.2)';
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Seletor de Sistema */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                marginBottom: '2rem'
+              }}>
+                {[
+                  { id: 'chamados', name: 'Sistema de Chamados', icon: '🎫', color: 'linear-gradient(45deg, #3b82f6, #1e40af)' },
+                  { id: 'ponto', name: 'Sistema de Ponto', icon: '⏰', color: 'linear-gradient(45deg, #10b981, #059669)' },
+                  { id: 'frota', name: 'Sistema de Frota', icon: '🚗', color: 'linear-gradient(45deg, #f59e0b, #d97706)' },
+                  { id: 'financeiro', name: 'Sistema Financeiro', icon: '💰', color: 'linear-gradient(45deg, #8b5cf6, #7c3aed)' },
+                  { id: 'documentos', name: 'Sistema de Documentos', icon: '📁', color: 'linear-gradient(45deg, #ef4444, #dc2626)' }
+                ].map((sistema) => (
+                  <button
+                    key={sistema.id}
+                    onClick={() => setSelectedSistema(sistema.id)}
+                    style={{
+                      padding: '1.5rem',
+                      background: selectedSistema === sistema.id ? sistema.color : 'rgba(255,255,255,0.1)',
+                      border: selectedSistema === sistema.id ? '2px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '16px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      textAlign: 'center',
+                      fontSize: '1rem',
+                      fontWeight: '600'
+                    }}
+                    onMouseOver={(e) => {
+                      if (selectedSistema !== sistema.id) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (selectedSistema !== sistema.id) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                      }
+                    }}
+                  >
+                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{sistema.icon}</div>
+                    <div>{sistema.name}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Componente EmpresaManager baseado no sistema selecionado */}
+              {selectedSistema && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '16px',
+                  padding: '1.5rem',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <EmpresaManager 
+                    sistema={selectedSistema as 'chamados' | 'frota' | 'financeiro' | 'documentos' | 'ponto'}
+                    allowCreate={true}
+                    allowEdit={true}
+                    allowDelete={isSuperAdmin}
+                    onEmpresaSelect={(empresa) => {
+                      console.log(`Empresa selecionada para ${selectedSistema}:`, empresa);
+                      alert(`Empresa ${empresa.nome} configurada para o ${selectedSistema}`);
+                    }}
+                  />
+                </div>
+              )}
+
+              {!selectedSistema && (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '4rem 2rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
+                  <h3 style={{ 
+                    margin: '0 0 1rem 0', 
+                    fontSize: '1.5rem', 
+                    fontWeight: '700',
+                    color: '#ffffff'
+                  }}>
+                    Selecione um Sistema
+                  </h3>
+                  <p style={{ 
+                    opacity: 0.8, 
+                    fontSize: '1.1rem',
+                    margin: 0
+                  }}>
+                    Escolha qual sistema você deseja gerenciar primeiro. Você pode configurar empresas para todos os sistemas.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
