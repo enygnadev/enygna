@@ -1003,7 +1003,7 @@ export default function FrotaPage() {
               <div className="stat-card">
                 <div className="stat-header">
                   <div className="stat-icon">⛽</div>
-                  <div className="stat-label">Combustível/Mês</div>
+                  <<div className="stat-label">Combustível/Mês</div>
                 </div>
                 <div className="stat-value">R$ {(stats.consumoTotalCombustivel / 1000).toFixed(0)}K</div>
               </div>
