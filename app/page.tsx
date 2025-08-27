@@ -498,11 +498,7 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
               🚀 Acessar Sistema Completo
             </Link>
 
-            <AdminLoginButton 
-              variant="secondary"
-              size="medium"
-              style={{ marginTop: '0.5rem' }}
-            />
+            
             
               <a 
                 href="/admin" 
