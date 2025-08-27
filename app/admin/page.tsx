@@ -623,6 +623,7 @@ function SuperAdminCreateForm() {
   );
 }
 
+// Componente Principal do Painel Admin
 export default function AdminMasterPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -5293,15 +5294,213 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'cria-contas' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Header Universal */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', position: 'relative' }}>
+            {/* Estatísticas de Criação - Camada de Fundo */}
             <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1,
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(20px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              marginBottom: '2rem'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 1.5rem 0', 
+                fontSize: '1.5rem', 
+                fontWeight: '700',
+                color: '#c7d2fe',
+                textAlign: 'center'
+              }}>
+                📊 Estatísticas de Criação de Empresas
+              </h3>
+
+              {/* Métricas Reais */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                marginBottom: '2rem'
+              }}>
+                <div style={{
+                  padding: '1.5rem',
+                  background: 'rgba(59,130,246,0.1)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(59,130,246,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#93c5fd', marginBottom: '0.5rem' }}>
+                    {empresas.length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Total de Empresas</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                    {empresas.filter(e => e.ativo).length} ativas
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '1.5rem',
+                  background: 'rgba(16,185,129,0.1)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#6ee7b7', marginBottom: '0.5rem' }}>
+                    {empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.length > 0).length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Com Sistemas Ativos</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                    {empresas.length > 0 ? Math.round((empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.length > 0).length / empresas.length) * 100) : 0}% do total
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '1.5rem',
+                  background: 'rgba(245,158,11,0.1)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(245,158,11,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fbbf24', marginBottom: '0.5rem' }}>
+                    {empresas.filter(e => e.plano && ['premium', 'enterprise', 'permanent'].includes(e.plano)).length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Planos Pagos</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                    {empresas.filter(e => e.plano === 'free').length} gratuitas
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '1.5rem',
+                  background: 'rgba(139,92,246,0.1)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#c4b5fd', marginBottom: '0.5rem' }}>
+                    {empresas.filter(e => {
+                      const hoje = new Date();
+                      const criadoEm = e.criadoEm?.toDate ? e.criadoEm.toDate() : new Date(e.criadoEm);
+                      const diffTime = hoje.getTime() - criadoEm.getTime();
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      return diffDays <= 7;
+                    }).length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Criadas Esta Semana</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                    Últimos 7 dias
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribuição por Sistema */}
+              <div style={{
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1.5rem'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: '600', color: '#e2e8f0' }}>
+                  📈 Distribuição por Sistema
+                </h4>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                  gap: '1rem'
+                }}>
+                  {['chamados', 'ponto', 'frota', 'financeiro', 'documentos'].map(sistema => {
+                    const count = empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.includes(sistema)).length;
+                    const percentage = empresas.length > 0 ? Math.round((count / empresas.length) * 100) : 0;
+                    const sistemaNome = {
+                      'chamados': '📞 Chamados',
+                      'ponto': '⏰ Ponto',
+                      'frota': '🚗 Frota',
+                      'financeiro': '💰 Financeiro',
+                      'documentos': '📄 Documentos'
+                    }[sistema];
+
+                    return (
+                      <div key={sistema} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.75rem',
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{sistemaNome}</span>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#3b82f6' }}>{count}</div>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{percentage}%</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Distribuição por Planos */}
+              <div style={{
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '12px',
+                padding: '1.5rem'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: '600', color: '#e2e8f0' }}>
+                  💳 Distribuição por Planos
+                </h4>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: '1rem'
+                }}>
+                  {[
+                    { plano: 'free', nome: '🆓 Gratuito', cor: '#6b7280' },
+                    { plano: 'monthly', nome: '💼 Mensal', cor: '#3b82f6' },
+                    { plano: 'yearly', nome: '📅 Anual', cor: '#10b981' },
+                    { plano: 'enterprise', nome: '🏢 Enterprise', cor: '#8b5cf6' },
+                    { plano: 'permanent', nome: '💎 Permanente', cor: '#f59e0b' }
+                  ].map(({ plano, nome, cor }) => {
+                    const count = empresas.filter(e => e.plano === plano).length;
+                    const percentage = empresas.length > 0 ? Math.round((count / empresas.length) * 100) : 0;
+
+                    return (
+                      <div key={plano} style={{
+                        padding: '1rem',
+                        background: `rgba(${plano === 'free' ? '107,114,128' : plano === 'monthly' ? '59,130,246' : plano === 'yearly' ? '16,185,129' : plano === 'enterprise' ? '139,92,246' : '245,158,11'}, 0.1)`,
+                        borderRadius: '8px',
+                        border: `1px solid rgba(${plano === 'free' ? '107,114,128' : plano === 'monthly' ? '59,130,246' : plano === 'yearly' ? '16,185,129' : plano === 'enterprise' ? '139,92,246' : '245,158,11'}, 0.3)`,
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: cor, marginBottom: '0.25rem' }}>
+                          {count}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>{nome}</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                          {percentage}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Header Universal - Camada Frontal */}
+            <div style={{
+              position: 'relative',
+              zIndex: 10,
               background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6d28d9 50%, #5b21b6 100%)',
               padding: '2rem',
               borderRadius: '24px',
               border: '3px solid #ffffff20',
               textAlign: 'center',
               boxShadow: '0 25px 50px rgba(139,92,246,0.3)',
+              marginTop: '35rem', // Espaço para as estatísticas
               marginBottom: '1rem'
             }}>
               <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
@@ -5325,240 +5524,21 @@ export default function AdminMasterPage() {
                 marginTop: '1.5rem'
               }}>
                 <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>🎫</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Chamados</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Empresas</div>
                 </div>
                 <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>⏰</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Ponto</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Sistemas</div>
                 </div>
                 <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>🚗</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Frota</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>5</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Planos</div>
                 </div>
                 <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>💰</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Financeiro</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>100%</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Integração</div>
                 </div>
-                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>📁</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Documentos</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Gestão Universal de Empresas */}
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(30px)',
-              padding: '2rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '2rem'
-              }}>
-                <h3 style={{ margin: '0', fontSize: '1.5rem', fontWeight: '700' }}>
-                  🌐 Gestão Universal de Empresas
-                </h3>
-                <div style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  flexWrap: 'wrap'
-                }}>
-                  <div style={{
-                    padding: '0.5rem 1rem',
-                    background: 'rgba(16,185,129,0.2)',
-                    border: '1px solid rgba(16,185,129,0.3)',
-                    borderRadius: '12px',
-                    fontSize: '0.9rem',
-                    color: '#6ee7b7'
-                  }}>
-                    ✅ Criação em Todos os Sistemas
-                  </div>
-                  <div style={{
-                    padding: '0.5rem 1rem',
-                    background: 'rgba(59,130,246,0.2)',
-                    border: '1px solid rgba(59,130,246,0.3)',
-                    borderRadius: '12px',
-                    fontSize: '0.9rem',
-                    color: '#93c5fd'
-                  }}>
-                    💳 Seleção de Plano Integrada
-                  </div>
-                  <div style={{
-                    padding: '0.5rem 1rem',
-                    background: 'rgba(139,92,246,0.2)',
-                    border: '1px solid rgba(139,92,246,0.3)',
-                    borderRadius: '12px',
-                    fontSize: '0.9rem',
-                    color: '#c4b5fd'
-                  }}>
-                    🔧 Configuração Automática
-                  </div>
-                </div>
-              </div>
-
-              <EmpresaManager 
-                sistema="universal" 
-                allowCreate={true}
-                allowEdit={true}
-                allowDelete={isSuperAdmin}
-                onEmpresaSelect={(empresa) => {
-                  console.log('Empresa selecionada universalmente:', empresa);
-                  alert(`Empresa ${empresa.nome} criada com sucesso em todos os sistemas!`);
-                }}
-              />
-            </div>
-
-            {/* Estatísticas de Criação */}
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(30px)',
-              padding: '2rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)'
-            }}>
-              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                📊 Estatísticas de Criação
-              </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>
-                    {empresas.length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>🏢 Empresas Criadas</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>
-                    {empresas.filter(e => e.ativo).length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>✅ Empresas Ativas</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>
-                    {empresas.filter(e => e.plano === 'premium').length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>💎 Plano Premium</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(139,92,246,0.1)', borderRadius: '12px', border: '1px solid rgba(139,92,246,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#c4b5fd' }}>
-                    5
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>🎯 Sistemas Ativos</div>
-                </div>
-              </div>
-
-              {/* Ações Rápidas */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                <button
-                  onClick={() => {
-                    exportData('companies');
-                  }}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #10b981, #059669)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,185,129,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  📥 Exportar Todas as Empresas
-                </button>
-                <button
-                  onClick={() => {
-                    generateReport('companies');
-                  }}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139,92,246,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  📊 Gerar Relatório Completo
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('companies');
-                  }}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #f59e0b, #d97706)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  🔧 Gerenciar Empresas
-                </button>
-                <button
-                  onClick={() => {
-                    loadAllData();
-                  }}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #ef4444, #dc2626)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(239,68,68,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  🔄 Atualizar Dados
-                </button>
               </div>
             </div>
           </div>
