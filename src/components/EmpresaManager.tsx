@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import {
   collection,
   getDocs,
@@ -14,7 +14,7 @@ import {
   orderBy,
   where
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth'; // Import necessary function
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 interface Empresa {
   id: string;
@@ -220,41 +220,61 @@ export default function EmpresaManager({
       // Criar usuário no Firebase Authentication
       try {
         const userCredential = await createUserWithEmailAndPassword(
-          // Assuming `auth` is initialized elsewhere in your app
-          // import { auth } from '@/lib/firebase';
-          // If not, you'll need to import and initialize it here or pass it as a prop
-          {} as any, // Placeholder for auth object, replace with actual auth instance
+          auth,
           formData.email,
           formData.senha
         );
         console.log('Usuário criado com sucesso:', userCredential.user.uid);
 
-        // Optionally, you could add the user's UID to the empresa document
-        // await updateDoc(doc(db, collectionName, empresaId), { userId: userCredential.user.uid });
+        // Adicionar o UID do usuário ao documento da empresa
+        await updateDoc(doc(db, collectionName, empresaId), { 
+          userId: userCredential.user.uid,
+          userCreated: true
+        });
 
       } catch (authError: any) {
         console.error('Erro ao criar usuário:', authError);
-        // Handle authentication errors (e.g., email already in use)
-        // You might want to delete the company document if user creation fails
-        alert(`Empresa criada, mas houve um erro ao criar o usuário: ${authError.message}`);
+        
+        // Se o usuário não foi criado, ainda assim mantemos a empresa
+        // mas marcamos que o usuário precisa ser criado manualmente
+        await updateDoc(doc(db, collectionName, empresaId), { 
+          userCreated: false,
+          userCreationError: authError.message
+        });
+
+        console.warn(`Empresa criada, mas usuário precisa ser criado manualmente: ${authError.message}`);
       }
 
 
+      // Fechar modal e resetar estados
       setShowCreateModal(false);
       resetForm();
-      loadEmpresas();
-      alert('Empresa criada com sucesso!');
+      
+      // Recarregar empresas
+      await loadEmpresas();
+      
+      // Mostrar sucesso
+      alert('✅ Empresa criada com sucesso! A empresa já está disponível no sistema.');
     } catch (error: any) {
       console.error('Erro ao criar empresa:', error);
 
       let errorMessage = 'Erro ao criar empresa';
       if (error?.code === 'permission-denied') {
         errorMessage = 'Erro de permissão. Verifique se você tem privilégios de administrador.';
+      } else if (error?.code === 'auth/email-already-in-use') {
+        errorMessage = 'Este email já está em uso. Tente outro email.';
+      } else if (error?.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido. Verifique o formato do email.';
+      } else if (error?.code === 'auth/weak-password') {
+        errorMessage = 'Senha muito fraca. Use uma senha mais forte.';
       } else if (error?.message) {
         errorMessage = `Erro: ${error.message}`;
       }
 
       alert(errorMessage);
+      
+      // Não fechar o modal em caso de erro para permitir correção
+      // setShowCreateModal(false);
     } finally {
       setLoading(false);
     }
@@ -384,7 +404,53 @@ export default function EmpresaManager({
           // Criar configurações padrão para todos os sistemas
           const sistemasParaConfig = ['chamados', 'frota', 'financeiro', 'documentos', 'ponto'];
           for (const sist of sistemasParaConfig) {
-            await createSystemSpecificData(empresaId, sist); // Chama recursivamente para cada sistema
+            try {
+              // Criar configurações específicas para cada sistema
+              switch (sist) {
+                case 'chamados':
+                  await setDoc(doc(db, 'chamados_empresas', empresaId, 'configuracoes', 'default'), {
+                    categorias: ['Técnico', 'Financeiro', 'RH', 'Geral'],
+                    prioridades: ['Baixa', 'Média', 'Alta', 'Crítica'],
+                    tempoResposta: { baixa: 48, media: 24, alta: 8, critica: 2 },
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+                case 'frota':
+                  await setDoc(doc(db, 'frota_empresas', empresaId, 'configuracoes', 'default'), {
+                    tiposVeiculo: ['Carro', 'Moto', 'Caminhão', 'Van'],
+                    intervalosManutencao: { oleo: 10000, filtro: 15000, pneus: 50000 },
+                    rastreamento: { intervalorAtualizacao: 30, alertaVelocidade: 100 },
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+                case 'financeiro':
+                  await setDoc(doc(db, 'financeiro_empresas', empresaId, 'configuracoes', 'default'), {
+                    categorias: ['Receita', 'Despesa', 'Investimento'],
+                    centrosCusto: ['Operacional', 'Administrativo', 'Comercial'],
+                    formasPagamento: ['Dinheiro', 'PIX', 'Cartão', 'Boleto'],
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+                case 'documentos':
+                  await setDoc(doc(db, 'documentos_empresas', empresaId, 'configuracoes', 'default'), {
+                    tiposDocumento: ['Contrato', 'NF', 'Relatório', 'Certificado'],
+                    nivelAcesso: ['Público', 'Interno', 'Confidencial'],
+                    retencaoAnos: 5,
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+                case 'ponto':
+                  await setDoc(doc(db, 'empresas', empresaId, 'configuracoes', 'default'), {
+                    horariosTrabalho: { entrada: '08:00', saida: '17:00', intervalo: 60 },
+                    tolerancia: 15,
+                    geofencing: formData.geofencing,
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+              }
+            } catch (configError) {
+              console.error(`Erro ao criar configuração para ${sist}:`, configError);
+            }
           }
           break;
       }
@@ -953,18 +1019,25 @@ export default function EmpresaManager({
 
               <button
                 onClick={handleCreate}
-                disabled={loading}
+                disabled={loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(45deg, #16a34a, #15803d)',
+                  background: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
+                    ? 'rgba(107, 114, 128, 0.6)' 
+                    : 'linear-gradient(45deg, #16a34a, #15803d)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
+                  cursor: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
+                    ? 'not-allowed' 
+                    : 'pointer',
+                  fontWeight: 'bold',
+                  opacity: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
+                    ? 0.6 
+                    : 1
                 }}
               >
-                {loading ? '⏳ Criando...' : '✅ Criar Empresa'}
+                {loading ? '⏳ Criando empresa...' : '✅ Criar Empresa'}
               </button>
             </div>
           </div>
