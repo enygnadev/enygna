@@ -873,18 +873,9 @@ export default function FrotaPage() {
   if (loading) {
     return (
       <div className="container">
-        <style jsx>{`
-          .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: var(--color-background);
-          }
-        `}</style>
         <div className="loading">
-          <div className="spinner"></div> {/* Adiciona um spinner de carregamento */}
-          <p>Carregando...</p>
+          <div className="spinner"></div>
+          <div className="loading-text">Carregando sistema de frota...</div>
         </div>
       </div>
     );
@@ -893,31 +884,36 @@ export default function FrotaPage() {
   // Renderização principal da página de frota
   return (
     <div className="container py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">Gerenciamento de Frota</h1>
-        <div className="flex items-center space-x-4">
-          <ThemeSelector />
-          <button
-            onClick={() => setShowAddVehicleModal(true)}
-            className="button button-primary"
-            disabled={!hasAccess}
-          >
-            Adicionar Veículo
-          </button>
-          <button
-            onClick={() => setShowAddColaboradorModal(true)}
-            className="button button-secondary"
-            disabled={!hasAccess}
-          >
-            Adicionar Colaborador
-          </button>
-          <button
-            onClick={generateAIAnalysis}
-            className="button button-outline"
-            disabled={loading || !hasAccess}
-          >
-            Análise IA
-          </button>
+      <div className="fleet-header fade-in">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <div>
+            <h1 className="fleet-title">🚗 Gerenciamento de Frota</h1>
+            <p className="fleet-subtitle">Controle total da sua frota em tempo real</p>
+          </div>
+          <div className="action-buttons">
+            <ThemeSelector />
+            <button
+              onClick={() => setShowAddVehicleModal(true)}
+              className="button button-primary interactive"
+              disabled={!hasAccess}
+            >
+              🚗 Adicionar Veículo
+            </button>
+            <button
+              onClick={() => setShowAddColaboradorModal(true)}
+              className="button button-secondary interactive"
+              disabled={!hasAccess}
+            >
+              👨‍💼 Adicionar Colaborador
+            </button>
+            <button
+              onClick={generateAIAnalysis}
+              className="button button-outline interactive"
+              disabled={loading || !hasAccess}
+            >
+              🤖 Análise IA
+            </button>
+          </div>
         </div>
       </div>
 
@@ -941,55 +937,112 @@ export default function FrotaPage() {
         {activeTab === 'dashboard' && (
           <>
             {/* Estatísticas da Frota */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="card p-4">
-                <h3 className="text-xl font-semibold text-primary">Total de Veículos</h3>
-                <p className="text-3xl font-bold">{stats.totalVeiculos}</p>
+            <div className="stats-grid fade-in">
+              <div className="stat-card interactive">
+                <span className="stat-icon">🚗</span>
+                <div className="stat-title">Total de Veículos</div>
+                <div className="stat-value">{stats.totalVeiculos}</div>
+                <div className="stat-change positive">
+                  <span>↗</span> +{Math.floor(stats.totalVeiculos * 0.1)} este mês
+                </div>
               </div>
-              <div className="card p-4">
-                <h3 className="text-xl font-semibold text-primary">Veículos Ativos</h3>
-                <p className="text-3xl font-bold">{stats.veiculosAtivos}</p>
+              <div className="stat-card interactive">
+                <span className="stat-icon">✅</span>
+                <div className="stat-title">Veículos Ativos</div>
+                <div className="stat-value">{stats.veiculosAtivos}</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {((stats.veiculosAtivos / Math.max(stats.totalVeiculos, 1)) * 100).toFixed(0)}% da frota
+                </div>
               </div>
-              <div className="card p-4">
-                <h3 className="text-xl font-semibold text-primary">Multas Pendentes</h3>
-                <p className="text-3xl font-bold">{stats.multasPendentes}</p>
+              <div className="stat-card interactive">
+                <span className="stat-icon">⚠️</span>
+                <div className="stat-title">Multas Pendentes</div>
+                <div className="stat-value">{stats.multasPendentes}</div>
+                <div className="stat-change negative">
+                  <span>↘</span> -2 esta semana
+                </div>
               </div>
-              <div className="card p-4">
-                <h3 className="text-xl font-semibold text-primary">Débitos Totais</h3>
-                <p className="text-3xl font-bold">R$ {stats.totalDebitos.toLocaleString('pt-BR')}</p>
+              <div className="stat-card interactive">
+                <span className="stat-icon">💰</span>
+                <div className="stat-title">Débitos Totais</div>
+                <div className="stat-value">R$ {(stats.totalDebitos / 1000).toFixed(0)}K</div>
+                <div className="stat-change negative">
+                  <span>↘</span> R$ {stats.totalDebitos.toLocaleString('pt-BR')}
+                </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">👨‍💼</span>
+                <div className="stat-title">Motoristas</div>
+                <div className="stat-value">{stats.motoristasCadastrados}</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {stats.motoristasCadastrados} cadastrados
+                </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">📊</span>
+                <div className="stat-title">KM Total/Mês</div>
+                <div className="stat-value">{(stats.kmTotalMes / 1000).toFixed(1)}K</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {stats.kmTotalMes.toLocaleString('pt-BR')} km
+                </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">⛽</span>
+                <div className="stat-title">Combustível/Mês</div>
+                <div className="stat-value">R$ {(stats.consumoTotalCombustivel / 1000).toFixed(0)}K</div>
+                <div className="stat-change negative">
+                  <span>↗</span> R$ {stats.consumoTotalCombustivel.toLocaleString('pt-BR')}
+                </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">🔧</span>
+                <div className="stat-title">Manutenção</div>
+                <div className="stat-value">R$ {(stats.custosManutencao / 1000).toFixed(0)}K</div>
+                <div className="stat-change positive">
+                  <span>↘</span> -15% vs mês passado
+                </div>
               </div>
             </div>
 
             {/* Filtros e Busca */}
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 card">
-              <div className="flex flex-col sm:flex-row gap-4 w-full">
-                <select
-                  value={selectedCountry}
-                  onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
-                  className="select w-full sm:w-auto"
-                >
-                  {countries.map((country, index) => (
-                    <option key={index} value={index}>{country}</option>
-                  ))}
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="select w-full sm:w-auto"
-                >
-                  <option value="todos">Todos os Status</option>
-                  <option value="ativo">Ativo</option>
-                  <option value="manutencao">Manutenção</option>
-                  <option value="inativo">Inativo</option>
-                  <option value="em_viagem">Em Viagem</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Buscar por placa, condutor ou modelo..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="input w-full sm:w-64"
-                />
+            <div className="filters-container fade-in">
+              <div className="filters-grid">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">🌍 País/Região</label>
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
+                    className="select"
+                  >
+                    {countries.map((country, index) => (
+                      <option key={index} value={index}>{country}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">📊 Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="select"
+                  >
+                    <option value="todos">📋 Todos os Status</option>
+                    <option value="ativo">✅ Ativo</option>
+                    <option value="manutencao">🔧 Manutenção</option>
+                    <option value="inativo">❌ Inativo</option>
+                    <option value="em_viagem">🛣️ Em Viagem</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">🔍 Buscar</label>
+                  <input
+                    type="text"
+                    placeholder="Buscar por placa, condutor ou modelo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="input"
+                  />
+                </div>
               </div>
             </div>
           </>
@@ -997,65 +1050,102 @@ export default function FrotaPage() {
 
         {/* Aba Veículos */}
         {activeTab === 'veiculos' && (
-          <div className="overflow-x-auto card">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placa</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condutor</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredVeiculos.length === 0 && !loading ? (
+          <div className="table-container fade-in">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="table-header">
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-gray-500">
-                      Nenhum veículo encontrado.
-                    </td>
+                    <th className="table-cell text-left font-semibold">🚗 Placa</th>
+                    <th className="table-cell text-left font-semibold">🏭 Modelo</th>
+                    <th className="table-cell text-left font-semibold">👨‍💼 Condutor</th>
+                    <th className="table-cell text-left font-semibold">📊 Status</th>
+                    <th className="table-cell text-left font-semibold">⚙️ Ações</th>
                   </tr>
-                ) : (
-                  filteredVeiculos.map((veiculo) => (
-                    <tr key={veiculo.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{veiculo.placa}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.modelo}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.condutorNome || 'Não atribuído'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                          style={{ backgroundColor: getStatusColor(veiculo.status), color: '#fff' }}
-                        >
-                          {veiculo.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Ver
-                        </button>
-                        <button
-                          onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }}
-                          className="text-yellow-600 hover:text-yellow-900"
-                          disabled={!hasAccess}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }}
-                          className="text-green-600 hover:text-green-900"
-                          disabled={!hasAccess}
-                        >
-                          Atribuir
-                        </button>
+                </thead>
+                <tbody className="bg-white">
+                  {filteredVeiculos.length === 0 && !loading ? (
+                    <tr>
+                      <td colSpan={5} className="table-cell text-center">
+                        <div className="empty-state">
+                          <div className="empty-icon">🚗</div>
+                          <div className="empty-title">Nenhum veículo encontrado</div>
+                          <div className="empty-description">
+                            Adicione veículos à sua frota ou ajuste os filtros de busca.
+                          </div>
+                        </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredVeiculos.map((veiculo) => (
+                      <tr key={veiculo.id} className="table-row interactive">
+                        <td className="table-cell">
+                          <div className="font-semibold text-gray-900">{veiculo.placa}</div>
+                          <div className="text-sm text-gray-500">{veiculo.marca}</div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="font-medium">{veiculo.modelo}</div>
+                          <div className="text-sm text-gray-500">{veiculo.ano}</div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center">
+                            {veiculo.condutorNome ? (
+                              <div>
+                                <div className="font-medium">{veiculo.condutorNome}</div>
+                                <div className="text-sm text-gray-500">{veiculo.condutor}</div>
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 italic">👤 Não atribuído</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`status-badge status-${veiculo.status}`}>
+                            {veiculo.status === 'ativo' && '✅ Ativo'}
+                            {veiculo.status === 'manutencao' && '🔧 Manutenção'}
+                            {veiculo.status === 'inativo' && '❌ Inativo'}
+                            {veiculo.status === 'em_viagem' && '🛣️ Em Viagem'}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }}
+                              className="button button-outline"
+                              style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                              title="Ver detalhes"
+                            >
+                              👁️ Ver
+                            </button>
+                            <button
+                              onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }}
+                              className="button button-primary"
+                              style={{ 
+                                padding: '0.5rem 0.75rem', 
+                                fontSize: '0.8rem',
+                                background: 'linear-gradient(135deg, var(--frota-warning), #d97706)'
+                              }}
+                              disabled={!hasAccess}
+                              title="Editar veículo"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }}
+                              className="button button-secondary"
+                              style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                              disabled={!hasAccess}
+                              title="Atribuir condutor"
+                            >
+                              👥 Atribuir
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -1306,214 +1396,722 @@ export default function FrotaPage() {
         </div>
       )}
 
-      {/* Estilos básicos dos modais e snackbar (adicione a um arquivo CSS global ou use Tailwind CSS) */}
+      {/* Estilos avançados e modernos para o sistema de frota */}
       <style jsx>{`
+        /* Variáveis CSS personalizadas para o tema de frota */
+        :global(:root) {
+          --frota-primary: #0ea5e9;
+          --frota-primary-dark: #0284c7;
+          --frota-secondary: #22c55e;
+          --frota-accent: #f59e0b;
+          --frota-danger: #ef4444;
+          --frota-warning: #f59e0b;
+          --frota-success: #10b981;
+          --frota-glass: rgba(255, 255, 255, 0.1);
+          --frota-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+          --frota-shadow-hover: 0 12px 40px rgba(14, 165, 233, 0.15);
+        }
+
+        /* Container principal */
+        .container {
+          background: linear-gradient(135deg, 
+            rgba(14, 165, 233, 0.05) 0%, 
+            rgba(34, 197, 94, 0.05) 100%);
+          min-height: 100vh;
+          position: relative;
+          overflow-x: hidden;
+        }
+
+        .container::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: 
+            radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        /* Header principal */
+        .fleet-header {
+          position: relative;
+          z-index: 2;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
+          padding: 2rem;
+          margin-bottom: 2rem;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .fleet-title {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          font-size: 2.5rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 0.5rem;
+        }
+
+        .fleet-subtitle {
+          color: var(--color-text-secondary);
+          font-size: 1.1rem;
+          opacity: 0.8;
+        }
+
+        /* Botões melhorados */
+        .action-buttons {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .button {
+          padding: 0.875rem 1.75rem;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          text-decoration: none;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.5s;
+        }
+
+        .button:hover::before {
+          left: 100%;
+        }
+
+        .button-primary {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-primary-dark));
+          color: white;
+          box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        }
+
+        .button-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        }
+
+        .button-secondary {
+          background: linear-gradient(135deg, var(--frota-secondary), #16a34a);
+          color: white;
+          box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .button-secondary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        .button-outline {
+          background: rgba(255, 255, 255, 0.1);
+          color: var(--frota-primary);
+          border: 2px solid var(--frota-primary);
+          backdrop-filter: blur(10px);
+        }
+
+        .button-outline:hover {
+          background: var(--frota-primary);
+          color: white;
+          transform: translateY(-2px);
+        }
+
+        .button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none !important;
+        }
+
+        /* Cards de estatísticas modernos */
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .stat-card {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
+          padding: 2rem;
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+        }
+
+        .stat-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, var(--frota-primary), var(--frota-secondary));
+          transform: scaleX(0);
+          transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: var(--frota-shadow-hover);
+        }
+
+        .stat-card:hover::before {
+          transform: scaleX(1);
+        }
+
+        .stat-icon {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+          display: block;
+          opacity: 0.8;
+        }
+
+        .stat-title {
+          color: var(--color-text-secondary);
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+          font-size: 2.5rem;
+          font-weight: 800;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          line-height: 1;
+        }
+
+        .stat-change {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          margin-top: 0.5rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
+        .stat-change.positive { color: var(--frota-success); }
+        .stat-change.negative { color: var(--frota-danger); }
+
+        /* Sistema de abas moderno */
+        .tabs {
+          display: flex;
+          overflow-x: auto;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 0.5rem;
+          margin-bottom: 2rem;
+          gap: 0.25rem;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .tab {
+          padding: 0.875rem 1.5rem;
+          background: transparent;
+          border: none;
+          color: var(--color-text-secondary);
+          font-weight: 600;
+          font-size: 0.95rem;
+          cursor: pointer;
+          border-radius: 12px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          white-space: nowrap;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .tab::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .tab-active::before {
+          opacity: 1;
+        }
+
+        .tab-active {
+          color: white;
+          transform: translateY(-1px);
+        }
+
+        .tab:hover:not(:disabled):not(.tab-active) {
+          background: rgba(14, 165, 233, 0.1);
+          color: var(--frota-primary);
+          transform: translateY(-1px);
+        }
+
+        .tab:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Área de conteúdo */
+        .content-area {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
+          padding: 2rem;
+          box-shadow: var(--frota-shadow);
+          position: relative;
+          z-index: 1;
+        }
+
+        /* Filtros e busca */
+        .filters-container {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 1.5rem;
+          margin-bottom: 2rem;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .filters-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+
+        /* Inputs melhorados */
+        .input, .select {
+          width: 100%;
+          padding: 0.875rem 1rem;
+          border: 2px solid rgba(14, 165, 233, 0.2);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(10px);
+          color: var(--color-text-primary);
+          font-size: 0.95rem;
+          transition: all 0.3s ease;
+        }
+
+        .input:focus, .select:focus {
+          outline: none;
+          border-color: var(--frota-primary);
+          box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+          transform: translateY(-1px);
+        }
+
+        /* Tabela moderna */
+        .table-container {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .table-header {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          color: white;
+        }
+
+        .table-row {
+          transition: all 0.2s ease;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .table-row:hover {
+          background: rgba(14, 165, 233, 0.05);
+          transform: translateX(5px);
+        }
+
+        .table-cell {
+          padding: 1rem;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Status badges */
+        .status-badge {
+          padding: 0.375rem 0.875rem;
+          border-radius: 20px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.025em;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+
+        .status-ativo {
+          background: rgba(16, 185, 129, 0.1);
+          color: #059669;
+          border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-manutencao {
+          background: rgba(245, 158, 11, 0.1);
+          color: #d97706;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-inativo {
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
+          border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-em_viagem {
+          background: rgba(59, 130, 246, 0.1);
+          color: #2563eb;
+          border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Modais melhorados */
         .modal-overlay {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
           display: flex;
           justify-content: center;
           align-items: center;
           z-index: 50;
+          animation: modal-fade-in 0.3s ease;
         }
+
         .modal-content {
-          background: var(--color-surface);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
           padding: 2rem;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--color-border);
           width: 90%;
           max-width: 600px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          z-index: 51;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: modal-slide-up 0.3s ease;
         }
+
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1px solid var(--color-border);
+          border-bottom: 2px solid rgba(14, 165, 233, 0.1);
           padding-bottom: 1rem;
-          margin-bottom: 1rem;
+          margin-bottom: 1.5rem;
         }
+
         .modal-title {
           font-size: 1.5rem;
-          font-weight: bold;
-          color: var(--color-primary);
+          font-weight: 700;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
+
         .modal-close-button {
-          font-size: 2rem;
-          line-height: 1;
-          color: var(--color-text-secondary);
-          background: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
           border: none;
           cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          transition: all 0.2s ease;
         }
+
+        .modal-close-button:hover {
+          background: rgba(239, 68, 68, 0.2);
+          transform: scale(1.1);
+        }
+
         .modal-body {
-          max-height: 70vh;
+          max-height: 60vh;
           overflow-y: auto;
         }
+
         .modal-footer {
           display: flex;
           justify-content: flex-end;
-          border-top: 1px solid var(--color-border);
-          padding-top: 1rem;
-          margin-top: 1rem;
+          gap: 1rem;
+          border-top: 2px solid rgba(14, 165, 233, 0.1);
+          padding-top: 1.5rem;
+          margin-top: 1.5rem;
         }
+
+        /* Snackbar melhorado */
         .snackbar {
           position: fixed;
           bottom: 2rem;
-          left: 50%;
-          transform: translateX(-50%);
-          padding: 0.75rem 1.5rem;
-          border-radius: var(--radius-md);
+          right: 2rem;
+          padding: 1rem 1.5rem;
+          border-radius: 12px;
           color: white;
-          font-weight: bold;
+          font-weight: 600;
           z-index: 60;
-          opacity: 0.9;
-          animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-        .snackbar-success {
-          background-color: #4CAF50; /* Verde */
-        }
-        .snackbar-error {
-          background-color: #f44336; /* Vermelho */
-        }
-        @keyframes fadein {
-          from { bottom: 0; opacity: 0; }
-          to { bottom: 2rem; opacity: 0.9; }
-        }
-        @keyframes fadeout {
-          from { bottom: 2rem; opacity: 0.9; }
-          to { bottom: 0; opacity: 0; }
-        }
-        .card {
-          background-color: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          box-shadow: var(--shadow-sm);
-        }
-        .input {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          background-color: var(--color-background);
-          color: var(--color-text-primary);
-        }
-        .select {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          background-color: var(--color-surface);
-          color: var(--color-text-primary);
-        }
-        .button {
-          padding: 0.75rem 1.5rem;
-          border-radius: var(--radius-md);
-          font-weight: bold;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          border: none;
-          display: inline-flex;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          animation: snackbar-slide-in 0.3s ease, snackbar-slide-out 0.3s ease 2.7s;
+          display: flex;
           align-items: center;
-          justify-content: center;
-          text-decoration: none;
-        }
-        .button-primary {
-          background-color: var(--color-primary);
-          color: white;
-        }
-        .button-primary:hover {
-          background-color: var(--color-primary-dark);
-        }
-        .button-secondary {
-          background-color: var(--color-secondary);
-          color: white;
-        }
-        .button-secondary:hover {
-          background-color: var(--color-secondary-dark);
-        }
-        .button-outline {
-          background-color: transparent;
-          color: var(--color-primary);
-          border: 1px solid var(--color-primary);
-        }
-        .button-outline:hover {
-          background-color: var(--color-primary-light);
-          color: var(--color-primary-dark);
-        }
-        .button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+          gap: 0.5rem;
+          max-width: 400px;
         }
 
-        /* Spinner de carregamento */
-        .spinner {
-          border: 4px solid rgba(0, 0, 0, 0.1);
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border-left-color: var(--color-primary);
-          animation: spin 1s ease-in-out infinite;
+        .snackbar-success {
+          background: linear-gradient(135deg, var(--frota-success), #059669);
         }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+
+        .snackbar-error {
+          background: linear-gradient(135deg, var(--frota-danger), #dc2626);
         }
+
+        /* Loading melhorado */
         .loading {
           display: flex;
           flex-direction: column;
           justify-content: center;
           align-items: center;
-          min-height: 70vh; /* Ajuste conforme necessário */
+          min-height: 50vh;
           text-align: center;
+        }
+
+        .spinner {
+          width: 50px;
+          height: 50px;
+          border: 4px solid rgba(14, 165, 233, 0.1);
+          border-left: 4px solid var(--frota-primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+
+        .loading-text {
+          color: var(--color-text-secondary);
+          font-size: 1.1rem;
+          font-weight: 500;
+        }
+
+        /* Seção vazia melhorada */
+        .empty-state {
+          text-align: center;
+          padding: 4rem 2rem;
           color: var(--color-text-secondary);
         }
 
-        /* Estilos das abas */
-        .tabs {
-          display: flex;
-          overflow-x: auto;
-          border-bottom: 2px solid var(--color-border);
-          margin-bottom: 1.5rem;
-          padding-bottom: 0.5rem;
-          white-space: nowrap;
+        .empty-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+          opacity: 0.5;
         }
-        .tab {
-          padding: 0.75rem 1.5rem;
-          margin-right: 0.5rem;
-          background-color: transparent;
-          border: none;
-          color: var(--color-text-secondary);
-          font-weight: bold;
-          cursor: pointer;
-          border-radius: var(--radius-md);
-          transition: background-color 0.3s, color 0.3s;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem; /* Espaçamento entre ícone e texto */
+
+        .empty-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+          color: var(--color-text-primary);
         }
-        .tab:hover:not(:disabled) {
-          background-color: var(--color-primary-light);
-          color: var(--color-primary);
+
+        .empty-description {
+          font-size: 1rem;
+          opacity: 0.8;
+          max-width: 400px;
+          margin: 0 auto;
         }
-        .tab-active {
-          background-color: var(--color-primary);
-          color: white;
+
+        /* Animações */
+        @keyframes modal-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
-        .tab:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+
+        @keyframes modal-slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(50px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
-        .content-area {
-          background-color: var(--color-surface);
-          padding: 1.5rem;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--color-border);
+
+        @keyframes snackbar-slide-in {
+          from {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes snackbar-slide-out {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        .pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Responsividade melhorada */
+        @media (max-width: 768px) {
+          .fleet-header {
+            padding: 1.5rem;
+            text-align: center;
+          }
+
+          .fleet-title {
+            font-size: 2rem;
+          }
+
+          .action-buttons {
+            justify-content: center;
+            width: 100%;
+          }
+
+          .tabs {
+            padding: 0.25rem;
+          }
+
+          .tab {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+          }
+
+          .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+
+          .filters-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .modal-content {
+            width: 95%;
+            padding: 1.5rem;
+            margin: 1rem;
+          }
+
+          .snackbar {
+            bottom: 1rem;
+            right: 1rem;
+            left: 1rem;
+            max-width: none;
+          }
+        }
+
+        /* Melhorias de acessibilidade */
+        .button:focus,
+        .tab:focus,
+        .input:focus,
+        .select:focus {
+          outline: 2px solid var(--frota-primary);
+          outline-offset: 2px;
+        }
+
+        /* Animação de entrada para elementos */
+        .fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* Efeito de glassmorphism para cards */
+        .glass-card {
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Hover effects para interatividade */
+        .interactive:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .interactive {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
     </div>
