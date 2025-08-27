@@ -2197,40 +2197,41 @@ export default function AdminMasterPage() {
                     }}
                   >
                     🔄 Ir para Bootstrap Admin
-                  </button></div>
-
-                  <button
-                    onClick={() => setShowCreateAdminForm(!showCreateAdminForm)}
-                    style={{
-                      padding: '1rem 2rem',
-                      background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '700',
-                      transition: 'all 0.3s ease',
-                      transform: 'scale(1)',
-                      boxShadow: '0 4px 15px rgba(139,92,246,0.4)'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(45deg, #7c3aed, #6d28d9)';
-                      e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                      e.currentTarget.style.boxShadow = '0 8px 25px rgba(139,92,246,0.6)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(45deg, #8b5cf6, #7c3aed)';
-                      e.currentTarget.style.transform = 'translateY(0px) scale(1)';
-                      e.currentTarget.style.boxShadow = '0 4px 15px rgba(139,92,246,0.4)';
-                    }}
-                  >
-                    👑 Criar Admin
                   </button>
                 </div>
-              </div>
 
-              {/* Formulário expansível para criar admin */}
+                <button
+                  onClick={() => setShowCreateAdminForm(!showCreateAdminForm)}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease',
+                    transform: 'scale(1)',
+                    boxShadow: '0 4px 15px rgba(139,92,246,0.4)'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(45deg, #7c3aed, #6d28d9)';
+                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(139,92,246,0.6)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(45deg, #8b5cf6, #7c3aed)';
+                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(139,92,246,0.4)';
+                  }}
+                >
+                  👑 Criar Admin
+                </button>
+              </div>
+            </div>
+
+            {/* Formulário expansível para criar admin */}
               {showCreateAdminForm && (
                 <div style={{
                   marginTop: '2rem',
