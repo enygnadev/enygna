@@ -5294,253 +5294,38 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'cria-contas' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', position: 'relative' }}>
-            {/* Estatísticas de Criação - Camada de Fundo */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: 1,
-              background: 'rgba(255,255,255,0.03)',
-              backdropFilter: 'blur(20px)',
-              padding: '2rem',
-              borderRadius: '20px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              marginBottom: '2rem'
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
+            <h2 style={{ 
+              fontSize: '2rem', 
+              fontWeight: '900', 
+              marginBottom: '1rem',
+              background: 'linear-gradient(45deg, #ffffff, #ffd700)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
             }}>
-              <h3 style={{ 
-                margin: '0 0 1.5rem 0', 
-                fontSize: '1.5rem', 
-                fontWeight: '700',
-                color: '#c7d2fe',
-                textAlign: 'center'
-              }}>
-                📊 Estatísticas de Criação de Empresas
-              </h3>
-
-              {/* Métricas Reais */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1rem',
-                marginBottom: '2rem'
-              }}>
-                <div style={{
-                  padding: '1.5rem',
-                  background: 'rgba(59,130,246,0.1)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(59,130,246,0.3)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#93c5fd', marginBottom: '0.5rem' }}>
-                    {empresas.length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Total de Empresas</div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                    {empresas.filter(e => e.ativo).length} ativas
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '1.5rem',
-                  background: 'rgba(16,185,129,0.1)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(16,185,129,0.3)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#6ee7b7', marginBottom: '0.5rem' }}>
-                    {empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.length > 0).length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Com Sistemas Ativos</div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                    {empresas.length > 0 ? Math.round((empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.length > 0).length / empresas.length) * 100) : 0}% do total
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '1.5rem',
-                  background: 'rgba(245,158,11,0.1)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fbbf24', marginBottom: '0.5rem' }}>
-                    {empresas.filter(e => e.plano && ['premium', 'enterprise', 'permanent'].includes(e.plano)).length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Planos Pagos</div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                    {empresas.filter(e => e.plano === 'free').length} gratuitas
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '1.5rem',
-                  background: 'rgba(139,92,246,0.1)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(139,92,246,0.3)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#c4b5fd', marginBottom: '0.5rem' }}>
-                    {empresas.filter(e => {
-                      const hoje = new Date();
-                      const criadoEm = e.criadoEm?.toDate ? e.criadoEm.toDate() : new Date(e.criadoEm);
-                      const diffTime = hoje.getTime() - criadoEm.getTime();
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      return diffDays <= 7;
-                    }).length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Criadas Esta Semana</div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                    Últimos 7 dias
-                  </div>
-                </div>
-              </div>
-
-              {/* Distribuição por Sistema */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '12px',
-                padding: '1.5rem',
-                marginBottom: '1.5rem'
-              }}>
-                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: '600', color: '#e2e8f0' }}>
-                  📈 Distribuição por Sistema
-                </h4>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                  gap: '1rem'
-                }}>
-                  {['chamados', 'ponto', 'frota', 'financeiro', 'documentos'].map(sistema => {
-                    const count = empresas.filter(e => e.sistemasAtivos && e.sistemasAtivos.includes(sistema)).length;
-                    const percentage = empresas.length > 0 ? Math.round((count / empresas.length) * 100) : 0;
-                    const sistemaNome = {
-                      'chamados': '📞 Chamados',
-                      'ponto': '⏰ Ponto',
-                      'frota': '🚗 Frota',
-                      'financeiro': '💰 Financeiro',
-                      'documentos': '📄 Documentos'
-                    }[sistema];
-
-                    return (
-                      <div key={sistema} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.75rem',
-                        background: 'rgba(255,255,255,0.05)',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(255,255,255,0.1)'
-                      }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{sistemaNome}</span>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#3b82f6' }}>{count}</div>
-                          <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{percentage}%</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Distribuição por Planos */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '12px',
-                padding: '1.5rem'
-              }}>
-                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: '600', color: '#e2e8f0' }}>
-                  💳 Distribuição por Planos
-                </h4>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                  gap: '1rem'
-                }}>
-                  {[
-                    { plano: 'free', nome: '🆓 Gratuito', cor: '#6b7280' },
-                    { plano: 'monthly', nome: '💼 Mensal', cor: '#3b82f6' },
-                    { plano: 'yearly', nome: '📅 Anual', cor: '#10b981' },
-                    { plano: 'enterprise', nome: '🏢 Enterprise', cor: '#8b5cf6' },
-                    { plano: 'permanent', nome: '💎 Permanente', cor: '#f59e0b' }
-                  ].map(({ plano, nome, cor }) => {
-                    const count = empresas.filter(e => e.plano === plano).length;
-                    const percentage = empresas.length > 0 ? Math.round((count / empresas.length) * 100) : 0;
-
-                    return (
-                      <div key={plano} style={{
-                        padding: '1rem',
-                        background: `rgba(${plano === 'free' ? '107,114,128' : plano === 'monthly' ? '59,130,246' : plano === 'yearly' ? '16,185,129' : plano === 'enterprise' ? '139,92,246' : '245,158,11'}, 0.1)`,
-                        borderRadius: '8px',
-                        border: `1px solid rgba(${plano === 'free' ? '107,114,128' : plano === 'monthly' ? '59,130,246' : plano === 'yearly' ? '16,185,129' : plano === 'enterprise' ? '139,92,246' : '245,158,11'}, 0.3)`,
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: cor, marginBottom: '0.25rem' }}>
-                          {count}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>{nome}</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                          {percentage}%
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Header Universal - Camada Frontal */}
-            <div style={{
-              position: 'relative',
-              zIndex: 10,
-              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6d28d9 50%, #5b21b6 100%)',
-              padding: '2rem',
-              borderRadius: '24px',
-              border: '3px solid #ffffff20',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px rgba(139,92,246,0.3)',
-              marginTop: '35rem', // Espaço para as estatísticas
-              marginBottom: '1rem'
-            }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
-              <h2 style={{ 
-                fontSize: '2rem', 
-                fontWeight: '900', 
-                marginBottom: '1rem',
-                background: 'linear-gradient(45deg, #ffffff, #ffd700)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                CRIAÇÃO UNIVERSAL DE EMPRESAS
-              </h2>
-              <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '1rem' }}>
-                Crie empresas para todos os sistemas com seleção de plano integrada
-              </p>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: '1rem',
-                marginTop: '1.5rem'
-              }}>
-                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Empresas</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Sistemas</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>5</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Planos</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>100%</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Integração</div>
-                </div>
-              </div>
-            </div>
+              CRIAÇÃO UNIVERSAL DE EMPRESAS
+            </h2>
+            <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '2rem' }}>
+              Crie empresas para todos os sistemas com controle total
+            </p>
+            
+            <EmpresaManager 
+              sistema="universal" 
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa selecionada:', empresa);
+              }}
+            />
           </div>
         )}
       </div>
