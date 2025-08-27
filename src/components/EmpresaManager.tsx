@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
   serverTimestamp,
   query,
   orderBy,
@@ -49,12 +49,12 @@ interface EmpresaManagerProps {
   allowDelete?: boolean;
 }
 
-export default function EmpresaManager({ 
-  sistema, 
-  onEmpresaSelect, 
-  allowCreate = true, 
-  allowEdit = true, 
-  allowDelete = false 
+export default function EmpresaManager({
+  sistema,
+  onEmpresaSelect,
+  allowCreate = true,
+  allowEdit = true,
+  allowDelete = false
 }: EmpresaManagerProps) {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -114,7 +114,7 @@ export default function EmpresaManager({
   const getCollectionName = () => {
     const collectionMap = {
       'chamados': 'chamados_empresas',
-      'frota': 'frota_empresas', 
+      'frota': 'frota_empresas',
       'financeiro': 'financeiro_empresas',
       'documentos': 'documentos_empresas',
       'ponto': 'empresas'
@@ -511,7 +511,7 @@ export default function EmpresaManager({
 
       {/* Modal de Criação */}
       {showCreateModal && (
-        <div style={{
+        <div className="empresa-manager-modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -521,11 +521,11 @@ export default function EmpresaManager({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 999999,
+          zIndex: 2147483647,
           backdropFilter: 'blur(15px)',
           padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
-          <div style={{
+          <div className="empresa-manager-modal-content" style={{
             background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
             padding: 'clamp(1rem, 4vw, 2rem)',
             borderRadius: 'clamp(12px, 3vw, 16px)',
@@ -533,7 +533,7 @@ export default function EmpresaManager({
             maxHeight: '90vh',
             overflowY: 'auto',
             position: 'relative',
-            zIndex: 1000000,
+            zIndex: 2147483647,
             boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
             border: '1px solid rgba(255,255,255,0.1)'
           }}>
@@ -580,10 +580,10 @@ export default function EmpresaManager({
                 />
               </div>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 'clamp(0.5rem, 2vw, 1rem)'
               }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>
@@ -653,9 +653,9 @@ export default function EmpresaManager({
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
                   Sistemas Ativos (selecione quais sistemas a empresa poderá usar)
                 </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
                   gap: 'clamp(0.5rem, 1.5vw, 0.75rem)',
                   maxHeight: 'clamp(150px, 25vh, 200px)',
                   overflowY: 'auto',
@@ -672,8 +672,8 @@ export default function EmpresaManager({
                         alignItems: 'center',
                         gap: '0.5rem',
                         padding: '0.75rem',
-                        background: formData.sistemasAtivos.includes(sistema.id) 
-                          ? 'rgba(59, 130, 246, 0.3)' 
+                        background: formData.sistemasAtivos.includes(sistema.id)
+                          ? 'rgba(59, 130, 246, 0.3)'
                           : 'rgba(255,255,255,0.1)',
                         border: '1px solid rgba(255,255,255,0.2)',
                         borderRadius: '8px',
@@ -709,9 +709,9 @@ export default function EmpresaManager({
                     </label>
                   ))}
                 </div>
-                <div style={{ 
-                  fontSize: '0.8rem', 
-                  opacity: 0.7, 
+                <div style={{
+                  fontSize: '0.8rem',
+                  opacity: 0.7,
                   marginTop: '0.5rem',
                   fontStyle: 'italic'
                 }}>
@@ -719,10 +719,10 @@ export default function EmpresaManager({
                 </div>
               </div>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 'clamp(0.5rem, 2vw, 1rem)'
               }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
@@ -793,7 +793,7 @@ export default function EmpresaManager({
 
       {/* Modal de Edição */}
       {showEditModal && selectedEmpresa && (
-        <div style={{
+        <div className="empresa-manager-modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -803,11 +803,11 @@ export default function EmpresaManager({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 999999,
+          zIndex: 2147483647,
           backdropFilter: 'blur(15px)',
           padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
-          <div style={{
+          <div className="empresa-manager-modal-content" style={{
             background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
             padding: 'clamp(1rem, 4vw, 2rem)',
             borderRadius: 'clamp(12px, 3vw, 16px)',
@@ -815,7 +815,7 @@ export default function EmpresaManager({
             maxHeight: '90vh',
             overflowY: 'auto',
             position: 'relative',
-            zIndex: 1000000,
+            zIndex: 2147483647,
             boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
             border: '1px solid rgba(255,255,255,0.1)'
           }}>
@@ -863,10 +863,10 @@ export default function EmpresaManager({
                 />
               </div>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 'clamp(0.5rem, 2vw, 1rem)'
               }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>
@@ -936,9 +936,9 @@ export default function EmpresaManager({
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
                   Sistemas Ativos
                 </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
                   gap: 'clamp(0.5rem, 1.5vw, 0.75rem)',
                   maxHeight: 'clamp(150px, 25vh, 200px)',
                   overflowY: 'auto',
@@ -955,8 +955,8 @@ export default function EmpresaManager({
                         alignItems: 'center',
                         gap: '0.5rem',
                         padding: '0.75rem',
-                        background: formData.sistemasAtivos.includes(sistema.id) 
-                          ? 'rgba(59, 130, 246, 0.3)' 
+                        background: formData.sistemasAtivos.includes(sistema.id)
+                          ? 'rgba(59, 130, 246, 0.3)'
                           : 'rgba(255,255,255,0.1)',
                         border: '1px solid rgba(255,255,255,0.2)',
                         borderRadius: '8px',
@@ -984,10 +984,10 @@ export default function EmpresaManager({
                 </div>
               </div>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 'clamp(0.5rem, 2vw, 1rem)'
               }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
