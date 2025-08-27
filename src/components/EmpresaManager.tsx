@@ -517,24 +517,25 @@ export default function EmpresaManager({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.9)',
+          background: 'rgba(0,0,0,0.95)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999,
-          backdropFilter: 'blur(10px)',
+          zIndex: 999999,
+          backdropFilter: 'blur(15px)',
           padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
           <div style={{
-            background: '#1a1a1a',
+            background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
             padding: 'clamp(1rem, 4vw, 2rem)',
             borderRadius: 'clamp(12px, 3vw, 16px)',
             width: 'min(95vw, 600px)',
             maxHeight: '90vh',
             overflowY: 'auto',
             position: 'relative',
-            zIndex: 10000,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
+            zIndex: 1000000,
+            boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
+            border: '1px solid rgba(255,255,255,0.1)'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>➕ Nova Empresa</h3>
 
@@ -798,24 +799,25 @@ export default function EmpresaManager({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.9)',
+          background: 'rgba(0,0,0,0.95)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999,
-          backdropFilter: 'blur(10px)',
+          zIndex: 999999,
+          backdropFilter: 'blur(15px)',
           padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
           <div style={{
-            background: '#1a1a1a',
+            background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
             padding: 'clamp(1rem, 4vw, 2rem)',
             borderRadius: 'clamp(12px, 3vw, 16px)',
             width: 'min(95vw, 600px)',
             maxHeight: '90vh',
             overflowY: 'auto',
             position: 'relative',
-            zIndex: 10000,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
+            zIndex: 1000000,
+            boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
+            border: '1px solid rgba(255,255,255,0.1)'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>✏️ Editar Empresa</h3>
 
