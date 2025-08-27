@@ -670,6 +670,7 @@ export default function AdminMasterPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showEmpresaModal, setShowEmpresaModal] = useState(false); // Estado para o modal de criação de empresa
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 

@@ -26,14 +26,21 @@ service cloud.firestore {
 
 
     function isBootstrapAdmin() {
-      return isSignedIn() && (request.auth.token.bootstrapAdmin == true || request.auth.uid in ['enygnadev@gmail.com']);
+      return isSignedIn() && (
+        request.auth.token.bootstrapAdmin == true || 
+        request.auth.uid == 'enygnadev@gmail.com' ||
+        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
+        request.auth.email == 'enygnadev@gmail.com'
+      );
     }
 
     function isAdminMaster() {
       return isSignedIn() && (
         getUserRole() in ['adminmaster', 'superadmin'] || 
         isBootstrapAdmin() ||
-        request.auth.uid == 'enygnadev@gmail.com'
+        request.auth.uid == 'enygnadev@gmail.com' ||
+        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
+        request.auth.email == 'enygnadev@gmail.com'
       );
     }
 
@@ -213,7 +220,7 @@ service cloud.firestore {
 
 
     match /empresas/{empresaId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isBootstrapAdmin() || isSignedIn();
 
       match /colaboradores/{colaboradorId} {
         allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
@@ -362,10 +369,9 @@ service cloud.firestore {
 
 
     match /security_events/{eventId} {
-      allow read: if isAdmin() || isAdminMaster() || isBootstrapAdmin();
-      allow list: if isAdmin() || isAdminMaster() || isBootstrapAdmin();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster() || isBootstrapAdmin();
+      allow read, list: if isBootstrapAdmin() || isAdmin() || isAdminMaster();
+      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp());
+      allow update, delete: if isBootstrapAdmin() || isAdminMaster();
     }
 
     match /security_policies/{policyId} {
@@ -492,15 +498,15 @@ service cloud.firestore {
     }
 
     match /admin_notifications/{notificationId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isBootstrapAdmin() || isSignedIn();
     }
 
     match /admin_actions/{actionId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isBootstrapAdmin() || isSignedIn();
     }
 
     match /system_reports/{reportId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isBootstrapAdmin() || isSignedIn();
     }
 
     match /business_metrics/{metricId} {
@@ -518,7 +524,15 @@ service cloud.firestore {
     // Collection especial para bootstrap de admins (temporária)
     // Companies collection for admin dashboard
     match /companies/{companyId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isBootstrapAdmin() || isSignedIn();
+    }
+
+    // Regra especial para UID específico do bootstrap admin
+    match /{path=**} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
+        request.auth.email == 'enygnadev@gmail.com'
+      );
     }
 
     match /bootstrap_admins/{adminId} {
@@ -529,9 +543,7 @@ service cloud.firestore {
 
 
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Regra catch-all removida para permitir acesso do bootstrap admin
   }
 }
 
