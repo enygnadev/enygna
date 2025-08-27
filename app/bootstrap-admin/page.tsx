@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -122,15 +121,15 @@ Você pode acessar o painel admin em /admin`);
         zIndex: 10,
         boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
       }}>
-        <div style={{ 
-          fontSize: '5rem', 
+        <div style={{
+          fontSize: '5rem',
           marginBottom: '2rem',
           filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
         }}>👑</div>
 
-        <h1 style={{ 
-          fontSize: '3rem', 
-          fontWeight: '900', 
+        <h1 style={{
+          fontSize: '3rem',
+          fontWeight: '900',
           marginBottom: '1.5rem',
           background: 'linear-gradient(45deg, #ffffff, #e0e7ff)',
           WebkitBackgroundClip: 'text',
@@ -147,8 +146,8 @@ Você pode acessar o painel admin em /admin`);
           padding: '2rem',
           marginBottom: '2rem'
         }}>
-          <p style={{ 
-            opacity: 0.95, 
+          <p style={{
+            opacity: 0.95,
             marginBottom: '1rem',
             fontSize: '1.3rem',
             fontWeight: '600'
@@ -287,9 +286,31 @@ Você pode acessar o painel admin em /admin`);
                 borderRadius: '8px',
                 color: '#6ee7b7',
                 fontSize: '0.9rem',
-                whiteSpace: 'pre-line'
+                whiteSpace: 'pre-line',
+                marginBottom: '1rem'
               }}>
                 {success}
+              </div>
+            )}
+
+            {success && (
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  onClick={() => window.location.href = '/admin'}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  🚀 Ir para Painel Admin
+                </button>
               </div>
             )}
 
@@ -323,9 +344,9 @@ Você pode acessar o painel admin em /admin`);
           <h3 style={{ margin: '0 0 1rem 0', color: '#fca5a5', fontSize: '1.2rem' }}>
             ⚠️ INSTRUÇÕES IMPORTANTES:
           </h3>
-          <ul style={{ 
-            textAlign: 'left', 
-            margin: 0, 
+          <ul style={{
+            textAlign: 'left',
+            margin: 0,
             padding: '0 0 0 1.5rem',
             color: 'rgba(255,255,255,0.9)',
             lineHeight: '1.6'

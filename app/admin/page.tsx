@@ -1747,7 +1747,21 @@ export default function AdminMasterPage() {
         }
 
         // Fazer login com Firebase Auth
-        await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+        const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+        const user = userCredential.user;
+
+        // Verificar se é um bootstrap admin
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().bootstrapAdmin) {
+            // É um bootstrap admin, forçar refresh do token
+            await user.getIdToken(true);
+            window.location.reload();
+            return;
+          }
+        } catch (docError) {
+          console.error('Erro ao verificar documento do usuário:', docError);
+        }
 
         // Aguardar um momento para o estado atualizar
         setTimeout(() => {
@@ -1757,13 +1771,13 @@ export default function AdminMasterPage() {
       } catch (error: any) {
         console.error('Erro no login admin:', error);
         if (error.code === 'auth/user-not-found') {
-          setLoginError('❌ Usuário admin não encontrado. Execute /create-admin primeiro.');
+          setLoginError('❌ Usuário admin não encontrado. Use /bootstrap-admin primeiro.');
         } else if (error.code === 'auth/wrong-password') {
-          setLoginError('❌ Senha incorreta. Tente: enygna123');
+          setLoginError('❌ Senha incorreta. Tente a senha que você usou no bootstrap.');
         } else if (error.code === 'auth/invalid-email') {
-          setLoginError('❌ Email inválido. Use: enygna@enygna.com');
+          setLoginError('❌ Email inválido. Use o email que você criou no bootstrap.');
         } else if (error.code === 'auth/invalid-credential') {
-          setLoginError('❌ Credenciais inválidas. Verifique email e senha.');
+          setLoginError('❌ Credenciais inválidas. Verifique email e senha do bootstrap admin.');
         } else if (error.code === 'auth/too-many-requests') {
           setLoginError('❌ Muitas tentativas. Aguarde alguns minutos.');
         } else {
@@ -2109,7 +2123,8 @@ export default function AdminMasterPage() {
                 <div style={{
                   display: 'flex',
                   gap: '1rem',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
                 }}>
                   <button
                     onClick={() => setShowLoginForm(false)}
@@ -2146,6 +2161,39 @@ export default function AdminMasterPage() {
                   >
                     {loginLoading ? '🔄 Entrando...' : '🚀 Entrar como Admin'}
                   </button>
+                </div>
+
+                <div style={{
+                  textAlign: 'center',
+                  marginTop: '1rem',
+                  padding: '1rem',
+                  background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.3)',
+                  borderRadius: '12px'
+                }}>
+                  <p style={{ 
+                    margin: '0 0 1rem 0',
+                    fontSize: '0.9rem',
+                    opacity: 0.9
+                  }}>
+                    💡 <strong>Dica:</strong> Use as credenciais que você criou em /bootstrap-admin
+                  </p>
+                  <button
+                    onClick={() => window.location.href = '/bootstrap-admin'}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    🔄 Ir para Bootstrap Admin
+                  </button></div>
 
                   <button
                     onClick={() => setShowCreateAdminForm(!showCreateAdminForm)}

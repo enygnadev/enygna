@@ -122,7 +122,11 @@ service cloud.firestore {
 
 
     match /users/{userId} {
-      allow read: if canAccessPersonalData(userId);
+      allow read: if canAccessPersonalData(userId) ||
+                     // Permitir leitura para bootstrap admins
+                     (isOwner(userId) && 
+                      exists(/databases/$(database)/documents/users/$(userId)) &&
+                      get(/databases/$(database)/documents/users/$(userId)).data.bootstrapAdmin == true);
 
       allow create: if (isOwner(userId)
                     && isValidUserData(request.resource.data)
