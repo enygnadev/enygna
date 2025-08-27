@@ -436,7 +436,7 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
         </div>
 
         <h1 className="hero-title">
-          <span className="title-line">Transforme sua</span>
+          <span className="title-line">Transforme sua Empresa</span>
           <span className="title-line gradient-text">Gestão Empresarial</span>
           <span className="title-line">com Inteligência</span>
         </h1>
@@ -472,64 +472,8 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
           </button>
         </div>
 
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '1rem',
-            marginTop: '2rem'
-          }}>
-            <Link 
-              href="/sistemas" 
-              className="button button-primary"
-              style={{
-                fontSize: '1.1rem',
-                padding: '1rem 2rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '12px',
-                textDecoration: 'none',
-                color: 'white',
-                fontWeight: '600',
-                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s ease',
-                border: 'none'
-              }}
-            >
-              🚀 Acessar Sistema Completo
-            </Link>
-
-            
-            
-              <a 
-                href="/admin" 
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                👑 Admin Master
-              </a>
-              <a 
-                href="/bootstrap-admin" 
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(45deg, #ef4444, #dc2626)',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  fontSize: '0.9rem'
-                }}
-              >
-                🚨 Bootstrap Admin (TEMPORÁRIO)
-              </a>
-        </div>
+      
+           
 
         <div className="hero-social-proof">
           <p>Confiado por empresas de todos os portes</p>
