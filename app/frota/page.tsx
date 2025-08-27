@@ -192,10 +192,10 @@ export default function FrotaPage() {
 
       // Permitir acesso para todos os usuários autenticados temporariamente
       setHasAccess(true);
-      setUserPermissions({ 
-        email: userEmail, 
-        role: 'admin', 
-        permissions: { frota: true } 
+      setUserPermissions({
+        email: userEmail,
+        role: 'admin',
+        permissions: { frota: true }
       });
 
       showSnackbar('Acesso autorizado ao sistema de frota!', 'success');
@@ -338,7 +338,7 @@ export default function FrotaPage() {
 
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(v => 
+      filtered = filtered.filter(v =>
         v.placa?.toLowerCase().includes(searchLower) ||
         v.condutor?.toLowerCase().includes(searchLower) ||
         v.modelo?.toLowerCase().includes(searchLower)
@@ -520,8 +520,8 @@ export default function FrotaPage() {
 
       // 5. Criar conta no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        newColaborador.email, 
+        auth,
+        newColaborador.email,
         newColaborador.senha
       );
 
@@ -567,7 +567,7 @@ export default function FrotaPage() {
         monthlyBaseHours: 220,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
+        lunchThresholdMinutes: 0,
         ativo: true,
         isAuthUser: true, // Indica que tem conta Auth
         createdAt: serverTimestamp(),
@@ -897,22 +897,22 @@ export default function FrotaPage() {
         <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">Gerenciamento de Frota</h1>
         <div className="flex items-center space-x-4">
           <ThemeSelector />
-          <button 
-            onClick={() => setShowAddVehicleModal(true)} 
+          <button
+            onClick={() => setShowAddVehicleModal(true)}
             className="button button-primary"
             disabled={!hasAccess}
           >
             Adicionar Veículo
           </button>
-          <button 
-            onClick={() => setShowAddColaboradorModal(true)} 
+          <button
+            onClick={() => setShowAddColaboradorModal(true)}
             className="button button-secondary"
             disabled={!hasAccess}
           >
             Adicionar Colaborador
           </button>
-          <button 
-            onClick={generateAIAnalysis} 
+          <button
+            onClick={generateAIAnalysis}
             className="button button-outline"
             disabled={loading || !hasAccess}
           >
@@ -963,8 +963,8 @@ export default function FrotaPage() {
             {/* Filtros e Busca */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 card">
               <div className="flex flex-col sm:flex-row gap-4 w-full">
-                <select 
-                  value={selectedCountry} 
+                <select
+                  value={selectedCountry}
                   onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
                   className="select w-full sm:w-auto"
                 >
@@ -972,8 +972,8 @@ export default function FrotaPage() {
                     <option key={index} value={index}>{country}</option>
                   ))}
                 </select>
-                <select 
-                  value={statusFilter} 
+                <select
+                  value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="select w-full sm:w-auto"
                 >
@@ -983,9 +983,9 @@ export default function FrotaPage() {
                   <option value="inativo">Inativo</option>
                   <option value="em_viagem">Em Viagem</option>
                 </select>
-                <input 
-                  type="text" 
-                  placeholder="Buscar por placa, condutor ou modelo..." 
+                <input
+                  type="text"
+                  placeholder="Buscar por placa, condutor ou modelo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="input w-full sm:w-64"
@@ -1022,7 +1022,7 @@ export default function FrotaPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.modelo}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.condutorNome || 'Não atribuído'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span 
+                        <span
                           className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                           style={{ backgroundColor: getStatusColor(veiculo.status), color: '#fff' }}
                         >
@@ -1030,21 +1030,21 @@ export default function FrotaPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button 
-                          onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }} 
+                        <button
+                          onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
                           Ver
                         </button>
-                        <button 
-                          onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }} 
+                        <button
+                          onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }}
                           className="text-yellow-600 hover:text-yellow-900"
                           disabled={!hasAccess}
                         >
                           Editar
                         </button>
-                        <button 
-                          onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }} 
+                        <button
+                          onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }}
                           className="text-green-600 hover:text-green-900"
                           disabled={!hasAccess}
                         >
@@ -1093,7 +1093,7 @@ export default function FrotaPage() {
 
         {/* Aba Empresas */}
         {activeTab === 'empresas' && (
-          <EmpresaManager 
+          <EmpresaManager
             sistema="frota"
             allowCreate={userRole === 'admin' || userRole === 'superadmin'}
             allowEdit={userRole === 'admin' || userRole === 'superadmin'}

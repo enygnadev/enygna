@@ -34,6 +34,27 @@ export default function FrotaAuthPage() {
 
   const checkUserPermissions = async (userEmail: string) => {
     try {
+      // Primeiro, verificar se é um usuário criado através do sistema empresas
+      const empresasRef = collection(db, 'empresas');
+      const empresaQuery = query(empresasRef, where('email', '==', userEmail));
+      const empresaSnapshot = await getDocs(empresaQuery);
+
+      if (!empresaSnapshot.empty) {
+        const empresaData = empresaSnapshot.docs[0].data();
+        const sistemasAtivos = empresaData.sistemasAtivos || [];
+        
+        // Verificar se a empresa tem acesso ao sistema de frota
+        if (sistemasAtivos.includes('frota')) {
+          // Empresa tem acesso somente ao sistema de frota
+          router.push('/frota');
+          return;
+        } else {
+          setError('Esta empresa não tem permissão para acessar o sistema de frota.');
+          return;
+        }
+      }
+
+      // Se não encontrou na coleção empresas, verificar na coleção users (usuários do sistema)
       const usuariosRef = collection(db, 'users');
       const q = query(usuariosRef, where('email', '==', userEmail));
       const querySnapshot = await getDocs(q);
@@ -42,7 +63,7 @@ export default function FrotaAuthPage() {
         const userData = querySnapshot.docs[0].data();
         const role = userData.role?.toLowerCase();
 
-        // Redirecionar baseado no papel do usuário
+        // Redirecionar baseado no papel do usuário (apenas para usuários administrativos)
         if (role === 'superadmin' || role === 'adminmaster') {
           router.push('/admin'); // Super admins vão para o painel master
         } else if (role === 'admin' || role === 'gestor') {

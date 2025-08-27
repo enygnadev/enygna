@@ -394,9 +394,9 @@ function SuperAdminCreateForm() {
         padding: '2rem',
         border: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <h4 style={{ 
-          margin: '0 0 1.5rem 0', 
-          fontSize: '1.3rem', 
+        <h4 style={{
+          margin: '0 0 1.5rem 0',
+          fontSize: '1.3rem',
           fontWeight: '700',
           color: '#ffffff'
         }}>
@@ -545,9 +545,9 @@ function SuperAdminCreateForm() {
         padding: '2rem',
         border: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <h4 style={{ 
-          margin: '0 0 1.5rem 0', 
-          fontSize: '1.3rem', 
+        <h4 style={{
+          margin: '0 0 1.5rem 0',
+          fontSize: '1.3rem',
           fontWeight: '700',
           color: '#ffffff'
         }}>
@@ -708,37 +708,77 @@ export default function AdminMasterPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        setUser(user); // Define o usuário logado
+
         try {
-          console.log('Usuario logado:', user.email);
+          // 1. Verificar se o usuário é uma empresa (e bloquear acesso)
+          const empresasRef = collection(db, 'empresas');
+          const empresaQuery = query(empresasRef, where('email', '==', user.email));
+          const empresaSnapshot = await getDocs(empresaQuery);
 
-          // Verificar se é um bootstrap admin ou super admin
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const bootstrapDoc = await getDoc(doc(db, 'bootstrap_admins', user.uid));
+          if (!empresaSnapshot.empty) {
+            // É uma empresa, bloquear acesso ao admin
+            setError('Acesso negado. Empresas não podem acessar o painel administrativo. Você será redirecionado para seu sistema.');
+            setTimeout(() => {
+              const empresaData = empresaSnapshot.docs[0].data();
+              const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-          let hasAdminAccess = false;
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            hasAdminAccess = userData.role === 'superadmin' || 
-                           userData.role === 'adminmaster' || 
-                           userData.bootstrapAdmin === true;
+              // Redirecionar para o primeiro sistema ativo da empresa
+              if (sistemasAtivos.includes('frota')) {
+                window.location.href = '/frota';
+              } else if (sistemasAtivos.includes('chamados')) {
+                window.location.href = '/chamados';
+              } else if (sistemasAtivos.includes('financeiro')) {
+                window.location.href = '/financeiro';
+              } else if (sistemasAtivos.includes('documentos')) {
+                window.location.href = '/documentos';
+              } else if (sistemasAtivos.includes('ponto')) {
+                window.location.href = '/empresa/dashboard';
+              } else {
+                window.location.href = '/sistemas';
+              }
+            }, 3000);
+            setLoading(false);
+            return;
           }
 
-          if (bootstrapDoc.exists()) {
-            hasAdminAccess = true;
+          // 2. Verificar se é um admin/superadmin (usuário do sistema)
+          const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+          let isAdminAccess = false;
+
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data() as any;
+            if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+              isAdminAccess = true;
+            }
+          } else {
+            // Se o usuário não existe em 'users', verificar se é um email de desenvolvimento
+            if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
+              isAdminAccess = true;
+              // Criar o documento do usuário se não existir
+              await setDoc(doc(db, 'users', user.uid), {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || user.email?.split('@')[0],
+                role: 'superadmin',
+                bootstrapAdmin: true,
+                createdAt: serverTimestamp(),
+                isActive: true,
+                permissions: ['all'],
+                masterAccess: true,
+                systemOwner: true,
+                totalControl: true
+              });
+            }
           }
 
-          // Permitir acesso para emails específicos de desenvolvimento
-          if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
-            hasAdminAccess = true;
-          }
+          setIsSuperAdmin(isAdminAccess);
 
-          setIsSuperAdmin(hasAdminAccess);
-          setUser(user);
-
-          if (hasAdminAccess) {
+          if (isAdminAccess) {
             await loadAllData();
             initializeIntelligenceCenter(); // Centralizar inicialização
+          } else {
+            setError('Acesso negado. Apenas administradores podem acessar esta área.');
           }
 
           // Verifica status do tutorial
@@ -758,33 +798,9 @@ export default function AdminMasterPage() {
             setShowTutorial(true);
           }
 
-          // Criar documento do usuário se não existir
-          try {
-            const userRef = docRef(db, "users", user.uid);
-            const userSnap = await getDoc(userRef);
-
-            if (!userSnap.exists()) {
-              await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || user.email?.split('@')[0],
-                role: 'superadmin',
-                bootstrapAdmin: true,
-                createdAt: serverTimestamp(),
-                isActive: true,
-                permissions: ['all']
-              });
-              console.log('Documento do usuário criado');
-            }
-          } catch (docError) {
-            console.log('Erro ao criar documento do usuário:', docError);
-          }
-
         } catch (error) {
           console.error("Erro ao verificar permissões:", error);
-          // Mesmo com erro, permitir acesso se o usuário está logado
-          setIsSuperAdmin(true);
-          setUser(user);
+          setError('Erro ao verificar permissões.');
         }
       } else {
         setUser(null);
@@ -827,8 +843,8 @@ export default function AdminMasterPage() {
         try {
           const q = query(collection(db, collectionName), limit(20));
           const snapshot = await getDocs(q);
-          const docs = snapshot.docs.map(doc => ({ 
-            id: doc.id, 
+          const docs = snapshot.docs.map(doc => ({
+            id: doc.id,
             ...doc.data(),
             source: collectionName
           }));
@@ -882,7 +898,7 @@ export default function AdminMasterPage() {
           {
             id: 'demo-empresa-2',
             name: 'Empresa Demo 2',
-            nome: 'Empresa Demo 2', 
+            nome: 'Empresa Demo 2',
             email: 'contato@demo2.com',
             createdAt: new Date(),
             criadoEm: new Date(),
@@ -1278,26 +1294,26 @@ export default function AdminMasterPage() {
       ));
 
       const allAlerts = [
-        ...securityAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'security' as const, 
+        ...securityAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'security' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         })),
-        ...systemAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'system' as const, 
+        ...systemAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'system' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         })),
-        ...businessAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'business' as const, 
+        ...businessAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'business' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         }))
       ];
 
@@ -1369,7 +1385,7 @@ export default function AdminMasterPage() {
           } as SecurityEvent));
 
           setSecurityEvents(prev => {
-            const newEvents = events.filter(event => 
+            const newEvents = events.filter(event =>
               !prev.some(existingEvent => existingEvent.id === event.id)
             );
             return [...newEvents, ...prev.slice(0, 20)];
@@ -1403,8 +1419,8 @@ export default function AdminMasterPage() {
 
         // Filtrar no cliente para evitar índices complexos
         const recentEvents = events.filter(event => {
-          const eventTime = event.timestamp?.toDate?.()?.getTime?.() || 
-                           event.timestamp?.getTime?.() || 
+          const eventTime = event.timestamp?.toDate?.()?.getTime?.() ||
+                           event.timestamp?.getTime?.() ||
                            Date.now();
           return eventTime > last24Hours;
         });
@@ -1489,7 +1505,7 @@ export default function AdminMasterPage() {
   const toggleCompanyStatus = async (companyId: string, currentStatus: boolean) => {
     try {
       const companyRef = doc(db, 'companies', companyId);
-      await updateDoc(companyRef, { 
+      await updateDoc(companyRef, {
         active: !currentStatus,
         lastModified: serverTimestamp()
       });
@@ -1837,67 +1853,45 @@ export default function AdminMasterPage() {
     }
   };
 
-  // Verificação de acesso
+  // Verificação de acesso (mantida para consistência, mas a lógica principal está no useEffect inicial)
   const checkSuperAdminAccess = async () => {
     if (user) {
       try {
         // Verificar documento do usuário
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const bootstrapDoc = await getDoc(doc(db, 'bootstrap_admins', user.uid));
 
         let hasAccess = false;
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          hasAccess = userData.bootstrapAdmin === true || 
-                     userData.role === 'superadmin' || 
+          hasAccess = userData.bootstrapAdmin === true ||
+                     userData.role === 'superadmin' ||
                      userData.role === 'adminmaster';
-        }
-
-        if (bootstrapDoc.exists()) {
-          hasAccess = true;
         }
 
         // Emails de desenvolvimento têm acesso automático
         if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
           hasAccess = true;
-
-          // Criar/atualizar documento se não existir
-          if (!userDoc.exists()) {
-            await setDoc(doc(db, 'users', user.uid), {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName || user.email?.split('@')[0],
-              role: 'superadmin',
-              bootstrapAdmin: true,
-              createdAt: serverTimestamp(),
-              isActive: true,
-              permissions: ['all'],
-              masterAccess: true,
-              systemOwner: true,
-              totalControl: true
-            });
-          }
         }
 
         setIsSuperAdmin(hasAccess);
       } catch (error) {
         console.error('Erro ao verificar acesso super admin:', error);
-        // Em caso de erro, verificar por email para desenvolvimento
-        const hasDevAccess = user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com';
-        setIsSuperAdmin(hasDevAccess);
+        setIsSuperAdmin(false);
       }
     }
   };
 
   // Lógica de inicialização e carregamento
   useEffect(() => {
-    checkSuperAdminAccess();
-    if (isSuperAdmin) {
-      loadAllData();
-      initializeIntelligenceCenter();
-    }
-  }, [user, isSuperAdmin]);
+    // Esta função de verificação de acesso já está integrada no useEffect principal acima.
+    // Mantido aqui apenas para referência, mas a lógica ativa está no `onAuthStateChanged`.
+    // checkSuperAdminAccess();
+    // if (isSuperAdmin) {
+    //   loadAllData();
+    //   initializeIntelligenceCenter();
+    // }
+  }, [user, isSuperAdmin]); // Dependências mantidas, mas o efeito primário está no hook de autenticação.
 
   // Função para buscar usuário
   const searchUser = async () => {
@@ -1928,6 +1922,7 @@ export default function AdminMasterPage() {
     }
   };
 
+  // --- RENDERIZAÇÃO CONDICIONAL ---
 
   if (loading) {
     return (
@@ -1983,13 +1978,12 @@ export default function AdminMasterPage() {
           borderRadius: '32px',
           backdropFilter: 'blur(30px)',
           border: '2px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
           maxWidth: '500px'
         }}>
-          <h2 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: '800', 
-            marginBottom: '1rem', 
+          <h2 style={{
+            fontSize: '2.5rem',
+            fontWeight: '800',
+            marginBottom: '1rem',
             background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -2000,7 +1994,7 @@ export default function AdminMasterPage() {
           <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500' }}>
             Preparando controle administrativo supremo...
           </p>
-          <div style={{ 
+          <div style={{
             marginTop: '2rem',
             display: 'flex',
             justifyContent: 'center',
@@ -2037,165 +2031,7 @@ export default function AdminMasterPage() {
     );
   }
 
-  // Função para login de admin (definida sempre para manter consistência)
-  const handleAdminLogin = async () => {
-      try {
-        setLoginLoading(true);
-        setLoginError('');
-
-        if (!loginEmail || !loginPassword) {
-          setLoginError('Por favor, preencha email e senha.');
-          return;
-        }
-
-        // Fazer login com Firebase Auth
-        const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-        const user = userCredential.user;
-
-        // Verificar se é um bootstrap admin
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data().bootstrapAdmin) {
-            // É um bootstrap admin, forçar refresh do token
-            await user.getIdToken(true);
-            window.location.reload();
-            return;
-          }
-        } catch (docError) {
-          console.error('Erro ao verificar documento do usuário:', docError);
-        }
-
-        // Aguardar um momento para o estado atualizar
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-
-      } catch (error: any) {
-        console.error('Erro no login admin:', error);
-        if (error.code === 'auth/user-not-found') {
-          setLoginError('❌ Usuário admin não encontrado. Use /bootstrap-admin primeiro.');
-        } else if (error.code === 'auth/wrong-password') {
-          setLoginError('❌ Senha incorreta. Tente a senha que você usou no bootstrap.');
-        } else if (error.code === 'auth/invalid-email') {
-          setLoginError('❌ Email inválido. Use o email que você criou no bootstrap.');
-        } else if (error.code === 'auth/invalid-credential') {
-          setLoginError('❌ Credenciais inválidas. Verifique email e senha do bootstrap admin.');
-        } else if (error.code === 'auth/too-many-requests') {
-          setLoginError('❌ Muitas tentativas. Aguarde alguns minutos.');
-        } else {
-          setLoginError(`❌ Erro: ${error.message || 'Verifique suas credenciais'}`);
-        }
-      } finally {
-        setLoginLoading(false);
-      }
-    };
-
-  // Função para criar novo admin
-  const handleCreateAdmin = async () => {
-    if (!createAdminEmail || !createAdminPassword) {
-      setCreateAdminError('❌ Por favor, preencha email e senha.');
-      return;
-    }
-
-    if (createAdminPassword.length < 6) {
-      setCreateAdminError('❌ A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-
-    setCreateAdminLoading(true);
-    setCreateAdminError('');
-    setCreateAdminSuccess('');
-
-    try {
-      // Criar usuário no Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, createAdminEmail, createAdminPassword);
-      const newUser = userCredential.user;
-
-      // Criar documento no Firestore com role superadmin
-      await setDoc(doc(db, 'users', newUser.uid), {
-        uid: newUser.uid,
-        email: createAdminEmail,
-        displayName: createAdminEmail.split('@')[0],
-        role: 'superadmin',
-        createdAt: serverTimestamp(),
-        createdBy: 'system',
-        isActive: true,
-        permissions: ['all'],
-        lastLogin: null
-      });
-
-      setCreateAdminSuccess(`✅ Admin criado com sucesso!\n📧 Email: ${createAdminEmail}\n🔐 Senha: ${createAdminPassword}`);
-      setCreateAdminEmail('');
-      setCreateAdminPassword('');
-
-      // Fazer logout do usuário recém-criado para não interferir na sessão
-      await signOut(auth);
-
-    } catch (error: any) {
-      console.error('Erro ao criar admin:', error);
-
-      if (error.code === 'auth/email-already-in-use') {
-        setCreateAdminError('❌ Este email já está em uso. Escolha outro email.');
-      } else if (error.code === 'auth/invalid-email') {
-        setCreateAdminError('❌ Email inválido. Verifique o formato do email.');
-      } else if (error.code === 'auth/weak-password') {
-        setCreateAdminError('❌ Senha muito fraca. Use uma senha mais forte.');
-      } else {
-        setCreateAdminError(`❌ Erro: ${error.message || 'Falha desconhecida'}`);
-      }
-    } finally {
-      setCreateAdminLoading(false);
-    }
-  };
-
-  // Função para criar empresa em todos os sistemas
-  const handleCreateEmpresa = async (empresaData: any) => {
-    try {
-      setCreateEmpresaLoading(true);
-      setCreateEmpresaError('');
-
-      const empresaRef = doc(collection(db, 'empresas'));
-      const empresaDoc = {
-        ...empresaData,
-        id: empresaRef.id,
-        criadoEm: serverTimestamp(),
-        criadoPor: user?.uid,
-        ativo: true,
-        // Adicionar campos obrigatórios
-        colaboradores: [],
-        configuracoes: {
-          fuso: 'America/Sao_Paulo',
-          moeda: 'BRL',
-          idioma: 'pt-BR'
-        },
-        sistemasAtivos: empresaData.sistemasAtivos || ['chamados', 'ponto'] // Define sistemas ativos padrão
-      };
-
-      await setDoc(empresaRef, empresaDoc);
-
-      // Criar também nas coleções específicas dos sistemas
-      await Promise.all([
-        setDoc(doc(db, 'chamados_empresas', empresaRef.id), empresaDoc),
-        setDoc(doc(db, 'financeiro_empresas', empresaRef.id), empresaDoc),
-        setDoc(doc(db, 'documentos_empresas', empresaRef.id), empresaDoc),
-        setDoc(doc(db, 'companies', empresaRef.id), empresaDoc)
-      ]);
-
-      setCreateEmpresaSuccess('Empresa criada em todos os sistemas!');
-      setTimeout(() => setCreateEmpresaSuccess(''), 3000);
-
-      // Recarregar empresas
-      await loadEmpresas();
-
-    } catch (error: any) {
-      console.error('Erro ao criar empresa:', error);
-      setCreateEmpresaError(error.message || 'Erro ao criar empresa');
-    } finally {
-      setCreateEmpresaLoading(false);
-    }
-  };
-
-  // Se não for super admin, mostrar tela de login para admin
+  // Se o usuário não for super admin, mostrar tela de login/acesso restrito
   if (!isSuperAdmin) {
     return (
       <>
@@ -2879,7 +2715,8 @@ export default function AdminMasterPage() {
     );
   }
 
-  // Renderização principal do painel admin
+  // --- RENDERIZAÇÃO PRINCIPAL DO PAINEL ADMIN ---
+  // Se o usuário for super admin, renderiza o painel
   return (
     <div style={{
       minHeight: '100vh',
@@ -2910,9 +2747,9 @@ export default function AdminMasterPage() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
       }}>
         <div>
-          <h1 style={{ 
-            fontSize: '2.2rem', 
-            fontWeight: '900', 
+          <h1 style={{
+            fontSize: '2.2rem',
+            fontWeight: '900',
             margin: 0,
             background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
             WebkitBackgroundClip: 'text',
@@ -2921,9 +2758,9 @@ export default function AdminMasterPage() {
           }}>
             👑 PAINEL MASTER ADMIN
           </h1>
-          <p style={{ 
-            opacity: 0.9, 
-            margin: 0, 
+          <p style={{
+            opacity: 0.9,
+            margin: 0,
             fontSize: '1.1rem',
             fontWeight: '600',
             color: '#c7d2fe'
@@ -3045,11 +2882,11 @@ export default function AdminMasterPage() {
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '0.75rem 1.5rem',
-              background: activeTab === tab.id 
-                ? 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))' 
+              background: activeTab === tab.id
+                ? 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))'
                 : 'rgba(255,255,255,0.05)',
-              border: activeTab === tab.id 
-                ? '2px solid rgba(255,255,255,0.3)' 
+              border: activeTab === tab.id
+                ? '2px solid rgba(255,255,255,0.3)'
                 : '1px solid rgba(255,255,255,0.1)',
               borderRadius: '12px',
               color: 'white',
@@ -3097,9 +2934,9 @@ export default function AdminMasterPage() {
                 animation: 'pulse 3s infinite'
               }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👑</div>
-                <h2 style={{ 
-                  fontSize: '2rem', 
-                  fontWeight: '900', 
+                <h2 style={{
+                  fontSize: '2rem',
+                  fontWeight: '900',
                   marginBottom: '1rem',
                   background: 'linear-gradient(45deg, #ffffff, #ffd700)',
                   WebkitBackgroundClip: 'text',
@@ -3212,14 +3049,14 @@ export default function AdminMasterPage() {
                   <div style={{ opacity: 0.8, marginBottom: '1rem', zIndex: 1, position: 'relative' }}>
                     {metric.title}
                   </div>
-                  <div style={{ 
-                    fontSize: '0.9rem', 
-                    color: '#10b981', 
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#10b981',
                     fontWeight: '600',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    zIndex: 1, 
+                    zIndex: 1,
                     position: 'relative'
                   }}>
                     <span style={{
@@ -3246,9 +3083,9 @@ export default function AdminMasterPage() {
                 borderRadius: '24px',
                 border: '2px solid rgba(255,255,255,0.1)'
               }}>
-                <h3 style={{ 
-                  margin: '0 0 1.5rem 0', 
-                  fontSize: '1.5rem', 
+                <h3 style={{
+                  margin: '0 0 1.5rem 0',
+                  fontSize: '1.5rem',
                   fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
@@ -3280,12 +3117,12 @@ export default function AdminMasterPage() {
                           width: '40px',
                           height: '40px',
                           borderRadius: '50%',
-                          background: index === 0 
-                            ? 'linear-gradient(45deg, #ffd700, #ffed4e)' 
-                            : index === 1 
-                            ? 'linear-gradient(45deg, #c0c0c0, #e5e5e5)' 
-                            : index === 2 
-                            ? 'linear-gradient(45deg, #cd7f32, #daa520)' 
+                          background: index === 0
+                            ? 'linear-gradient(45deg, #ffd700, #ffed4e)'
+                            : index === 1
+                            ? 'linear-gradient(45deg, #c0c0c0, #e5e5e5)'
+                            : index === 2
+                            ? 'linear-gradient(45deg, #cd7f32, #daa520)'
                             : 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
                           display: 'flex',
                           alignItems: 'center',
@@ -3304,8 +3141,8 @@ export default function AdminMasterPage() {
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ 
-                          fontWeight: '700', 
+                        <div style={{
+                          fontWeight: '700',
                           color: '#10b981',
                           fontSize: '1.2rem'
                         }}>
@@ -3352,7 +3189,7 @@ export default function AdminMasterPage() {
                         <span style={{ fontSize: '1.2rem' }}>{metric.icon}</span>
                         <span style={{ fontWeight: '600' }}>{metric.label}</span>
                       </div>
-                      <div style={{ 
+                      <div style={{
                         fontWeight: '700',
                         fontSize: '1.2rem',
                         color: '#8b5cf6'
@@ -3373,9 +3210,9 @@ export default function AdminMasterPage() {
               borderRadius: '24px',
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              <h3 style={{ 
-                margin: '0 0 1.5rem 0', 
-                fontSize: '1.5rem', 
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.5rem',
                 fontWeight: '700',
                 display: 'flex',
                 alignItems: 'center',
@@ -3383,13 +3220,13 @@ export default function AdminMasterPage() {
               }}>
                 🚀 Ações de Controle Total
               </h3>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '1rem' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem'
               }}>
                 {[
-                  { 
+                  {
                     label: 'Exportar TUDO',
                     action: () => {
                       exportData('companies');
@@ -3401,31 +3238,31 @@ export default function AdminMasterPage() {
                     color: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
                     icon: '📦'
                   },
-                  { 
+                  {
                     label: 'Controle Financeiro Total',
                     action: () => setActiveTab('analytics'),
                     color: 'linear-gradient(45deg, #10b981, #059669)',
                     icon: '💰'
                   },
-                  { 
+                  {
                     label: 'Supervisão Empresas',
                     action: () => setActiveTab('companies'),
                     color: 'linear-gradient(45deg, #3b82f6, #1e40af)',
                     icon: '🏢'
                   },
-                  { 
+                  {
                     label: 'Gestão de Pessoal',
                     action: () => setActiveTab('employees'),
                     color: 'linear-gradient(45deg, #f59e0b, #d97706)',
                     icon: '👥'
                   },
-                  { 
+                  {
                     label: 'Central de Inteligência',
                     action: () => setActiveTab('notifications'),
                     color: 'linear-gradient(45deg, #ef4444, #dc2626)',
                     icon: '🧠'
                   },
-                  { 
+                  {
                     label: 'Logs do Sistema',
                     action: () => setActiveTab('logs'),
                     color: 'linear-gradient(45deg, #6b7280, #4b5563)',
@@ -3473,8 +3310,8 @@ export default function AdminMasterPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', zIndex: 9999 }} className="companies-section">
 
             {/* Gestão Unificada de Empresas */}
-            <EmpresaManager 
-              sistema="ponto" 
+            <EmpresaManager
+              sistema="ponto"
               allowCreate={true}
               allowEdit={true}
               allowDelete={isSuperAdmin}
@@ -3582,9 +3419,9 @@ export default function AdminMasterPage() {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: '1.5rem', 
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '1.5rem',
                   fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
@@ -3637,9 +3474,9 @@ export default function AdminMasterPage() {
                   </thead>
                   <tbody>
                     {paginatedCompanies.map((company) => (
-                      <tr 
-                        key={company.id} 
-                        style={{ 
+                      <tr
+                        key={company.id}
+                        style={{
                           borderBottom: '1px solid rgba(255,255,255,0.1)',
                           transition: 'all 0.3s ease'
                         }}
@@ -3685,7 +3522,7 @@ export default function AdminMasterPage() {
                           <div style={{
                             display: 'inline-block',
                             padding: '0.5rem 1rem',
-                            background: company.subscription.plan === 'enterprise' 
+                            background: company.subscription.plan === 'enterprise'
                               ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
                               : company.subscription.plan === 'premium'
                               ? 'linear-gradient(45deg, #f59e0b, #d97706)'
@@ -3710,7 +3547,7 @@ export default function AdminMasterPage() {
                             <div style={{
                               display: 'inline-block',
                               padding: '0.5rem 1rem',
-                              background: company.subscription?.plan === 'enterprise' 
+                              background: company.subscription?.plan === 'enterprise'
                                 ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
                                 : company.subscription?.plan === 'premium'
                                 ? 'linear-gradient(45deg, #f59e0b, #d97706)'
@@ -3732,8 +3569,8 @@ export default function AdminMasterPage() {
                           <div style={{
                             display: 'inline-block',
                             padding: '0.5rem 1rem',
-                            background: company.active 
-                              ? 'linear-gradient(45deg, #10b981, #059669)' 
+                            background: company.active
+                              ? 'linear-gradient(45deg, #10b981, #059669)'
                               : 'linear-gradient(45deg, #ef4444, #dc2626)',
                             borderRadius: '20px',
                             fontSize: '0.9rem',
@@ -3767,8 +3604,8 @@ export default function AdminMasterPage() {
                               onClick={() => toggleCompanyStatus(company.id, company.active)}
                               style={{
                                 padding: '0.5rem',
-                                background: company.active 
-                                  ? 'linear-gradient(45deg, #ef4444, #dc2626)' 
+                                background: company.active
+                                  ? 'linear-gradient(45deg, #ef4444, #dc2626)'
                                   : 'linear-gradient(45deg, #10b981, #059669)',
                                 border: 'none',
                                 borderRadius: '8px',
@@ -3831,7 +3668,7 @@ export default function AdminMasterPage() {
                     ← Anterior
                   </button>
 
-                  <span style={{ 
+                  <span style={{
                     padding: '0.5rem 1rem',
                     fontSize: '0.9rem',
                     opacity: 0.8
@@ -4037,8 +3874,8 @@ export default function AdminMasterPage() {
                             <div style={{
                               display: 'inline-block',
                               padding: '0.5rem 1rem',
-                              background: employee.active 
-                                ? 'linear-gradient(45deg, #10b981, #059669)' 
+                              background: employee.active
+                                ? 'linear-gradient(45deg, #10b981, #059669)'
                                 : 'linear-gradient(45deg, #ef4444, #dc2626)',
                               borderRadius: '20px',
                               fontSize: '0.9rem',
@@ -4542,7 +4379,7 @@ export default function AdminMasterPage() {
                 alignItems: 'center'
               }}>
                 <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '700' }}>
-                  📋 Relatórios Gerados
+                  📊 Relatórios Gerados
                 </h4>
                 <button
                   onClick={() => exportData('reports')}
@@ -4628,9 +4465,9 @@ export default function AdminMasterPage() {
             borderRadius: '20px',
             border: '2px solid rgba(255,255,255,0.1)'
           }}>
-            <h3 style={{ 
-              margin: '0 0 2rem 0', 
-              fontSize: '1.5rem', 
+            <h3 style={{
+              margin: '0 0 2rem 0',
+              fontSize: '1.5rem',
               fontWeight: '700',
               display: 'flex',
               alignItems: 'center',
@@ -4647,8 +4484,8 @@ export default function AdminMasterPage() {
                 border: systemSettings.maintenanceMode ? '2px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.1)',
                 borderRadius: '16px'
               }}>
-                <h4 style={{ 
-                  margin: '0 0 1rem 0', 
+                <h4 style={{
+                  margin: '0 0 1rem 0',
                   fontSize: '1.3rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -4659,20 +4496,20 @@ export default function AdminMasterPage() {
                 <p style={{ opacity: 0.8, marginBottom: '1rem' }}>
                   Quando ativado, bloqueia o acesso de todos os usuários exceto super admins.
                 </p>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '1rem',
                   cursor: 'pointer',
                   fontSize: '1.1rem',
                   fontWeight: '600'
                 }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={systemSettings.maintenanceMode}
                     onChange={(e) => updateSystemSettings({ maintenanceMode: e.target.checked })}
-                    style={{ 
-                      width: '20px', 
+                    style={{
+                      width: '20px',
                       height: '20px',
                       accentColor: '#ef4444'
                     }}
@@ -4691,10 +4528,10 @@ export default function AdminMasterPage() {
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>🔐 Segurança Avançada</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={systemSettings.security.requireMFA}
-                      onChange={(e) => updateSystemSettings({ 
+                      onChange={(e) => updateSystemSettings({
                         security: { ...systemSettings.security, requireMFA: e.target.checked }
                       })}
                       style={{ width: '18px', height: '18px' }}
@@ -4708,9 +4545,9 @@ export default function AdminMasterPage() {
                       type="number"
                       value={systemSettings.security.sessionTimeout / (60 * 60 * 1000)}
                       onChange={(e) => updateSystemSettings({
-                        security: { 
-                          ...systemSettings.security, 
-                          sessionTimeout: parseInt(e.target.value) * 60 * 60 * 1000 
+                        security: {
+                          ...systemSettings.security,
+                          sessionTimeout: parseInt(e.target.value) * 60 * 60 * 1000
                         }
                       })}
                       style={{
@@ -4736,10 +4573,10 @@ export default function AdminMasterPage() {
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>💾 Backup Automático</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={systemSettings.backup.enabled}
-                      onChange={(e) => updateSystemSettings({ 
+                      onChange={(e) => updateSystemSettings({
                         backup: { ...systemSettings.backup, enabled: e.target.checked }
                       })}
                       style={{ width: '18px', height: '18px' }}
@@ -4752,8 +4589,8 @@ export default function AdminMasterPage() {
                     <select
                       value={systemSettings.backup.frequency}
                       onChange={(e) => updateSystemSettings({
-                        backup: { 
-                          ...systemSettings.backup, 
+                        backup: {
+                          ...systemSettings.backup,
                           frequency: e.target.value as 'daily' | 'weekly' | 'monthly'
                         }
                       })}
@@ -4781,10 +4618,10 @@ export default function AdminMasterPage() {
                 border: '1px solid rgba(255,255,255,0.1)'
               }}>
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>🔧 Ações de Sistema</h4>
-                <div style={{ 
+                <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '1rem' 
+                  gap: '1rem'
                 }}>
                   {[
                     {
@@ -5028,8 +4865,8 @@ export default function AdminMasterPage() {
             </div>
 
             {selectedUser && (
-              <PlanControlPanel 
-                userId={selectedUser.uid} 
+              <PlanControlPanel
+                userId={selectedUser.uid}
                 isAdmin={true}
               />
             )}
@@ -5039,8 +4876,8 @@ export default function AdminMasterPage() {
         {activeTab === 'sistema-chamados' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Gestão de Empresas do Sistema de Chamados */}
-            <EmpresaManager 
-              sistema="chamados" 
+            <EmpresaManager
+              sistema="chamados"
               allowCreate={true}
               allowEdit={true}
               allowDelete={isSuperAdmin}
@@ -5303,9 +5140,9 @@ export default function AdminMasterPage() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
-            <h2 style={{ 
-              fontSize: '2rem', 
-              fontWeight: '900', 
+            <h2 style={{
+              fontSize: '2rem',
+              fontWeight: '900',
               marginBottom: '1rem',
               background: 'linear-gradient(45deg, #ffffff, #ffd700)',
               WebkitBackgroundClip: 'text',
@@ -5316,9 +5153,9 @@ export default function AdminMasterPage() {
             <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '2rem' }}>
               Crie empresas para todos os sistemas com controle total
             </p>
-            
-            <EmpresaManager 
-              sistema="universal" 
+
+            <EmpresaManager
+              sistema="universal"
               allowCreate={true}
               allowEdit={true}
               allowDelete={isSuperAdmin}
