@@ -1,0 +1,212 @@
+
+{
+  "name": "ENY-GNA Portal Multissistema - Gestão Empresarial Completa",
+  "short_name": "ENY-GNA Portal",
+  "description": "Plataforma integrada de gestão empresarial com Ponto Eletrônico, Chamados TI, CRM, Estoque, Financeiro e RH. Desenvolvido pela ENY-GNA Lab.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#667eea",
+  "background_color": "#0f0f23",
+  "lang": "pt-BR",
+  "scope": "/",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities",
+    "finance",
+    "education",
+    "lifestyle"
+  ],
+  "keywords": [
+    "gestão empresarial",
+    "ponto eletrônico",
+    "controle de ponto",
+    "help desk",
+    "chamados TI",
+    "CRM",
+    "vendas",
+    "estoque",
+    "inventário",
+    "financeiro",
+    "contabilidade",
+    "recursos humanos",
+    "RH",
+    "folha de pagamento",
+    "GPS",
+    "geolocalização",
+    "relatórios",
+    "analytics",
+    "dashboard",
+    "enterprise",
+    "ERP",
+    "sistema integrado",
+    "ENY-GNA",
+    "Global Network Architecture",
+    "gestão de pessoas",
+    "controle administrativo",
+    "inteligência artificial",
+    "IA",
+    "automação",
+    "workflow",
+    "produtividade",
+    "LGPD",
+    "segurança",
+    "backup",
+    "auditoria",
+    "compliance",
+    "multi-tenant",
+    "cloud",
+    "PWA",
+    "mobile",
+    "responsive"
+  ],
+  "icons": [
+    {
+      "src": "/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sistema de Ponto",
+      "description": "Acessar controle de ponto eletrônico",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Chamados TI",
+      "description": "Sistema de help desk e suporte",
+      "url": "/chamados",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard Admin",
+      "description": "Painel administrativo master",
+      "url": "/admin",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Todos os Sistemas",
+      "description": "Portal de acesso a todos os módulos",
+      "url": "/sistemas",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard principal do Portal ENY-GNA"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Interface mobile para gestão empresarial"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "features": [
+    "Multi-Sistema",
+    "Enterprise Ready",
+    "AI Powered",
+    "GPS Tracking",
+    "Real-time Analytics",
+    "LGPD Compliant",
+    "Cross Platform",
+    "Offline Support",
+    "Push Notifications",
+    "Backup Automation",
+    "Security Audit",
+    "Multi-tenant"
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+enygna",
+      "url": "/handle-protocol?url=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/import",
+      "accept": {
+        "text/csv": [".csv"],
+        "application/vnd.ms-excel": [".xls"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "text/*", ".pdf", ".doc", ".docx"]
+        }
+      ]
+    }
+  },
+  "developer": {
+    "name": "ENY-GNA (Global Network Architecture) Lab",
+    "url": "https://enygna.com"
+  },
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
+}

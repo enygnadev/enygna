@@ -1,0 +1,453 @@
+
+interface DatabaseConfig {
+  host: string;
+  maxConnections: number;
+  timeout: number;
+  retryAttempts: number;
+  ssl: boolean;
+}
+
+interface CacheConfig {
+  ttl: number;
+  maxSize: number;
+  maxItems: number;
+  compressionEnabled: boolean;
+  distributedCache: boolean;
+}
+
+interface SecurityConfig {
+  sessionTimeout: number;
+  maxLoginAttempts: number;
+  lockoutDuration: number;
+  passwordMinLength: number;
+  requireTwoFactor: boolean;
+  allowedOrigins: string[];
+  rateLimiting: {
+    windowMs: number;
+    maxRequests: number;
+  };
+}
+
+interface MonitoringConfig {
+  enableMetrics: boolean;
+  metricsInterval: number;
+  enableProfiling: boolean;
+  errorTracking: boolean;
+  performanceTracking: boolean;
+  logLevel: string;
+  alertThresholds: {
+    errorRate: number;
+    responseTime: number;
+    memoryUsage: number;
+    diskUsage: number;
+  };
+}
+
+interface FeatureFlags {
+  enableNewDashboard: boolean;
+  enableAdvancedReports: boolean;
+  enableAIAssistant: boolean;
+  enableRealTimeSync: boolean;
+  enableMobileApp: boolean;
+  enableAPIv2: boolean;
+  enableBetaFeatures: boolean;
+  maintenanceMode: boolean;
+}
+
+interface AppConfig {
+  environment: 'development' | 'staging' | 'production';
+  version: string;
+  apiBaseUrl: string;
+  cdnUrl: string;
+  database: DatabaseConfig;
+  cache: CacheConfig;
+  security: SecurityConfig;
+  monitoring: MonitoringConfig;
+  features: FeatureFlags;
+  limits: {
+    maxFileSize: number;
+    maxUsers: number;
+    maxCompanies: number;
+    maxSessionDuration: number;
+  };
+  integrations: {
+    googleMaps: boolean;
+    googleAnalytics: boolean;
+    socialLogin: string[];
+    paymentGateways: string[];
+  };
+  ui: {
+    theme: string;
+    language: string;
+    timezone: string;
+    dateFormat: string;
+    currency: string;
+  };
+}
+
+class ConfigManager {
+  private config: AppConfig;
+  private remoteConfig: any = null;
+  private configCache = new Map<string, any>();
+  private subscribers = new Set<(config: AppConfig) => void>();
+
+  constructor() {
+    this.config = this.getDefaultConfig();
+    this.loadConfig();
+  }
+
+  private getDefaultConfig(): AppConfig {
+    return {
+      environment: (process.env.NODE_ENV as any) || 'development',
+      version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+      apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api',
+      cdnUrl: process.env.NEXT_PUBLIC_CDN_URL || '',
+      
+      database: {
+        host: process.env.DATABASE_HOST || 'localhost',
+        maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '100'),
+        timeout: parseInt(process.env.DATABASE_TIMEOUT || '30000'),
+        retryAttempts: parseInt(process.env.DATABASE_RETRY_ATTEMPTS || '3'),
+        ssl: process.env.DATABASE_SSL === 'true'
+      },
+      
+      cache: {
+        ttl: parseInt(process.env.CACHE_TTL || '300000'), // 5 min
+        maxSize: parseInt(process.env.CACHE_MAX_SIZE || '104857600'), // 100MB
+        maxItems: parseInt(process.env.CACHE_MAX_ITEMS || '10000'),
+        compressionEnabled: process.env.CACHE_COMPRESSION === 'true',
+        distributedCache: process.env.CACHE_DISTRIBUTED === 'true'
+      },
+      
+      security: {
+        sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '3600000'), // 1 hour
+        maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5'),
+        lockoutDuration: parseInt(process.env.LOCKOUT_DURATION || '900000'), // 15 min
+        passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '8'),
+        requireTwoFactor: process.env.REQUIRE_2FA === 'true',
+        allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+        rateLimiting: {
+          windowMs: parseInt(process.env.RATE_LIMIT_WINDOW || '900000'), // 15 min
+          maxRequests: parseInt(process.env.RATE_LIMIT_MAX || '100')
+        }
+      },
+      
+      monitoring: {
+        enableMetrics: process.env.ENABLE_METRICS !== 'false',
+        metricsInterval: parseInt(process.env.METRICS_INTERVAL || '60000'), // 1 min
+        enableProfiling: process.env.ENABLE_PROFILING === 'true',
+        errorTracking: process.env.ERROR_TRACKING !== 'false',
+        performanceTracking: process.env.PERFORMANCE_TRACKING !== 'false',
+        logLevel: process.env.LOG_LEVEL || 'info',
+        alertThresholds: {
+          errorRate: parseFloat(process.env.ALERT_ERROR_RATE || '0.05'), // 5%
+          responseTime: parseInt(process.env.ALERT_RESPONSE_TIME || '5000'), // 5s
+          memoryUsage: parseFloat(process.env.ALERT_MEMORY_USAGE || '0.85'), // 85%
+          diskUsage: parseFloat(process.env.ALERT_DISK_USAGE || '0.90') // 90%
+        }
+      },
+      
+      features: {
+        enableNewDashboard: process.env.FEATURE_NEW_DASHBOARD !== 'false',
+        enableAdvancedReports: process.env.FEATURE_ADVANCED_REPORTS === 'true',
+        enableAIAssistant: process.env.FEATURE_AI_ASSISTANT === 'true',
+        enableRealTimeSync: process.env.FEATURE_REALTIME_SYNC !== 'false',
+        enableMobileApp: process.env.FEATURE_MOBILE_APP === 'true',
+        enableAPIv2: process.env.FEATURE_API_V2 === 'true',
+        enableBetaFeatures: process.env.FEATURE_BETA === 'true',
+        maintenanceMode: process.env.MAINTENANCE_MODE === 'true'
+      },
+      
+      limits: {
+        maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'), // 10MB
+        maxUsers: parseInt(process.env.MAX_USERS || '10000'),
+        maxCompanies: parseInt(process.env.MAX_COMPANIES || '1000'),
+        maxSessionDuration: parseInt(process.env.MAX_SESSION_DURATION || '86400000') // 24h
+      },
+      
+      integrations: {
+        googleMaps: !!process.env.GOOGLE_MAPS_API_KEY,
+        googleAnalytics: !!process.env.GOOGLE_ANALYTICS_ID,
+        socialLogin: (process.env.SOCIAL_LOGIN_PROVIDERS || 'google,facebook').split(','),
+        paymentGateways: (process.env.PAYMENT_GATEWAYS || 'stripe,paypal').split(',')
+      },
+      
+      ui: {
+        theme: process.env.DEFAULT_THEME || 'light',
+        language: process.env.DEFAULT_LANGUAGE || 'pt-BR',
+        timezone: process.env.DEFAULT_TIMEZONE || 'America/Sao_Paulo',
+        dateFormat: process.env.DATE_FORMAT || 'DD/MM/YYYY',
+        currency: process.env.DEFAULT_CURRENCY || 'BRL'
+      }
+    };
+  }
+
+  // Carregar configuração
+  private async loadConfig(): Promise<void> {
+    try {
+      // Carregar configuração local
+      await this.loadLocalConfig();
+      
+      // Carregar configuração remota (Firebase Remote Config)
+      await this.loadRemoteConfig();
+      
+      // Mesclar configurações
+      this.mergeConfigs();
+      
+      // Notificar subscribers
+      this.notifySubscribers();
+      
+    } catch (error) {
+      console.error('Erro ao carregar configuração:', error);
+    }
+  }
+
+  private async loadLocalConfig(): Promise<void> {
+    try {
+      const localConfig = localStorage.getItem('app_config');
+      if (localConfig) {
+        const parsed = JSON.parse(localConfig);
+        this.config = { ...this.config, ...parsed };
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar configuração local:', error);
+    }
+  }
+
+  private async loadRemoteConfig(): Promise<void> {
+    try {
+      // Mock de Firebase Remote Config
+      // Em produção, usar Firebase Remote Config real
+      this.remoteConfig = {
+        features: {
+          enableBetaFeatures: false,
+          maintenanceMode: false
+        },
+        security: {
+          maxLoginAttempts: 3
+        }
+      };
+    } catch (error) {
+      console.warn('Erro ao carregar configuração remota:', error);
+    }
+  }
+
+  private mergeConfigs(): void {
+    if (this.remoteConfig) {
+      this.config = this.deepMerge(this.config, this.remoteConfig);
+    }
+  }
+
+  private deepMerge(target: any, source: any): any {
+    const result = { ...target };
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
+  }
+
+  // Getters
+  get<T>(path: string): T {
+    const cached = this.configCache.get(path);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const value = this.getNestedValue(this.config, path);
+    this.configCache.set(path, value);
+    return value;
+  }
+
+  getConfig(): AppConfig {
+    return { ...this.config };
+  }
+
+  isFeatureEnabled(feature: keyof FeatureFlags): boolean {
+    return this.config.features[feature];
+  }
+
+  isProduction(): boolean {
+    return this.config.environment === 'production';
+  }
+
+  isDevelopment(): boolean {
+    return this.config.environment === 'development';
+  }
+
+  // Setters
+  set(path: string, value: any): void {
+    this.setNestedValue(this.config, path, value);
+    this.configCache.delete(path);
+    this.saveLocalConfig();
+    this.notifySubscribers();
+  }
+
+  updateFeature(feature: keyof FeatureFlags, enabled: boolean): void {
+    this.config.features[feature] = enabled;
+    this.configCache.clear();
+    this.saveLocalConfig();
+    this.notifySubscribers();
+  }
+
+  // Validação
+  validate(): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Validar URLs
+    if (!this.isValidUrl(this.config.apiBaseUrl)) {
+      errors.push('API Base URL inválida');
+    }
+
+    // Validar limites
+    if (this.config.limits.maxFileSize <= 0) {
+      errors.push('Tamanho máximo de arquivo deve ser positivo');
+    }
+
+    // Validar timeouts
+    if (this.config.database.timeout <= 0) {
+      errors.push('Timeout do banco deve ser positivo');
+    }
+
+    // Validar segurança
+    if (this.config.security.passwordMinLength < 6) {
+      errors.push('Tamanho mínimo de senha deve ser pelo menos 6');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  // Atualização dinâmica
+  async refresh(): Promise<void> {
+    this.configCache.clear();
+    await this.loadConfig();
+  }
+
+  // Subscribers
+  subscribe(callback: (config: AppConfig) => void): () => void {
+    this.subscribers.add(callback);
+    
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  private notifySubscribers(): void {
+    this.subscribers.forEach(callback => {
+      try {
+        callback(this.config);
+      } catch (error) {
+        console.error('Erro ao notificar subscriber:', error);
+      }
+    });
+  }
+
+  // Persistência
+  private saveLocalConfig(): void {
+    try {
+      localStorage.setItem('app_config', JSON.stringify(this.config));
+    } catch (error) {
+      console.warn('Erro ao salvar configuração local:', error);
+    }
+  }
+
+  // Utilitários
+  private getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  }
+
+  private setNestedValue(obj: any, path: string, value: any): void {
+    const keys = path.split('.');
+    const lastKey = keys.pop()!;
+    const target = keys.reduce((current, key) => {
+      if (!current[key]) current[key] = {};
+      return current[key];
+    }, obj);
+    target[lastKey] = value;
+  }
+
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Exportação/Importação
+  export(): string {
+    return JSON.stringify(this.config, null, 2);
+  }
+
+  import(configJson: string): boolean {
+    try {
+      const imported = JSON.parse(configJson);
+      const validation = this.validate();
+      
+      if (validation.valid) {
+        this.config = imported;
+        this.configCache.clear();
+        this.saveLocalConfig();
+        this.notifySubscribers();
+        return true;
+      }
+      
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  // Reset
+  reset(): void {
+    this.config = this.getDefaultConfig();
+    this.configCache.clear();
+    localStorage.removeItem('app_config');
+    this.notifySubscribers();
+  }
+
+  // Estatísticas
+  getStats(): any {
+    return {
+      configSize: JSON.stringify(this.config).length,
+      cacheSize: this.configCache.size,
+      subscribersCount: this.subscribers.size,
+      environment: this.config.environment,
+      version: this.config.version,
+      featuresEnabled: Object.values(this.config.features).filter(Boolean).length,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+}
+
+// Instância global
+export const configManager = new ConfigManager();
+
+// Hook para React
+export function useConfig() {
+  const [config, setConfig] = useState(configManager.getConfig());
+
+  useEffect(() => {
+    const unsubscribe = configManager.subscribe(setConfig);
+    return unsubscribe;
+  }, []);
+
+  return {
+    config,
+    get: configManager.get.bind(configManager),
+    set: configManager.set.bind(configManager),
+    isFeatureEnabled: configManager.isFeatureEnabled.bind(configManager),
+    updateFeature: configManager.updateFeature.bind(configManager),
+    refresh: configManager.refresh.bind(configManager),
+    isProduction: configManager.isProduction.bind(configManager)
+  };
+}

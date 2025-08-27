@@ -1,0 +1,708 @@
+import React, { useEffect } from 'react';
+import { db } from './firebase';
+import { collection, doc, setDoc, serverTimestamp, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+
+interface Alert {
+  id: string;
+  type: 'security' | 'performance' | 'error' | 'business' | 'system';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  message: string;
+  timestamp: Date;
+  userId?: string;
+  empresaId?: string;
+  metadata?: Record<string, any>;
+  resolved: boolean;
+  resolvedBy?: string;
+  resolvedAt?: Date;
+}
+
+interface PerformanceMetrics {
+  pageLoadTime: number;
+  firstContentfulPaint: number;
+  largestContentfulPaint: number;
+  cumulativeLayoutShift: number;
+  firstInputDelay: number;
+  timeToInteractive: number;
+  url: string;
+  userAgent: string;
+  timestamp: Date;
+  userId?: string;
+}
+
+interface SystemHealth {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  responseTime: number;
+  uptime: number;
+  lastCheck: Date;
+  errors: string[];
+  metrics: Record<string, number>;
+}
+
+interface BusinessMetrics {
+  date: string;
+  activeUsers: number;
+  totalSessions: number;
+  averageSessionDuration: number;
+  errorRate: number;
+  conversionRate: number;
+  revenue: number;
+  newUsers: number;
+  returningUsers: number;
+  bounceRate: number;
+}
+
+class MonitoringService {
+  private alertQueue: Alert[] = [];
+  private metricsBuffer: PerformanceMetrics[] = [];
+  private isInitialized = false;
+
+  // Inicializar monitoramento
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      this.setupErrorTracking();
+      this.setupPerformanceMonitoring();
+      this.setupUserActivityTracking();
+      this.setupHealthChecks();
+      this.startBatchProcessing();
+
+      this.isInitialized = true;
+      console.log('🔍 Sistema de monitoramento inicializado');
+    } catch (error) {
+      console.error('Erro ao inicializar monitoramento:', error);
+    }
+  }
+
+  // Configurar rastreamento de erros
+  private setupErrorTracking(): void {
+    // Global error handler
+    window.addEventListener('error', (event) => {
+      this.trackError({
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: event.error?.stack,
+        severity: 'high',
+        type: 'javascript'
+      });
+    });
+
+    // Promise rejection handler
+    window.addEventListener('unhandledrejection', (event) => {
+      this.trackError({
+        message: event.reason?.message || 'Unhandled Promise Rejection',
+        stack: event.reason?.stack,
+        severity: 'medium',
+        type: 'promise'
+      });
+    });
+
+    // React error boundary fallback
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      if (args[0]?.includes?.('React')) {
+        this.trackError({
+          message: args.join(' '),
+          severity: 'medium',
+          type: 'react'
+        });
+      }
+      originalConsoleError.apply(console, args);
+    };
+  }
+
+  // Configurar monitoramento de performance
+  private setupPerformanceMonitoring(): void {
+    if ('PerformanceObserver' in window) {
+      // Core Web Vitals
+      const observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          this.trackPerformanceMetric(entry);
+        });
+      });
+
+      observer.observe({ entryTypes: ['navigation', 'paint', 'largest-contentful-paint', 'first-input', 'layout-shift'] });
+
+      // Resource loading
+      const resourceObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.duration > 1000) { // Recursos que demoram mais de 1s
+            this.createAlert({
+              type: 'performance',
+              severity: 'medium',
+              title: 'Recurso Lento Detectado',
+              message: `Recurso ${entry.name} demorou ${entry.duration.toFixed(2)}ms para carregar`,
+              metadata: {
+                resource: entry.name,
+                duration: entry.duration,
+                size: (entry as any).transferSize
+              }
+            });
+          }
+        });
+      });
+
+      resourceObserver.observe({ entryTypes: ['resource'] });
+    }
+
+    // Memory usage monitoring
+    setInterval(() => {
+      if ('memory' in performance) {
+        const memory = (performance as any).memory;
+        const memoryUsage = memory.usedJSHeapSize / memory.totalJSHeapSize;
+
+        if (memoryUsage > 0.8) {
+          this.createAlert({
+            type: 'performance',
+            severity: 'high',
+            title: 'Uso de Memória Alto',
+            message: `Uso de memória: ${(memoryUsage * 100).toFixed(1)}%`,
+            metadata: {
+              usedJSHeapSize: memory.usedJSHeapSize,
+              totalJSHeapSize: memory.totalJSHeapSize,
+              usagePercent: memoryUsage * 100
+            }
+          });
+        }
+      }
+    }, 30000); // Verificar a cada 30 segundos
+  }
+
+  // Rastrear atividade do usuário
+  private setupUserActivityTracking(): void {
+    let sessionStart = Date.now();
+    let pageViews = 0;
+    let interactions = 0;
+
+    // Page views
+    pageViews++;
+    this.trackEvent('page_view', {
+      url: window.location.href,
+      timestamp: new Date(),
+      sessionStart
+    });
+
+    // User interactions
+    ['click', 'scroll', 'keydown'].forEach(eventType => {
+      document.addEventListener(eventType, () => {
+        interactions++;
+      }, { passive: true });
+    });
+
+    // Session summary on page unload
+    window.addEventListener('beforeunload', () => {
+      const sessionDuration = Date.now() - sessionStart;
+      this.trackEvent('session_end', {
+        duration: sessionDuration,
+        pageViews,
+        interactions,
+        url: window.location.href
+      });
+    });
+
+    // Idle detection
+    let idleTimer: NodeJS.Timeout;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        this.trackEvent('user_idle', {
+          idleDuration: 300000, // 5 minutes
+          url: window.location.href
+        });
+      }, 300000);
+    };
+
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+      document.addEventListener(event, resetIdleTimer, true);
+    });
+  }
+
+  // Health checks do sistema
+  private setupHealthChecks(): void {
+    setInterval(async () => {
+      await this.performHealthCheck();
+    }, 60000); // A cada minuto
+  }
+
+  // Executar health check
+  async performHealthCheck(): Promise<void> {
+    const checks = [
+      this.checkFirebaseConnection(),
+      this.checkApiEndpoints(),
+      this.checkLocalStorage(),
+      this.checkNetworkStatus()
+    ];
+
+    const results = await Promise.allSettled(checks);
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        this.createAlert({
+          type: 'system',
+          severity: 'high',
+          title: 'Health Check Falhou',
+          message: `Verificação ${index + 1} falhou: ${result.reason}`,
+          metadata: { checkIndex: index, error: result.reason }
+        });
+      }
+    });
+  }
+
+  // Obter resultados do health check
+  async getHealthCheckResults(): Promise<{ status: string; checks: any[] }> {
+    try {
+      const checks = [
+        this.checkFirebaseConnection(),
+        this.checkApiEndpoints(),
+        this.checkLocalStorage(),
+        this.checkNetworkStatus()
+      ];
+
+      const results = await Promise.allSettled(checks);
+      const healthyChecks = results.filter(result => result.status === 'fulfilled').length;
+      const totalChecks = results.length;
+      
+      return {
+        status: healthyChecks === totalChecks ? 'healthy' : healthyChecks > totalChecks / 2 ? 'degraded' : 'unhealthy',
+        checks: results.map((result, index) => ({
+          name: ['Firebase', 'API Endpoints', 'LocalStorage', 'Network'][index],
+          status: result.status === 'fulfilled',
+          error: result.status === 'rejected' ? result.reason : null
+        }))
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        checks: []
+      };
+    }
+  }
+
+  // Verificar conexão Firebase
+  private async checkFirebaseConnection(): Promise<boolean> {
+    try {
+      const testDoc = doc(collection(db, 'health_checks'));
+      await setDoc(testDoc, {
+        timestamp: serverTimestamp(),
+        status: 'healthy'
+      });
+      return true;
+    } catch (error) {
+      throw new Error(`Firebase connection failed: ${error}`);
+    }
+  }
+
+  // Verificar endpoints da API
+  private async checkApiEndpoints(): Promise<boolean> {
+    const endpoints = ['/api/health', '/api/users'];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, { 
+          method: 'HEAD',
+          cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Endpoint ${endpoint} returned ${response.status}`);
+        }
+      } catch (error) {
+        throw new Error(`API endpoint ${endpoint} failed: ${error}`);
+      }
+    }
+
+    return true;
+  }
+
+  // Verificar Local Storage
+  private checkLocalStorage(): boolean {
+    try {
+      const testKey = 'health_check_test';
+      localStorage.setItem(testKey, 'test');
+      localStorage.removeItem(testKey);
+      return true;
+    } catch (error) {
+      throw new Error(`LocalStorage check failed: ${error}`);
+    }
+  }
+
+  // Verificar status da rede
+  private checkNetworkStatus(): boolean {
+    if (!navigator.onLine) {
+      throw new Error('Network is offline');
+    }
+    return true;
+  }
+
+  // Rastrear erro
+  async trackError(error: {
+    message: string;
+    filename?: string;
+    lineno?: number;
+    colno?: number;
+    stack?: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    type: string;
+    userId?: string;
+  }): Promise<void> {
+    try {
+      const errorDoc = doc(collection(db, 'error_reports'));
+      await setDoc(errorDoc, {
+        ...error,
+        timestamp: serverTimestamp(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        id: errorDoc.id
+      });
+
+      // Criar alerta para erros críticos
+      if (error.severity === 'critical' || error.severity === 'high') {
+        this.createAlert({
+          type: 'error',
+          severity: error.severity,
+          title: 'Erro Crítico Detectado',
+          message: error.message,
+          metadata: {
+            type: error.type,
+            filename: error.filename,
+            stack: error.stack
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Erro ao rastrear erro:', e);
+    }
+  }
+
+  // Rastrear métrica de performance
+  private trackPerformanceMetric(entry: PerformanceEntry): void {
+    const metric: Partial<PerformanceMetrics> = {
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: new Date()
+    };
+
+    switch (entry.entryType) {
+      case 'navigation':
+        const navEntry = entry as PerformanceNavigationTiming;
+        metric.pageLoadTime = navEntry.loadEventEnd - navEntry.fetchStart;
+        break;
+
+      case 'paint':
+        if (entry.name === 'first-contentful-paint') {
+          metric.firstContentfulPaint = entry.startTime;
+        }
+        break;
+
+      case 'largest-contentful-paint':
+        metric.largestContentfulPaint = entry.startTime;
+        break;
+
+      case 'first-input':
+        metric.firstInputDelay = (entry as any).processingStart - entry.startTime;
+        break;
+
+      case 'layout-shift':
+        if (!(entry as any).hadRecentInput) {
+          metric.cumulativeLayoutShift = (entry as any).value;
+        }
+        break;
+    }
+
+    if (Object.keys(metric).length > 3) { // Mais que os campos base
+      this.metricsBuffer.push(metric as PerformanceMetrics);
+    }
+
+    // Alertas para métricas ruins
+    this.checkPerformanceThresholds(metric);
+  }
+
+  // Verificar limites de performance
+  private checkPerformanceThresholds(metric: Partial<PerformanceMetrics>): void {
+    if (metric.pageLoadTime && metric.pageLoadTime > 3000) {
+      this.createAlert({
+        type: 'performance',
+        severity: 'medium',
+        title: 'Carregamento Lento',
+        message: `Página demorou ${(metric.pageLoadTime / 1000).toFixed(2)}s para carregar`,
+        metadata: { pageLoadTime: metric.pageLoadTime }
+      });
+    }
+
+    if (metric.firstContentfulPaint && metric.firstContentfulPaint > 1800) {
+      this.createAlert({
+        type: 'performance',
+        severity: 'medium',
+        title: 'FCP Alto',
+        message: `First Contentful Paint: ${metric.firstContentfulPaint.toFixed(0)}ms`,
+        metadata: { firstContentfulPaint: metric.firstContentfulPaint }
+      });
+    }
+
+    if (metric.cumulativeLayoutShift && metric.cumulativeLayoutShift > 0.1) {
+      this.createAlert({
+        type: 'performance',
+        severity: 'medium',
+        title: 'Layout Shift Detectado',
+        message: `CLS: ${metric.cumulativeLayoutShift.toFixed(3)}`,
+        metadata: { cumulativeLayoutShift: metric.cumulativeLayoutShift }
+      });
+    }
+  }
+
+  // Rastrear evento personalizado
+  async trackEvent(eventName: string, data: Record<string, any>): Promise<void> {
+    try {
+      const eventDoc = doc(collection(db, 'usage_analytics'));
+      await setDoc(eventDoc, {
+        event: eventName,
+        ...data,
+        timestamp: serverTimestamp(),
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      });
+    } catch (error) {
+      console.error('Erro ao rastrear evento:', error);
+    }
+  }
+
+  // Criar alerta
+  createAlert(alert: Omit<Alert, 'id' | 'timestamp' | 'resolved'>): void {
+    const newAlert: Alert = {
+      ...alert,
+      id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      resolved: false
+    };
+
+    this.alertQueue.push(newAlert);
+
+    // Log imediato para alertas críticos
+    if (alert.severity === 'critical') {
+      console.error('🚨 ALERTA CRÍTICO:', newAlert);
+    }
+  }
+
+  // Processar alertas em batch
+  private startBatchProcessing(): void {
+    setInterval(async () => {
+      if (this.alertQueue.length > 0) {
+        await this.processBatchAlerts();
+      }
+
+      if (this.metricsBuffer.length > 0) {
+        await this.processBatchMetrics();
+      }
+    }, 5000); // A cada 5 segundos
+  }
+
+  // Processar alertas em lote
+  private async processBatchAlerts(): Promise<void> {
+    const alerts = this.alertQueue.splice(0, 10); // Processar até 10 alertas por vez
+
+    try {
+      for (const alert of alerts) {
+        const alertDoc = doc(collection(db, 'system_alerts'));
+        await setDoc(alertDoc, {
+          ...alert,
+          id: alertDoc.id,
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao processar alertas:', error);
+      // Recolocar alertas na fila em caso de erro
+      this.alertQueue.unshift(...alerts);
+    }
+  }
+
+  // Processar métricas em lote
+  private async processBatchMetrics(): Promise<void> {
+    const metrics = this.metricsBuffer.splice(0, 20); // Processar até 20 métricas por vez
+
+    try {
+      for (const metric of metrics) {
+        const metricDoc = doc(collection(db, 'performance_metrics'));
+        await setDoc(metricDoc, {
+          ...metric,
+          id: metricDoc.id,
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao processar métricas:', error);
+      // Recolocar métricas na fila em caso de erro
+      this.metricsBuffer.unshift(...metrics);
+    }
+  }
+
+  // Obter alertas recentes
+  async getRecentAlerts(limit: number = 50): Promise<Alert[]> {
+    try {
+      const q = query(
+        collection(db, 'system_alerts'),
+        orderBy('timestamp', 'desc'),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        limit(limit as any)
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date()
+      })) as Alert[];
+    } catch (error) {
+      console.error('Erro ao buscar alertas:', error);
+      return [];
+    }
+  }
+
+  // Obter métricas de negócio
+  async getBusinessMetrics(startDate: Date, endDate: Date): Promise<BusinessMetrics[]> {
+    try {
+      const q = query(
+        collection(db, 'business_metrics'),
+        where('date', '>=', startDate.toISOString().split('T')[0]),
+        where('date', '<=', endDate.toISOString().split('T')[0]),
+        orderBy('date', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data()) as BusinessMetrics[];
+    } catch (error) {
+      console.error('Erro ao buscar métricas de negócio:', error);
+      return [];
+    }
+  }
+
+  // Obter saúde do sistema
+  async getSystemHealth(): Promise<SystemHealth[]> {
+    try {
+      const q = query(
+        collection(db, 'health_checks'),
+        orderBy('lastCheck', 'desc'),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        limit(10 as any)
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        ...doc.data(),
+        lastCheck: doc.data().lastCheck?.toDate() || new Date()
+      })) as SystemHealth[];
+    } catch (error) {
+      console.error('Erro ao buscar saúde do sistema:', error);
+      return [];
+    }
+  }
+
+  // Resolver alerta
+  async resolveAlert(alertId: string, resolvedBy: string): Promise<void> {
+    try {
+      const alertDoc = doc(db, 'system_alerts', alertId);
+      await setDoc(alertDoc, {
+        resolved: true,
+        resolvedBy,
+        resolvedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Erro ao resolver alerta:', error);
+    }
+  }
+
+  // Gerar relatório de performance
+  generatePerformanceReport(metrics: PerformanceMetrics[]): {
+    summary: Record<string, number>;
+    recommendations: string[];
+  } {
+    if (metrics.length === 0) {
+      return { summary: {}, recommendations: [] };
+    }
+
+    const summary = {
+      avgPageLoadTime: metrics.reduce((sum, m) => sum + (m.pageLoadTime || 0), 0) / metrics.length,
+      avgFCP: metrics.reduce((sum, m) => sum + (m.firstContentfulPaint || 0), 0) / metrics.length,
+      avgLCP: metrics.reduce((sum, m) => sum + (m.largestContentfulPaint || 0), 0) / metrics.length,
+      avgFID: metrics.reduce((sum, m) => sum + (m.firstInputDelay || 0), 0) / metrics.length,
+      avgCLS: metrics.reduce((sum, m) => sum + (m.cumulativeLayoutShift || 0), 0) / metrics.length
+    };
+
+    const recommendations: string[] = [];
+
+    if (summary.avgPageLoadTime > 3000) {
+      recommendations.push('Otimizar tempo de carregamento da página (atual: ' + 
+        (summary.avgPageLoadTime / 1000).toFixed(2) + 's)');
+    }
+
+    if (summary.avgFCP > 1800) {
+      recommendations.push('Melhorar First Contentful Paint (atual: ' + 
+        summary.avgFCP.toFixed(0) + 'ms)');
+    }
+
+    if (summary.avgLCP > 2500) {
+      recommendations.push('Otimizar Largest Contentful Paint (atual: ' + 
+        summary.avgLCP.toFixed(0) + 'ms)');
+    }
+
+    if (summary.avgCLS > 0.1) {
+      recommendations.push('Reduzir Cumulative Layout Shift (atual: ' + 
+        summary.avgCLS.toFixed(3) + ')');
+    }
+
+    return { summary, recommendations };
+  }
+}
+
+// Instância global do serviço
+export const monitoringService = new MonitoringService();
+
+// Hook React para monitoramento
+export function useMonitoring() {
+  useEffect(() => {
+    monitoringService.initialize();
+  }, []);
+
+  return {
+    trackError: (error: Parameters<typeof monitoringService.trackError>[0]) => 
+      monitoringService.trackError(error),
+    trackEvent: (eventName: string, data: Record<string, any>) => 
+      monitoringService.trackEvent(eventName, data),
+    createAlert: (alert: Parameters<typeof monitoringService.createAlert>[0]) => 
+      monitoringService.createAlert(alert),
+    getRecentAlerts: (limit?: number) => monitoringService.getRecentAlerts(limit),
+    getBusinessMetrics: (startDate: Date, endDate: Date) => 
+      monitoringService.getBusinessMetrics(startDate, endDate),
+    getSystemHealth: () => monitoringService.getSystemHealth(),
+    resolveAlert: (alertId: string, resolvedBy: string) => 
+      monitoringService.resolveAlert(alertId, resolvedBy)
+  };
+}
+
+// HOC para monitoramento automático de componentes
+export function withErrorBoundary<P extends object>(Component: React.ComponentType<P>) {
+  return function WrappedComponent(props: P) {
+    useEffect(() => {
+      const handleError = (error: ErrorEvent) => {
+        monitoringService.trackError({
+          message: error.message,
+          filename: error.filename,
+          lineno: error.lineno,
+          colno: error.colno,
+          stack: error.error?.stack,
+          severity: 'high',
+          type: 'component'
+        });
+      };
+
+      window.addEventListener('error', handleError);
+      return () => window.removeEventListener('error', handleError);
+    }, []);
+
+    return React.createElement(Component, props);
+  };
+}

@@ -1,0 +1,657 @@
+
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { auth, db } from '@/src/lib/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import ThemeSelector from '@/src/components/ThemeSelector';
+
+export default function FrotaAuthAdminPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [userType, setUserType] = useState<'colaborador' | 'empresa' | 'adminmaster'>('colaborador');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    nome: '',
+    empresaId: '',
+    telefone: '',
+    cargo: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Usuário já logado, verificar permissões
+        await checkUserPermissions(user.email!);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const checkUserPermissions = async (userEmail: string) => {
+    try {
+      const usuariosRef = collection(db, 'users');
+      const q = query(usuariosRef, where('email', '==', userEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userData = querySnapshot.docs[0].data();
+        const role = userData.role?.toLowerCase();
+        
+        // Redirecionar baseado no papel do usuário
+        if (role === 'superadmin' || role === 'admin' || role === 'gestor') {
+          router.push('/frota');
+        } else if (role === 'colaborador') {
+          // Colaboradores vão direto para a área do motorista
+          router.push('/frota/colaborador');
+        } else {
+          setError('Você não tem permissão para acessar o sistema de frota');
+        }
+      } else {
+        setError('Usuário não encontrado no sistema');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar permissões:', error);
+      setError('Erro ao verificar permissões do usuário');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.password) {
+      setError('Preencha todos os campos');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      await checkUserPermissions(userCredential.user.email!);
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      const errorMessage = getErrorMessage(error.code);
+      setError(errorMessage);
+      
+      // Notificação adicional para credenciais inválidas
+      if (error.code === 'auth/invalid-credential') {
+        setTimeout(() => {
+          setError('💡 Dica: Verifique se você digitou o email e a senha corretamente. Se esqueceu sua senha, use a opção "Esqueci minha senha".');
+        }, 3000);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.password || !formData.nome) {
+      setError('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('As senhas não coincidem');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      
+      // Determinar role baseado no tipo de usuário
+      let role = 'colaborador';
+      let empresaId = formData.empresaId;
+      
+      if (userType === 'empresa') {
+        role = 'admin';
+        // Gerar ID automaticamente para empresas
+        empresaId = `emp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Criar documento da empresa
+        await setDoc(doc(db, 'empresas', empresaId), {
+          id: empresaId,
+          nome: formData.nome,
+          email: formData.email,
+          adminId: userCredential.user.uid,
+          ativo: true,
+          dataCriacao: new Date().toISOString(),
+          configuracoes: {
+            geofencing: null,
+            toleranciaMinutos: 15,
+            horasTrabalhoDia: 8,
+            diasTrabalhoMes: 22
+          }
+        });
+      } else if (userType === 'adminmaster') {
+        role = 'superadmin';
+        empresaId = null;
+      }
+
+      const userData = {
+        uid: userCredential.user.uid,
+        email: formData.email,
+        nome: formData.nome,
+        telefone: formData.telefone || '',
+        cargo: formData.cargo || '',
+        role: role,
+        tipo: userType,
+        empresaId: empresaId,
+        ativo: true,
+        dataCriacao: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        permissions: {
+          frota: true,
+          ponto: userType !== 'colaborador',
+          chamados: true,
+          documentos: userType !== 'colaborador'
+        }
+      };
+
+      await addDoc(collection(db, 'users'), userData);
+      
+      // Mostrar ID da empresa gerado se for empresa
+      if (userType === 'empresa') {
+        alert(`Conta criada com sucesso!\n\nID da sua empresa: ${empresaId}\n\nGuarde este ID para que seus colaboradores possam se cadastrar.`);
+      }
+      
+      router.push('/frota');
+    } catch (error: any) {
+      console.error('Erro no registro:', error);
+      setError(getErrorMessage(error.code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      setError('Digite seu email');
+      return;
+    }
+
+    setResetLoading(true);
+    setError(null);
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetSuccess(true);
+    } catch (error: any) {
+      setError(getErrorMessage(error.code));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const getErrorMessage = (errorCode: string) => {
+    switch (errorCode) {
+      case 'auth/user-not-found':
+        return 'Usuário não encontrado';
+      case 'auth/wrong-password':
+        return 'Senha incorreta';
+      case 'auth/invalid-credential':
+        return '🚫 Credenciais inválidas. Verifique seu email e senha.';
+      case 'auth/email-already-in-use':
+        return 'Este email já está em uso';
+      case 'auth/weak-password':
+        return 'Senha muito fraca';
+      case 'auth/invalid-email':
+        return 'Email inválido';
+      case 'auth/too-many-requests':
+        return '⚠️ Muitas tentativas de login. Tente novamente mais tarde.';
+      default:
+        return 'Erro no sistema. Tente novamente.';
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="container">
+        <style jsx>{`
+          .auth-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--gap-md);
+          }
+
+          .auth-card {
+            background: var(--gradient-card);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(0, 255, 127, 0.3);
+            backdrop-filter: blur(15px);
+          }
+
+          .form-group {
+            margin-bottom: var(--gap-md);
+          }
+
+          .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: var(--gap-sm);
+            border-radius: var(--radius);
+            margin-bottom: var(--gap-md);
+          }
+
+          .success-message {
+            background: rgba(0, 255, 127, 0.1);
+            border: 1px solid #00ff7f;
+            color: #00ff7f;
+            padding: var(--gap-sm);
+            border-radius: var(--radius);
+            margin-bottom: var(--gap-md);
+          }
+        `}</style>
+
+        <div className="auth-container">
+          <div className="auth-card">
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔑</div>
+              <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
+                Recuperar Senha
+              </h1>
+              <p style={{ color: 'var(--color-textSecondary)' }}>
+                Sistema de Frota
+              </p>
+            </div>
+
+            {error && <div className="error-message">{error}</div>}
+            {resetSuccess && (
+              <div className="success-message">
+                Email de recuperação enviado! Verifique sua caixa de entrada.
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword}>
+              <div className="form-group">
+                <label htmlFor="resetEmail">Email</label>
+                <input
+                  id="resetEmail"
+                  type="email"
+                  className="input"
+                  placeholder="Digite seu email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="button button-primary"
+                disabled={resetLoading}
+                style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
+              >
+                {resetLoading ? 'Enviando...' : 'Enviar Email de Recuperação'}
+              </button>
+
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setError(null);
+                    setResetSuccess(false);
+                  }}
+                  className="button button-ghost"
+                >
+                  Voltar ao Login
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container">
+      <style jsx>{`
+        .auth-container {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--gap-md);
+        }
+
+        .auth-card {
+          background: var(--gradient-card);
+          border-radius: var(--radius-lg);
+          padding: 2rem;
+          width: 100%;
+          max-width: 500px;
+          border: 1px solid rgba(0, 255, 127, 0.3);
+          backdrop-filter: blur(15px);
+        }
+
+        .user-type-selector {
+          display: flex;
+          gap: var(--gap-sm);
+          margin-bottom: var(--gap-lg);
+          border-radius: var(--radius);
+          background: var(--color-surface);
+          padding: var(--gap-xs);
+        }
+
+        .user-type-button {
+          flex: 1;
+          padding: var(--gap-sm);
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          color: var(--color-textSecondary);
+          cursor: pointer;
+          transition: all 0.3s ease;
+          font-size: 0.9rem;
+        }
+
+        .user-type-button.active {
+          background: linear-gradient(45deg, #00ff7f, #8a2be2);
+          color: white;
+          font-weight: bold;
+        }
+
+        .mode-toggle {
+          display: flex;
+          gap: var(--gap-sm);
+          margin-bottom: var(--gap-lg);
+          border-radius: var(--radius);
+          background: var(--color-surface);
+          padding: var(--gap-xs);
+        }
+
+        .mode-button {
+          flex: 1;
+          padding: var(--gap-sm);
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          color: var(--color-textSecondary);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .mode-button.active {
+          background: var(--color-primary);
+          color: white;
+          font-weight: bold;
+        }
+
+        .form-group {
+          margin-bottom: var(--gap-md);
+        }
+
+        .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--gap-md);
+        }
+
+        .error-message {
+          background: rgba(255, 107, 107, 0.1);
+          border: 1px solid #ff6b6b;
+          color: #ff6b6b;
+          padding: var(--gap-sm);
+          border-radius: var(--radius);
+          margin-bottom: var(--gap-md);
+        }
+
+        @media (max-width: 768px) {
+          .form-row {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="auth-container">
+        <div className="auth-card">
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚗</div>
+            <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
+              Administração - Frota
+            </h1>
+            <p style={{ color: 'var(--color-textSecondary)' }}>
+              Gerenciamento Neural de Frotas
+            </p>
+          </div>
+
+          {/* Mode Toggle */}
+          <div className="mode-toggle">
+            <button
+              className={`mode-button ${mode === 'login' ? 'active' : ''}`}
+              onClick={() => {
+                setMode('login');
+                setError(null);
+              }}
+            >
+              Fazer Login
+            </button>
+            <button
+              className={`mode-button ${mode === 'register' ? 'active' : ''}`}
+              onClick={() => {
+                setMode('register');
+                setError(null);
+              }}
+            >
+              Criar Conta
+            </button>
+          </div>
+
+          {mode === 'register' && (
+            <div className="user-type-selector">
+              <button
+                className={`user-type-button ${userType === 'colaborador' ? 'active' : ''}`}
+                onClick={() => setUserType('colaborador')}
+              >
+                👤 Colaborador
+              </button>
+              <button
+                className={`user-type-button ${userType === 'empresa' ? 'active' : ''}`}
+                onClick={() => setUserType('empresa')}
+              >
+                🏢 Empresa
+              </button>
+              <button
+                className={`user-type-button ${userType === 'adminmaster' ? 'active' : ''}`}
+                onClick={() => setUserType('adminmaster')}
+              >
+                🔧 Admin Master
+              </button>
+            </div>
+          )}
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={mode === 'login' ? handleLogin : handleRegister}>
+            {mode === 'register' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="nome">Nome Completo *</label>
+                  <input
+                    id="nome"
+                    type="text"
+                    className="input"
+                    placeholder="Digite seu nome completo"
+                    value={formData.nome}
+                    onChange={(e) => handleInputChange('nome', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="telefone">Telefone</label>
+                    <input
+                      id="telefone"
+                      type="tel"
+                      className="input"
+                      placeholder="(11) 99999-9999"
+                      value={formData.telefone}
+                      onChange={(e) => handleInputChange('telefone', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="cargo">Cargo</label>
+                    <input
+                      id="cargo"
+                      type="text"
+                      className="input"
+                      placeholder="Seu cargo"
+                      value={formData.cargo}
+                      onChange={(e) => handleInputChange('cargo', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {userType === 'colaborador' && (
+                  <div className="form-group">
+                    <label htmlFor="empresaId">ID da Empresa *</label>
+                    <input
+                      id="empresaId"
+                      type="text"
+                      className="input"
+                      placeholder="Digite o ID da empresa fornecido pelo administrador"
+                      value={formData.empresaId}
+                      onChange={(e) => handleInputChange('empresaId', e.target.value)}
+                      required
+                    />
+                    <small style={{ color: 'var(--color-textSecondary)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                      Solicite o ID da empresa ao seu administrador
+                    </small>
+                  </div>
+                )}
+                
+                {userType === 'empresa' && (
+                  <div style={{
+                    background: 'rgba(0, 255, 127, 0.1)',
+                    border: '1px solid rgba(0, 255, 127, 0.3)',
+                    borderRadius: 'var(--radius)',
+                    padding: 'var(--gap-md)',
+                    marginBottom: 'var(--gap-md)'
+                  }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#00ff7f' }}>🏢 Criação de Empresa</h4>
+                    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.9 }}>
+                      Será gerado automaticamente um ID único para sua empresa. Você poderá compartilhar este ID com seus colaboradores para que eles se cadastrem no sistema.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="email">Email *</label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                placeholder="seu@email.com"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Senha *</label>
+              <input
+                id="password"
+                type="password"
+                className="input"
+                placeholder="Digite sua senha"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                required
+              />
+            </div>
+
+            {mode === 'register' && (
+              <div className="form-group">
+                <label htmlFor="confirmPassword">Confirmar Senha *</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  className="input"
+                  placeholder="Confirme sua senha"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="button button-primary"
+              disabled={loading}
+              style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
+            >
+              {loading ? 'Processando...' : mode === 'login' ? 'Entrar no Sistema' : 'Criar Conta'}
+            </button>
+
+            {mode === 'login' && (
+              <div style={{ textAlign: 'center', marginBottom: 'var(--gap-md)' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="button button-ghost"
+                  style={{ fontSize: '0.9rem' }}
+                >
+                  Esqueceu sua senha?
+                </button>
+              </div>
+            )}
+
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <Link href="/frota/auth" className="button button-ghost">
+                  ← Voltar ao Login
+                </Link>
+                <Link href="/sistemas" className="button button-ghost">
+                  Sistemas
+                </Link>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

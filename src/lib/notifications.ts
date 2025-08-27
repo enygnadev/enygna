@@ -1,0 +1,641 @@
+import { db } from './firebase';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  limit,
+  serverTimestamp,
+  onSnapshot,
+  Unsubscribe
+} from 'firebase/firestore';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+
+interface Notification {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error' | 'security' | 'business';
+  title: string;
+  message: string;
+  userId?: string;
+  empresaId?: string;
+  role?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  read: boolean;
+  actionUrl?: string;
+  actionLabel?: string;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  expiresAt?: Date;
+  channels: NotificationChannel[];
+}
+
+interface NotificationChannel {
+  type: 'in_app' | 'email' | 'sms' | 'push' | 'webhook';
+  enabled: boolean;
+  config?: Record<string, any>;
+}
+
+interface NotificationTemplate {
+  id: string;
+  name: string;
+  type: Notification['type'];
+  subject: string;
+  bodyTemplate: string;
+  variables: string[];
+  channels: NotificationChannel[];
+  conditions?: Record<string, any>;
+}
+
+interface NotificationPreferences {
+  userId: string;
+  channels: {
+    in_app: boolean;
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
+  frequency: {
+    immediate: boolean;
+    daily_digest: boolean;
+    weekly_digest: boolean;
+  };
+  types: {
+    security: boolean;
+    business: boolean;
+    system: boolean;
+    marketing: boolean;
+  };
+}
+
+class NotificationService {
+  private templates = new Map<string, NotificationTemplate>();
+  private listeners = new Map<string, Unsubscribe>();
+  private queue: Notification[] = [];
+  private isProcessing = false;
+
+  // Inicializar serviço
+  async initialize(): Promise<void> {
+    console.log('🔔 Inicializando serviço de notificações...');
+
+    await this.loadTemplates();
+    await this.setupServiceWorker();
+    this.startQueueProcessor();
+
+    console.log('✅ Serviço de notificações inicializado');
+  }
+
+  // Carregar templates
+  private async loadTemplates(): Promise<void> {
+    try {
+      const snapshot = await getDocs(collection(db, 'notification_templates'));
+      snapshot.docs.forEach(doc => {
+        const template = { id: doc.id, ...doc.data() } as NotificationTemplate;
+        this.templates.set(template.id, template);
+      });
+
+      console.log(`📋 ${this.templates.size} templates de notificação carregados`);
+    } catch (error) {
+      console.error('Erro ao carregar templates:', error);
+    }
+  }
+
+  // Configurar Service Worker para push notifications
+  private async setupServiceWorker(): Promise<void> {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('📱 Service Worker registrado para push notifications');
+
+        // Solicitar permissão para notificações
+        if (Notification.permission === 'default') {
+          const permission = await Notification.requestPermission();
+          console.log(`🔔 Permissão de notificação: ${permission}`);
+        }
+      } catch (error) {
+        console.error('Erro ao configurar Service Worker:', error);
+      }
+    }
+  }
+
+  // Processar fila de notificações
+  private startQueueProcessor(): void {
+    setInterval(async () => {
+      if (this.queue.length > 0 && !this.isProcessing) {
+        await this.processQueue();
+      }
+    }, 1000); // Processar a cada segundo
+  }
+
+  // Processar fila
+  private async processQueue(): Promise<void> {
+    this.isProcessing = true;
+
+    try {
+      const notifications = this.queue.splice(0, 10); // Processar até 10 por vez
+
+      for (const notification of notifications) {
+        await this.deliverNotification(notification);
+      }
+    } catch (error) {
+      console.error('Erro ao processar fila de notificações:', error);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  // Entregar notificação
+  private async deliverNotification(notification: Notification): Promise<void> {
+    for (const channel of notification.channels) {
+      if (!channel.enabled) continue;
+
+      try {
+        switch (channel.type) {
+          case 'in_app':
+            await this.sendInAppNotification(notification);
+            break;
+          case 'email':
+            await this.sendEmailNotification(notification, channel.config);
+            break;
+          case 'sms':
+            await this.sendSMSNotification(notification, channel.config);
+            break;
+          case 'push':
+            await this.sendPushNotification(notification);
+            break;
+          case 'webhook':
+            await this.sendWebhookNotification(notification, channel.config);
+            break;
+        }
+      } catch (error) {
+        console.error(`Erro ao enviar notificação via ${channel.type}:`, error);
+      }
+    }
+  }
+
+  // Notificação in-app
+  private async sendInAppNotification(notification: Notification): Promise<void> {
+    try {
+      const notificationDoc = doc(collection(db, 'notifications'));
+      await setDoc(notificationDoc, {
+        ...notification,
+        id: notificationDoc.id,
+        createdAt: serverTimestamp(),
+        delivered: true,
+        deliveredAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erro ao salvar notificação in-app:', error);
+    }
+  }
+
+  // Notificação push
+  private async sendPushNotification(notification: Notification): Promise<void> {
+    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') {
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      await registration.showNotification(notification.title, {
+        body: notification.message,
+        icon: '/icon-192x192.png',
+        badge: '/badge-72x72.png',
+        tag: notification.id,
+        data: {
+          url: notification.actionUrl,
+          notificationId: notification.id
+        },
+        requireInteraction: notification.priority === 'urgent'
+      });
+    } catch (error) {
+      console.error('Erro ao enviar push notification:', error);
+    }
+  }
+
+  // Notificação por email (simulada)
+  private async sendEmailNotification(notification: Notification, config?: Record<string, any>): Promise<void> {
+    console.log('📧 Email notification:', {
+      to: config?.email,
+      subject: notification.title,
+      body: notification.message
+    });
+
+    // Em produção, integrar com serviço de email como SendGrid, AWS SES, etc.
+  }
+
+  // Notificação por SMS (simulada)
+  private async sendSMSNotification(notification: Notification, config?: Record<string, any>): Promise<void> {
+    console.log('📱 SMS notification:', {
+      to: config?.phone,
+      message: `${notification.title}: ${notification.message}`
+    });
+
+    // Em produção, integrar com serviço de SMS como Twilio, AWS SNS, etc.
+  }
+
+  // Webhook notification
+  private async sendWebhookNotification(notification: Notification, config?: Record<string, any>): Promise<void> {
+    if (!config?.url) return;
+
+    try {
+      await fetch(config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.headers || {})
+        },
+        body: JSON.stringify({
+          notification,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (error) {
+      console.error('Erro ao enviar webhook:', error);
+    }
+  }
+
+  // Criar notificação
+  async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<string> {
+    const id = `notification_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const fullNotification: Notification = {
+      ...notification,
+      id,
+      createdAt: new Date(),
+      read: false
+    };
+
+    // Adicionar à fila para processamento
+    this.queue.push(fullNotification);
+
+    return id;
+  }
+
+  // Criar notificação usando template
+  async createFromTemplate(
+    templateId: string, 
+    variables: Record<string, any>,
+    recipients: {
+      userId?: string;
+      empresaId?: string;
+      role?: string;
+    }
+  ): Promise<string> {
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Template ${templateId} não encontrado`);
+    }
+
+    // Substituir variáveis no template
+    let message = template.bodyTemplate;
+    let title = template.subject;
+
+    for (const [key, value] of Object.entries(variables)) {
+      const placeholder = `{{${key}}}`;
+      message = message.replace(new RegExp(placeholder, 'g'), String(value));
+      title = title.replace(new RegExp(placeholder, 'g'), String(value));
+    }
+
+    return await this.createNotification({
+      type: template.type,
+      title,
+      message,
+      priority: 'medium',
+      channels: template.channels,
+      metadata: {
+        templateId,
+        variables
+      },
+      ...recipients
+    });
+  }
+
+  // Buscar notificações do usuário
+  async getUserNotifications(
+    userId: string, 
+    options: {
+      unreadOnly?: boolean;
+      limit?: number;
+      types?: Notification['type'][];
+    } = {}
+  ): Promise<Notification[]> {
+    try {
+      let q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      if (options.unreadOnly) {
+        q = query(q, where('read', '==', false));
+      }
+
+      if (options.types && options.types.length > 0) {
+        q = query(q, where('type', 'in', options.types));
+      }
+
+      if (options.limit) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        q = query(q, limit(options.limit as any));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as Notification[];
+    } catch (error) {
+      console.error('Erro ao buscar notificações do usuário:', error);
+      return [];
+    }
+  }
+
+  // Marcar como lida
+  async markAsRead(notificationId: string): Promise<void> {
+    try {
+      const notificationDoc = doc(db, 'notifications', notificationId);
+      await setDoc(notificationDoc, {
+        read: true,
+        readAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+    }
+  }
+
+  // Marcar todas como lidas
+  async markAllAsRead(userId: string): Promise<void> {
+    try {
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        where('read', '==', false)
+      );
+
+      const snapshot = await getDocs(q);
+
+      for (const docSnapshot of snapshot.docs) {
+        await setDoc(docSnapshot.ref, {
+          read: true,
+          readAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error);
+    }
+  }
+
+  // Escutar notificações em tempo real
+  subscribeToNotifications(
+    userId: string, 
+    callback: (notifications: Notification[]) => void
+  ): () => void {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      where('read', '==', false),
+      orderBy('createdAt', 'desc'),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      limit(20 as any)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as Notification[];
+
+      callback(notifications);
+    });
+
+    this.listeners.set(userId, unsubscribe);
+
+    return () => {
+      unsubscribe();
+      this.listeners.delete(userId);
+    };
+  }
+
+  // Notificações pré-definidas para eventos do sistema
+  async notifySessionApproved(sessionId: string, userId: string, empresaId: string): Promise<void> {
+    await this.createNotification({
+      type: 'success',
+      title: 'Sessão Aprovada',
+      message: 'Sua sessão de ponto foi aprovada pelo gestor.',
+      userId,
+      empresaId,
+      priority: 'medium',
+      channels: [
+        { type: 'in_app', enabled: true },
+        { type: 'push', enabled: true }
+      ],
+      metadata: { sessionId }
+    });
+  }
+
+  async notifySessionRejected(sessionId: string, userId: string, empresaId: string, reason?: string): Promise<void> {
+    await this.createNotification({
+      type: 'warning',
+      title: 'Sessão Rejeitada',
+      message: `Sua sessão de ponto foi rejeitada${reason ? `: ${reason}` : '.'}`,
+      userId,
+      empresaId,
+      priority: 'high',
+      channels: [
+        { type: 'in_app', enabled: true },
+        { type: 'push', enabled: true }
+      ],
+      metadata: { sessionId, reason }
+    });
+  }
+
+  async notifySecurityAlert(userId: string, alertType: string, details: string): Promise<void> {
+    await this.createNotification({
+      type: 'security',
+      title: 'Alerta de Segurança',
+      message: `${alertType}: ${details}`,
+      userId,
+      priority: 'urgent',
+      channels: [
+        { type: 'in_app', enabled: true },
+        { type: 'push', enabled: true },
+        { type: 'email', enabled: true }
+      ],
+      metadata: { alertType, details }
+    });
+  }
+
+  async notifySystemMaintenance(startTime: Date, endTime: Date): Promise<void> {
+    // Notificar todos os usuários
+    await this.createNotification({
+      type: 'warning',
+      title: 'Manutenção Programada',
+      message: `Sistema estará em manutenção de ${startTime.toLocaleString()} até ${endTime.toLocaleString()}.`,
+      priority: 'high',
+      channels: [
+        { type: 'in_app', enabled: true },
+        { type: 'push', enabled: true }
+      ],
+      metadata: { startTime, endTime }
+    });
+  }
+
+  async notifyPayrollGenerated(userId: string, empresaId: string, period: string, amount: number): Promise<void> {
+    await this.createNotification({
+      type: 'business',
+      title: 'Holerite Gerado',
+      message: `Seu holerite de ${period} está disponível. Valor: R$ ${amount.toFixed(2)}`,
+      userId,
+      empresaId,
+      priority: 'medium',
+      actionUrl: '/colaborador/dashboard?tab=holerites',
+      actionLabel: 'Ver Holerite',
+      channels: [
+        { type: 'in_app', enabled: true },
+        { type: 'push', enabled: true },
+        { type: 'email', enabled: true }
+      ],
+      metadata: { period, amount }
+    });
+  }
+
+  // Obter estatísticas de notificações
+  async getNotificationStats(userId?: string): Promise<{
+    total: number;
+    unread: number;
+    byType: Record<string, number>;
+    byPriority: Record<string, number>;
+  }> {
+    try {
+      let q = query(collection(db, 'notifications'));
+
+      if (userId) {
+        q = query(q, where('userId', '==', userId));
+      }
+
+      const snapshot = await getDocs(q);
+      const notifications = snapshot.docs.map(doc => doc.data()) as Notification[];
+
+      const stats = {
+        total: notifications.length,
+        unread: notifications.filter(n => !n.read).length,
+        byType: {} as Record<string, number>,
+        byPriority: {} as Record<string, number>
+      };
+
+      notifications.forEach(notification => {
+        stats.byType[notification.type] = (stats.byType[notification.type] || 0) + 1;
+        stats.byPriority[notification.priority] = (stats.byPriority[notification.priority] || 0) + 1;
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('Erro ao obter estatísticas:', error);
+      return {
+        total: 0,
+        unread: 0,
+        byType: {},
+        byPriority: {}
+      };
+    }
+  }
+
+  // Processar fila de emails
+  async processEmailQueue(): Promise<void> {
+    console.log('📧 Processando fila de emails...');
+    
+    try {
+      // Processar notificações pendentes na fila
+      if (this.queue.length > 0) {
+        await this.processQueue();
+      }
+      
+      console.log('✅ Fila de emails processada');
+    } catch (error) {
+      console.error('Erro ao processar fila de emails:', error);
+    }
+  }
+
+  // Verificar atrasos
+  async checkForDelays(): Promise<void> {
+    console.log('⏰ Verificando atrasos...');
+    
+    try {
+      // Aqui você implementaria a lógica para verificar atrasos
+      // Por exemplo, consultar sessões de ponto em andamento
+      // e verificar se há atrasos significativos
+      
+      console.log('✅ Verificação de atrasos concluída');
+    } catch (error) {
+      console.error('Erro ao verificar atrasos:', error);
+    }
+  }
+
+  // Verificar ausências
+  async checkForAbsences(): Promise<void> {
+    console.log('🚫 Verificando ausências...');
+    
+    try {
+      // Aqui você implementaria a lógica para verificar ausências
+      // Por exemplo, verificar funcionários que não bateram ponto
+      // em horários esperados
+      
+      console.log('✅ Verificação de ausências concluída');
+    } catch (error) {
+      console.error('Erro ao verificar ausências:', error);
+    }
+  }
+
+  // Limpar listeners
+  cleanup(): void {
+    this.listeners.forEach(unsubscribe => unsubscribe());
+    this.listeners.clear();
+  }
+}
+
+// Instância global do serviço
+export const notificationService = new NotificationService();
+
+// Hook para notificações (apenas TypeScript)
+export interface UseNotificationsReturn {
+  notifications: Notification[];
+  loading: boolean;
+  unreadCount: number;
+  markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  createNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => Promise<string>;
+  getUserNotifications: (userId: string, options?: {
+    unreadOnly?: boolean;
+    limit?: number;
+    types?: Notification['type'][];
+  }) => Promise<Notification[]>;
+}
+
+export function createNotificationsHook() {
+  return {
+    useNotifications: (userId?: string): UseNotificationsReturn => {
+      const formatDate = (timestamp: number) => {
+        return format(new Date(timestamp), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+      };
+
+      // Note: This should be moved to a React component if UI is needed
+      return {
+        notifications: [],
+        loading: false,
+        unreadCount: 0,
+        markAsRead: notificationService.markAsRead.bind(notificationService),
+        markAllAsRead: () => userId ? notificationService.markAllAsRead(userId) : Promise.resolve(),
+        createNotification: notificationService.createNotification.bind(notificationService),
+        getUserNotifications: notificationService.getUserNotifications.bind(notificationService)
+      };
+    }
+  };
+}

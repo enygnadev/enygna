@@ -1,0 +1,605 @@
+
+// src/lib/lgpd.ts - Sistema de Conformidade LGPD
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, doc, setDoc, getDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+
+export interface LGPDConsent {
+  id: string;
+  userId: string;
+  consentType: 'necessary' | 'analytics' | 'marketing' | 'preferences';
+  granted: boolean;
+  timestamp: Date;
+  version: string;
+  ipAddress?: string;
+  userAgent?: string;
+  method: 'banner' | 'settings' | 'registration';
+}
+
+export interface LGPDDataRequest {
+  id: string;
+  userId: string;
+  requestType: 'access' | 'rectification' | 'erasure' | 'portability' | 'restriction';
+  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  requestDate: Date;
+  completionDate?: Date;
+  description: string;
+  adminNotes?: string;
+  attachments?: string[];
+}
+
+export interface LGPDSettings {
+  cookieBannerEnabled: boolean;
+  consentRequired: boolean;
+  dataRetentionDays: number;
+  anonymizationEnabled: boolean;
+  auditLogEnabled: boolean;
+  privacyPolicyVersion: string;
+  contactEmail: string;
+  dpoContact?: string;
+}
+
+interface LGPDContextType {
+  consents: LGPDConsent[];
+  settings: LGPDSettings | null;
+  hasConsent: (type: string) => boolean;
+  updateConsent: (type: string, granted: boolean) => Promise<void>;
+  requestData: (type: string, description: string) => Promise<void>;
+  loading: boolean;
+}
+
+const LGPDContext = createContext<LGPDContextType | undefined>(undefined);
+
+export function LGPDProvider({ children, userId }: { children: React.ReactNode; userId?: string }) {
+  const [consents, setConsents] = useState<LGPDConsent[]>([]);
+  const [settings, setSettings] = useState<LGPDSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (userId) {
+      loadUserConsents(userId);
+      loadLGPDSettings();
+    }
+  }, [userId]);
+
+  const loadUserConsents = async (uid: string) => {
+    try {
+      const q = query(collection(db, 'lgpd_consents'), where('userId', '==', uid));
+      const querySnapshot = await getDocs(q);
+      const userConsents = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date()
+      })) as LGPDConsent[];
+      
+      setConsents(userConsents);
+    } catch (error) {
+      console.error('Erro ao carregar consentimentos:', error);
+    }
+  };
+
+  const loadLGPDSettings = async () => {
+    try {
+      const settingsDoc = await getDoc(doc(db, 'system_settings', 'lgpd'));
+      if (settingsDoc.exists()) {
+        setSettings(settingsDoc.data() as LGPDSettings);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configurações LGPD:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasConsent = (type: string) => {
+    const consent = consents.find(c => c.consentType === type);
+    return consent?.granted || false;
+  };
+
+  const updateConsent = async (type: string, granted: boolean) => {
+    if (!userId) return;
+
+    try {
+      const consentData: Omit<LGPDConsent, 'id'> = {
+        userId,
+        consentType: type as LGPDConsent['consentType'],
+        granted,
+        timestamp: new Date(),
+        version: settings?.privacyPolicyVersion || '1.0',
+        method: 'settings',
+        ipAddress: await getUserIP(),
+        userAgent: navigator.userAgent
+      };
+
+      const consentRef = doc(collection(db, 'lgpd_consents'));
+      await setDoc(consentRef, {
+        ...consentData,
+        timestamp: serverTimestamp()
+      });
+
+      // Atualizar estado local
+      setConsents(prev => [
+        ...prev.filter(c => c.consentType !== type),
+        { id: consentRef.id, ...consentData }
+      ]);
+
+      // Audit log
+      await logLGPDEvent(userId, 'consent_updated', { type, granted });
+
+    } catch (error) {
+      console.error('Erro ao atualizar consentimento:', error);
+    }
+  };
+
+  const requestData = async (type: string, description: string) => {
+    if (!userId) return;
+
+    try {
+      const requestData: Omit<LGPDDataRequest, 'id'> = {
+        userId,
+        requestType: type as LGPDDataRequest['requestType'],
+        status: 'pending',
+        requestDate: new Date(),
+        description
+      };
+
+      const requestRef = doc(collection(db, 'lgpd_requests'));
+      await setDoc(requestRef, {
+        ...requestData,
+        requestDate: serverTimestamp()
+      });
+
+      await logLGPDEvent(userId, 'data_request', { type, description });
+
+    } catch (error) {
+      console.error('Erro ao solicitar dados:', error);
+    }
+  };
+
+  const value: LGPDContextType = {
+    consents,
+    settings,
+    hasConsent,
+    updateConsent,
+    requestData,
+    loading
+  };
+
+  return (
+    <LGPDContext.Provider value={value}>
+      {children}
+    </LGPDContext.Provider>
+  );
+}
+
+export function useLGPDConsent() {
+  const context = useContext(LGPDContext);
+  if (!context) {
+    throw new Error('useLGPDConsent deve ser usado dentro de LGPDProvider');
+  }
+  return context;
+}
+
+// Componente de Banner de Cookies
+export function LGPDConsentBanner({ userId }: { userId: string }) {
+  const [showBanner, setShowBanner] = useState(false);
+  const [preferences, setPreferences] = useState({
+    necessary: true,
+    analytics: false,
+    marketing: false,
+    preferences: false
+  });
+
+  useEffect(() => {
+    checkBannerVisibility();
+  }, []);
+
+  const checkBannerVisibility = async () => {
+    try {
+      const hasSeenBanner = localStorage.getItem('lgpd_banner_seen');
+      if (!hasSeenBanner) {
+        setShowBanner(true);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar banner:', error);
+    }
+  };
+
+  const acceptAll = async () => {
+    const allConsents = {
+      necessary: true,
+      analytics: true,
+      marketing: true,
+      preferences: true
+    };
+
+    await saveConsents(allConsents);
+    setShowBanner(false);
+    localStorage.setItem('lgpd_banner_seen', 'true');
+  };
+
+  const acceptSelected = async () => {
+    await saveConsents(preferences);
+    setShowBanner(false);
+    localStorage.setItem('lgpd_banner_seen', 'true');
+  };
+
+  const rejectAll = async () => {
+    const necessaryOnly = {
+      necessary: true,
+      analytics: false,
+      marketing: false,
+      preferences: false
+    };
+
+    await saveConsents(necessaryOnly);
+    setShowBanner(false);
+    localStorage.setItem('lgpd_banner_seen', 'true');
+  };
+
+  const saveConsents = async (consents: Record<string, boolean>) => {
+    for (const [type, granted] of Object.entries(consents)) {
+      try {
+        const consentData = {
+          userId,
+          consentType: type,
+          granted,
+          timestamp: serverTimestamp(),
+          version: '1.0',
+          method: 'banner',
+          ipAddress: await getUserIP(),
+          userAgent: navigator.userAgent
+        };
+
+        const consentRef = doc(collection(db, 'lgpd_consents'));
+        await setDoc(consentRef, consentData);
+      } catch (error) {
+        console.error(`Erro ao salvar consentimento ${type}:`, error);
+      }
+    }
+  };
+
+  if (!showBanner) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blue-500 shadow-lg z-50 p-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 mb-2">🍪 Política de Cookies e Privacidade</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Este site utiliza cookies para melhorar sua experiência. Alguns são necessários para o funcionamento, 
+              outros nos ajudam a analisar o uso e personalizar conteúdo. Você pode escolher quais aceitar.
+            </p>
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={preferences.necessary}
+                  disabled
+                  className="mr-1"
+                />
+                <span>Necessários</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={preferences.analytics}
+                  onChange={(e) => setPreferences(prev => ({ ...prev, analytics: e.target.checked }))}
+                  className="mr-1"
+                />
+                <span>Analíticos</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={preferences.marketing}
+                  onChange={(e) => setPreferences(prev => ({ ...prev, marketing: e.target.checked }))}
+                  className="mr-1"
+                />
+                <span>Marketing</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={preferences.preferences}
+                  onChange={(e) => setPreferences(prev => ({ ...prev, preferences: e.target.checked }))}
+                  className="mr-1"
+                />
+                <span>Preferências</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
+            <button
+              onClick={acceptAll}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+            >
+              Aceitar Todos
+            </button>
+            <button
+              onClick={acceptSelected}
+              className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+            >
+              Aceitar Selecionados
+            </button>
+            <button
+              onClick={rejectAll}
+              className="px-4 py-2 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+            >
+              Apenas Necessários
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente de Configurações de Privacidade
+export function LGPDPrivacySettings({ userId }: { userId: string }) {
+  const { consents, updateConsent, requestData, loading } = useLGPDConsent();
+  const [showDataRequest, setShowDataRequest] = useState(false);
+  const [requestType, setRequestType] = useState('access');
+  const [requestDescription, setRequestDescription] = useState('');
+
+  const consentTypes = [
+    { key: 'necessary', label: 'Cookies Necessários', description: 'Essenciais para o funcionamento do site' },
+    { key: 'analytics', label: 'Cookies Analíticos', description: 'Nos ajudam a entender como você usa o site' },
+    { key: 'marketing', label: 'Cookies de Marketing', description: 'Personalizam anúncios e conteúdo' },
+    { key: 'preferences', label: 'Cookies de Preferências', description: 'Lembram suas configurações e escolhas' }
+  ];
+
+  const getCurrentConsent = (type: string) => {
+    const consent = consents.find(c => c.consentType === type);
+    return consent?.granted || false;
+  };
+
+  const handleDataRequest = async () => {
+    if (requestDescription.trim()) {
+      await requestData(requestType, requestDescription);
+      setShowDataRequest(false);
+      setRequestDescription('');
+      alert('Solicitação enviada com sucesso! Você receberá uma resposta em até 30 dias.');
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-4">Carregando configurações...</div>;
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">🛡️ Configurações de Privacidade</h2>
+
+      {/* Configurações de Consentimento */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Gerenciar Consentimentos</h3>
+        <div className="space-y-4">
+          {consentTypes.map((type) => (
+            <div key={type.key} className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900">{type.label}</h4>
+                <p className="text-sm text-gray-600">{type.description}</p>
+              </div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={getCurrentConsent(type.key)}
+                  disabled={type.key === 'necessary'}
+                  onChange={(e) => updateConsent(type.key, e.target.checked)}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span className="ml-2 text-sm">
+                  {type.key === 'necessary' ? 'Obrigatório' : 'Opcional'}
+                </span>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Direitos do Titular de Dados */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Seus Direitos (LGPD)</h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="p-4 border rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">📋 Acesso aos Dados</h4>
+            <p className="text-sm text-gray-600 mb-3">Solicite uma cópia de todos os dados que temos sobre você.</p>
+            <button
+              onClick={() => { setRequestType('access'); setShowDataRequest(true); }}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Solicitar Cópia
+            </button>
+          </div>
+
+          <div className="p-4 border rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">✏️ Correção de Dados</h4>
+            <p className="text-sm text-gray-600 mb-3">Solicite a correção de dados incorretos ou incompletos.</p>
+            <button
+              onClick={() => { setRequestType('rectification'); setShowDataRequest(true); }}
+              className="px-4 py-2 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700"
+            >
+              Solicitar Correção
+            </button>
+          </div>
+
+          <div className="p-4 border rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">🗑️ Exclusão de Dados</h4>
+            <p className="text-sm text-gray-600 mb-3">Solicite a remoção dos seus dados pessoais.</p>
+            <button
+              onClick={() => { setRequestType('erasure'); setShowDataRequest(true); }}
+              className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Solicitar Exclusão
+            </button>
+          </div>
+
+          <div className="p-4 border rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">📤 Portabilidade</h4>
+            <p className="text-sm text-gray-600 mb-3">Receba seus dados em formato estruturado.</p>
+            <button
+              onClick={() => { setRequestType('portability'); setShowDataRequest(true); }}
+              className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+            >
+              Exportar Dados
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Solicitação */}
+      {showDataRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Solicitação de Dados</h3>
+            <textarea
+              value={requestDescription}
+              onChange={(e) => setRequestDescription(e.target.value)}
+              placeholder="Descreva sua solicitação..."
+              className="w-full p-3 border rounded-lg mb-4 h-24 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleDataRequest}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Enviar Solicitação
+              </button>
+              <button
+                onClick={() => setShowDataRequest(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Informações Adicionais */}
+      <div className="text-sm text-gray-600 space-y-2">
+        <p>
+          <strong>Prazo de Resposta:</strong> Todas as solicitações são processadas em até 15 dias úteis, 
+          conforme previsto na Lei Geral de Proteção de Dados (LGPD).
+        </p>
+        <p>
+          <strong>Contato:</strong> Para dúvidas sobre privacidade, entre em contato através do email 
+          <a href="mailto:privacidade@cartaopontoweb.com.br" className="text-blue-600 hover:underline">
+            privacidade@cartaopontoweb.com.br
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Funções auxiliares
+async function getUserIP(): Promise<string> {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch (error) {
+    console.error('Erro ao obter IP:', error);
+    return 'unknown';
+  }
+}
+
+async function logLGPDEvent(userId: string, eventType: string, data: any): Promise<void> {
+  try {
+    const eventData = {
+      userId,
+      eventType,
+      data,
+      timestamp: serverTimestamp(),
+      userAgent: navigator.userAgent,
+      ipAddress: await getUserIP()
+    };
+
+    const eventRef = doc(collection(db, 'lgpd_audit_log'));
+    await setDoc(eventRef, eventData);
+  } catch (error) {
+    console.error('Erro ao registrar evento LGPD:', error);
+  }
+}
+
+// Serviço LGPD
+class LGPDService {
+  async processDataRequest(requestId: string, action: 'approve' | 'reject', adminNotes?: string): Promise<void> {
+    try {
+      const requestRef = doc(db, 'lgpd_requests', requestId);
+      await setDoc(requestRef, {
+        status: action === 'approve' ? 'completed' : 'rejected',
+        completionDate: serverTimestamp(),
+        adminNotes
+      }, { merge: true });
+    } catch (error) {
+      console.error('Erro ao processar solicitação:', error);
+    }
+  }
+
+  async generateDataExport(userId: string): Promise<any> {
+    try {
+      // Coletar dados do usuário de todas as coleções
+      const collections = ['users', 'punches', 'lgpd_consents', 'sessions'];
+      const userData: any = {};
+
+      for (const collectionName of collections) {
+        const q = query(collection(db, collectionName), where('userId', '==', userId));
+        const querySnapshot = await getDocs(q);
+        userData[collectionName] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      }
+
+      return userData;
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+      throw error;
+    }
+  }
+
+  async anonymizeUserData(userId: string): Promise<void> {
+    try {
+      // Implementar anonimização conforme LGPD
+      const anonymizedData = {
+        name: 'Usuário Anonimizado',
+        email: `anonimizado-${Date.now()}@exemplo.com`,
+        phone: 'Removido',
+        anonymized: true,
+        anonymizedAt: serverTimestamp()
+      };
+
+      const userRef = doc(db, 'users', userId);
+      await setDoc(userRef, anonymizedData, { merge: true });
+    } catch (error) {
+      console.error('Erro ao anonimizar dados:', error);
+      throw error;
+    }
+  }
+
+  async checkDataRetention(): Promise<void> {
+    try {
+      // Verificar dados que precisam ser removidos por tempo de retenção
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 365); // 1 ano
+
+      const oldDataQuery = query(
+        collection(db, 'sessions'),
+        where('timestamp', '<', cutoffDate)
+      );
+
+      const querySnapshot = await getDocs(oldDataQuery);
+      console.log(`Encontrados ${querySnapshot.size} registros para limpeza automática`);
+    } catch (error) {
+      console.error('Erro na verificação de retenção:', error);
+    }
+  }
+}
+
+export const lgpdService = new LGPDService();

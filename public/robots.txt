@@ -1,0 +1,42 @@
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /empresa/
+Disallow: /colaborador/
+Disallow: /_next/
+Disallow: /static/
+
+# Sitemaps
+Sitemap: https://cartaopontoweb.com.br/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Specific rules for search engines
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /dashboard
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /dashboard
+
+User-agent: FacebookExternalHit
+Allow: /
+
+# Block malicious bots
+User-agent: BadBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /

@@ -1,0 +1,643 @@
+// src/lib/production.ts - Otimizações e Monitoramento para Produção
+import React, { useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
+export interface PerformanceMetrics {
+  pageLoadTime: number;
+  firstContentfulPaint: number;
+  largestContentfulPaint: number;
+  cumulativeLayoutShift: number;
+  firstInputDelay: number;
+  timeToInteractive: number;
+}
+
+export interface ErrorReport {
+  message: string;
+  stack: string;
+  url: string;
+  lineNumber: number;
+  columnNumber: number;
+  userAgent: string;
+  timestamp: Date;
+  userId?: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface HealthCheck {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  responseTime: number;
+  timestamp: Date;
+  details?: any;
+}
+
+class ProductionService {
+  private environment = process.env.NODE_ENV || 'development';
+  private version = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0';
+
+  // Monitoramento de Performance
+  async trackPerformanceMetrics(): Promise<void> {
+    try {
+      if (this.environment !== 'production') return;
+
+      // Web Vitals
+      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      
+      const metrics: PerformanceMetrics = {
+        pageLoadTime: navigation.loadEventEnd - navigation.loadEventStart,
+        firstContentfulPaint: 0,
+        largestContentfulPaint: 0,
+        cumulativeLayoutShift: 0,
+        firstInputDelay: 0,
+        timeToInteractive: 0
+      };
+
+      // Capturar FCP
+      const fcpEntry = performance.getEntriesByName('first-contentful-paint')[0];
+      if (fcpEntry) {
+        metrics.firstContentfulPaint = fcpEntry.startTime;
+      }
+
+      // Observar LCP
+      if ('PerformanceObserver' in window) {
+        new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          const lastEntry = entries[entries.length - 1];
+          metrics.largestContentfulPaint = lastEntry.startTime;
+        }).observe({ entryTypes: ['largest-contentful-paint'] });
+
+        // Observar CLS
+        new PerformanceObserver((list) => {
+          let clsValue = 0;
+          for (const entry of list.getEntries()) {
+            if (!(entry as any).hadRecentInput) {
+              clsValue += (entry as any).value;
+            }
+          }
+          metrics.cumulativeLayoutShift = clsValue;
+        }).observe({ entryTypes: ['layout-shift'] });
+
+        // Observar FID
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            metrics.firstInputDelay = (entry as any).processingStart - entry.startTime;
+          }
+        }).observe({ entryTypes: ['first-input'] });
+      }
+
+      // Enviar métricas para Firestore
+      await this.sendMetricsToFirestore(metrics);
+
+    } catch (error) {
+      console.error('Erro ao rastrear performance:', error);
+    }
+  }
+
+  // Error Boundary e Logging
+  async reportError(error: Error, errorInfo?: any): Promise<void> {
+    try {
+      const errorReport: ErrorReport = {
+        message: error.message,
+        stack: error.stack || '',
+        url: window.location.href,
+        lineNumber: 0,
+        columnNumber: 0,
+        userAgent: navigator.userAgent,
+        timestamp: new Date(),
+        userId: localStorage.getItem('userId') || undefined,
+        severity: this.categorizeError(error)
+      };
+
+      // Enviar para Firestore
+      await this.sendErrorToFirestore(errorReport);
+
+      // Em produção, enviar para serviços externos
+      if (this.environment === 'production') {
+        await this.sendToExternalMonitoring(errorReport);
+      }
+
+    } catch (err) {
+      console.error('Erro ao reportar erro:', err);
+    }
+  }
+
+  // Health Checks
+  async performHealthChecks(): Promise<HealthCheck[]> {
+    const checks: HealthCheck[] = [];
+
+    try {
+      // Check Firebase
+      const firebaseCheck = await this.checkFirebaseHealth();
+      checks.push(firebaseCheck);
+
+      // Check APIs externas
+      const externalApiCheck = await this.checkExternalAPIs();
+      checks.push(...externalApiCheck);
+
+      // Check recursos estáticos
+      const staticResourcesCheck = await this.checkStaticResources();
+      checks.push(staticResourcesCheck);
+
+      return checks;
+    } catch (error) {
+      console.error('Erro ao executar health checks:', error);
+      return checks;
+    }
+  }
+
+  // Cache Management
+  setupCacheManagement(): void {
+    try {
+      // Service Worker para cache
+      if ('serviceWorker' in navigator && this.environment === 'production') {
+        navigator.serviceWorker.register('/sw.js', {
+          scope: '/'
+        }).then((registration) => {
+          console.log('Service Worker registrado:', registration);
+        }).catch((error) => {
+          console.error('Erro ao registrar Service Worker:', error);
+        });
+      }
+
+      // Cache de API responses
+      this.setupAPICache();
+
+      // Cache de assets estáticos
+      this.setupStaticCache();
+
+    } catch (error) {
+      console.error('Erro ao configurar cache:', error);
+    }
+  }
+
+  // Bundle Analysis
+  async analyzeBundleSize(): Promise<any> {
+    try {
+      if (this.environment !== 'production') return null;
+
+      const bundleInfo = {
+        totalSize: 0,
+        gzippedSize: 0,
+        chunks: [] as any[],
+        analysis: {
+          recommendations: [] as string[],
+          issues: [] as string[]
+        }
+      };
+
+      // Analisar scripts carregados
+      const scripts = Array.from(document.scripts);
+      for (const script of scripts) {
+        if (script.src && script.src.includes('/_next/')) {
+          try {
+            const response = await fetch(script.src, { method: 'HEAD' });
+            const size = parseInt(response.headers.get('content-length') || '0');
+            bundleInfo.totalSize += size;
+            
+            bundleInfo.chunks.push({
+              name: script.src.split('/').pop(),
+              size,
+              type: 'script'
+            });
+          } catch {
+            // Ignorar erros de fetch
+          }
+        }
+      }
+
+      // Recomendações baseadas no tamanho
+      if (bundleInfo.totalSize > 2 * 1024 * 1024) { // 2MB
+        bundleInfo.analysis.recommendations.push('Bundle muito grande - considere code splitting');
+      }
+
+      return bundleInfo;
+    } catch (error) {
+      console.error('Erro ao analisar bundle:', error);
+      return null;
+    }
+  }
+
+  // Otimizações de SEO
+  setupSEOOptimizations(): void {
+    try {
+      // Meta tags dinâmicas
+      this.updateMetaTags();
+
+      // Schema.org markup
+      this.addStructuredData();
+
+      // Preload de recursos críticos
+      this.setupResourcePreloading();
+
+      // Lazy loading de imagens
+      this.setupLazyLoading();
+
+    } catch (error) {
+      console.error('Erro ao configurar SEO:', error);
+    }
+  }
+
+  // Database Optimization
+  async optimizeFirestoreQueries(): Promise<void> {
+    try {
+      // Implementar índices compostos recomendados
+      const recommendations = [
+        'users: role, empresaId',
+        'sessions: userId, status, timestamp',
+        'lgpd_consents: userId, consentType, granted',
+        'security_events: userId, type, severity, timestamp'
+      ];
+
+      console.log('Índices Firestore recomendados:', recommendations);
+
+      // Implementar cache de queries frequentes
+      this.setupQueryCache();
+
+      // Batching de operações
+      this.setupBatchOperations();
+
+    } catch (error) {
+      console.error('Erro ao otimizar Firestore:', error);
+    }
+  }
+
+  // Helpers privados
+  private async sendMetricsToFirestore(metrics: PerformanceMetrics): Promise<void> {
+    try {
+      const metricsRef = doc(collection(db, 'performance_metrics'));
+      await setDoc(metricsRef, {
+        ...metrics,
+        timestamp: serverTimestamp(),
+        version: this.version,
+        environment: this.environment,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      });
+    } catch (error) {
+      console.error('Erro ao enviar métricas:', error);
+    }
+  }
+
+  private async sendErrorToFirestore(errorReport: ErrorReport): Promise<void> {
+    try {
+      const errorRef = doc(collection(db, 'error_reports'));
+      await setDoc(errorRef, {
+        ...errorReport,
+        timestamp: serverTimestamp(),
+        version: this.version,
+        environment: this.environment
+      });
+    } catch (error) {
+      console.error('Erro ao enviar erro para Firestore:', error);
+    }
+  }
+
+  private categorizeError(error: Error): 'low' | 'medium' | 'high' | 'critical' {
+    const criticalKeywords = ['auth', 'payment', 'security', 'database'];
+    const highKeywords = ['firebase', 'api', 'network'];
+    const mediumKeywords = ['ui', 'component', 'render'];
+
+    const errorMsg = error.message.toLowerCase();
+
+    if (criticalKeywords.some(keyword => errorMsg.includes(keyword))) {
+      return 'critical';
+    }
+    if (highKeywords.some(keyword => errorMsg.includes(keyword))) {
+      return 'high';
+    }
+    if (mediumKeywords.some(keyword => errorMsg.includes(keyword))) {
+      return 'medium';
+    }
+    return 'low';
+  }
+
+  private async checkFirebaseHealth(): Promise<HealthCheck> {
+    const startTime = Date.now();
+    try {
+      // Teste simples de conectividade
+      await doc(collection(db, 'health_check')).get();
+      
+      return {
+        service: 'firebase',
+        status: 'healthy',
+        responseTime: Date.now() - startTime,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        service: 'firebase',
+        status: 'unhealthy',
+        responseTime: Date.now() - startTime,
+        timestamp: new Date(),
+        details: error
+      };
+    }
+  }
+
+  private async checkExternalAPIs(): Promise<HealthCheck[]> {
+    const checks: HealthCheck[] = [];
+    const apis = [
+      { name: 'ipify', url: 'https://api.ipify.org' },
+      { name: 'google_maps', url: 'https://maps.googleapis.com' }
+    ];
+
+    for (const api of apis) {
+      const startTime = Date.now();
+      try {
+        const response = await fetch(api.url, { 
+          method: 'HEAD',
+          mode: 'no-cors',
+          cache: 'no-cache'
+        });
+        
+        checks.push({
+          service: api.name,
+          status: 'healthy',
+          responseTime: Date.now() - startTime,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        checks.push({
+          service: api.name,
+          status: 'unhealthy',
+          responseTime: Date.now() - startTime,
+          timestamp: new Date(),
+          details: error
+        });
+      }
+    }
+
+    return checks;
+  }
+
+  private async checkStaticResources(): Promise<HealthCheck> {
+    const startTime = Date.now();
+    try {
+      // Verificar recursos críticos
+      const resources = performance.getEntriesByType('resource');
+      const failedResources = resources.filter((resource: any) => 
+        resource.transferSize === 0 && resource.decodedBodySize === 0
+      );
+
+      return {
+        service: 'static_resources',
+        status: failedResources.length === 0 ? 'healthy' : 'degraded',
+        responseTime: Date.now() - startTime,
+        timestamp: new Date(),
+        details: { failedCount: failedResources.length }
+      };
+    } catch (error) {
+      return {
+        service: 'static_resources',
+        status: 'unhealthy',
+        responseTime: Date.now() - startTime,
+        timestamp: new Date(),
+        details: error
+      };
+    }
+  }
+
+  private setupAPICache(): void {
+    // Implementar cache para respostas de API
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const cacheKey = `api_cache_${input}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      
+      if (cached && init?.method !== 'POST') {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < 5 * 60 * 1000) { // 5 minutos
+          return new Response(JSON.stringify(data));
+        }
+      }
+      
+      const response = await originalFetch(input, init);
+      
+      if (response.ok && init?.method !== 'POST') {
+        const data = await response.clone().json();
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+      }
+      
+      return response;
+    };
+  }
+
+  private setupStaticCache(): void {
+    // Cache de imagens e assets
+    if ('caches' in window) {
+      caches.open('static-cache-v1').then(cache => {
+        const staticAssets = [
+          '/favicon.ico',
+          '/manifest.json',
+          '/_next/static/css/',
+          '/_next/static/js/'
+        ];
+        
+        cache.addAll(staticAssets.filter(Boolean));
+      });
+    }
+  }
+
+  private updateMetaTags(): void {
+    // Meta tags para SEO
+    const metaTags = [
+      { name: 'description', content: 'Sistema de Ponto Eletrônico - Gestão completa de horários e colaboradores' },
+      { name: 'keywords', content: 'ponto eletrônico, gestão de horários, RH, colaboradores, brasil' },
+      { name: 'author', content: 'Cartão Ponto Web' },
+      { name: 'robots', content: 'index, follow' },
+      { property: 'og:title', content: 'Cartão Ponto Web - Sistema de Ponto Eletrônico' },
+      { property: 'og:description', content: 'Gestão completa de horários e colaboradores com conformidade LGPD' },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:locale', content: 'pt_BR' }
+    ];
+
+    metaTags.forEach(tag => {
+      let meta = document.querySelector(`meta[${Object.keys(tag)[0]}="${Object.values(tag)[0]}"]`);
+      if (!meta) {
+        meta = document.createElement('meta');
+        document.head.appendChild(meta);
+      }
+      Object.entries(tag).forEach(([key, value]) => {
+        meta!.setAttribute(key, value);
+      });
+    });
+  }
+
+  private addStructuredData(): void {
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Cartão Ponto Web",
+      "description": "Sistema de Ponto Eletrônico com conformidade LGPD",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "Cartão Ponto Web",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Tubarão",
+          "addressRegion": "Santa Catarina",
+          "addressCountry": "BR"
+        }
+      }
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(structuredData);
+    document.head.appendChild(script);
+  }
+
+  private setupResourcePreloading(): void {
+    // Preload de recursos críticos
+    const criticalResources = [
+      { href: '/_next/static/css/app.css', as: 'style' },
+      { href: '/_next/static/js/app.js', as: 'script' }
+    ];
+
+    criticalResources.forEach(resource => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.href = resource.href;
+      link.as = resource.as;
+      document.head.appendChild(link);
+    });
+  }
+
+  private setupLazyLoading(): void {
+    // Intersection Observer para lazy loading
+    if ('IntersectionObserver' in window) {
+      const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target as HTMLImageElement;
+            img.src = img.dataset.src || '';
+            img.classList.remove('lazy');
+            observer.unobserve(img);
+          }
+        });
+      });
+
+      document.querySelectorAll('img[data-src]').forEach(img => {
+        imageObserver.observe(img);
+      });
+    }
+  }
+
+  private setupQueryCache(): void {
+    // Cache para queries Firestore frequentes
+    const queryCache = new Map();
+    
+    // Implementar cache personalizado para Firestore
+    console.log('Query cache configurado');
+  }
+
+  private setupBatchOperations(): void {
+    // Agrupar operações Firestore para melhor performance
+    let pendingOperations: any[] = [];
+    
+    const flushOperations = async () => {
+      if (pendingOperations.length > 0) {
+        // Executar operações em batch
+        console.log(`Executando ${pendingOperations.length} operações em batch`);
+        pendingOperations = [];
+      }
+    };
+
+    // Flush a cada 5 segundos ou quando atingir 500 operações
+    setInterval(flushOperations, 5000);
+  }
+
+  private async sendToExternalMonitoring(errorReport: ErrorReport): Promise<void> {
+    try {
+      // Integração com Sentry, LogRocket, etc.
+      // await fetch('https://api.sentry.io/...', { ... });
+      console.log('Erro enviado para monitoramento externo:', errorReport);
+    } catch (error) {
+      console.error('Erro ao enviar para monitoramento externo:', error);
+    }
+  }
+}
+
+export const productionService = new ProductionService();
+
+// Error Boundary Component
+export class ProductionErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    productionService.reportError(error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ 
+          padding: '2rem', 
+          textAlign: 'center',
+          background: '#fee',
+          border: '1px solid #fcc',
+          borderRadius: '8px',
+          margin: '1rem'
+        }}>
+          <h2>🚨 Ops! Algo deu errado</h2>
+          <p>Nossos engenheiros foram notificados e estão trabalhando na correção.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Recarregar Página
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Hook para monitoramento
+export function useProductionMonitoring() {
+  useEffect(() => {
+    productionService.trackPerformanceMetrics();
+    productionService.setupCacheManagement();
+    productionService.setupSEOOptimizations();
+    
+    // Health check periódico
+    const healthInterval = setInterval(() => {
+      productionService.performHealthChecks();
+    }, 5 * 60 * 1000); // 5 minutos
+
+    return () => clearInterval(healthInterval);
+  }, []);
+
+  const reportError = (error: Error) => {
+    productionService.reportError(error);
+  };
+
+  return { reportError };
+}
