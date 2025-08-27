@@ -500,7 +500,7 @@ html, body {
 
 /* === MODAL AND COMPONENT Z-INDEX MANAGEMENT === */
 .modal-overlay {
-  z-index: 9999 !important;
+  z-index: 10000 !important;
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -520,7 +520,7 @@ html, body {
 
 /* === EMPRESA MANAGER HIGH PRIORITY MODALS === */
 .empresa-manager-modal-overlay {
-  z-index: 2147483647 !important;
+  z-index: 9999 !important;
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -529,7 +529,7 @@ html, body {
 }
 
 .empresa-manager-modal-content {
-  z-index: 2147483647 !important;
+  z-index: 20000 !important;
   position: relative !important;
 }
 
