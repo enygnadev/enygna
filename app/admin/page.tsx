@@ -1714,7 +1714,7 @@ export default function AdminMasterPage() {
                 height: '12px',
                 background: 'rgba(255,255,255,0.7)',
                 borderRadius: '50%',
-                animation: `pulse 2s infinite ${i * 0.2}s`
+                animation: 'pulse 2s infinite'
               }}></div>
             ))}
           </div>
