@@ -2686,7 +2686,11 @@ export default function AdminMasterPage() {
           { id: 'reports', label: 'Relatórios', icon: '📋' },
           { id: 'settings', label: 'Configurações', icon: '⚙️' },
           { id: 'logs', label: 'Logs', icon: '📄' },
-          { id: 'create-admin', label: 'Criar Admin', icon: '👑' } // Nova aba adicionada
+          { id: 'create-admin', label: 'Criar Admin', icon: '👑' },
+          { id: 'sistema-chamados', label: 'Sistema Chamados', icon: '🎫' },
+          { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
+          { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
+          { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -4593,47 +4597,185 @@ export default function AdminMasterPage() {
         )}
         {activeTab === 'create-admin' && (
           <div className="create-admin-section" style={{ padding: '2rem' }}>
+            <SuperAdminCreateForm />
+          </div>
+        )}
+
+        {activeTab === 'sistema-chamados' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
               padding: '2rem',
               borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)',
-              textAlign: 'center'
+              border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              <h3 style={{ 
-                margin: '0 0 2rem 0', 
-                fontSize: '1.5rem', 
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                justifyContent: 'center'
-              }}>
-                👑 Criação de Super Administrador
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+                🎫 Gestão do Sistema de Chamados
               </h3>
-              <p style={{ 
-                fontSize: '1.1rem', 
-                opacity: 0.9, 
-                marginBottom: '2rem' 
-              }}>
-                Para criar novos administradores com acesso total ao sistema, utilize o formulário de criação na tela de login.
-              </p>
-              <button
-                onClick={() => setShowCreateAdminForm(true)}
-                style={{
-                  padding: '1rem 2rem',
-                  background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                👑 Abrir Formulário de Criação
+              
+              {/* Estatísticas */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>0</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Abertos</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>0</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Empresas Ativas</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>0</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Colaboradores</div>
+                </div>
+              </div>
+
+              {/* Ações de Gerenciamento */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <button
+                  onClick={() => {/* Criar empresa */}}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  🏢 Criar Nova Empresa
+                </button>
+                <button
+                  onClick={() => {/* Criar colaborador */}}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  👤 Criar Colaborador
+                </button>
+                <button
+                  onClick={() => {/* Ver relatórios */}}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  📊 Relatórios
+                </button>
+                <button
+                  onClick={() => {/* Configurações */}}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  ⚙️ Configurações
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sistema-frota' && (
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+              🚗 Gestão do Sistema de Frota
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                🏢 Gerenciar Empresas
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                🚗 Gerenciar Veículos
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                👥 Gerenciar Motoristas
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                📊 Relatórios GPS
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sistema-financeiro' && (
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+              💰 Gestão do Sistema Financeiro
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                🏢 Gerenciar Empresas
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                👤 Gerenciar Contadores
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                📄 Documentos Fiscais
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                📊 Relatórios Fiscais
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sistema-documentos' && (
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
+              📁 Gestão do Sistema de Documentos
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                🏢 Gerenciar Empresas
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                👤 Gerenciar Usuários
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                📄 Templates de Documentos
+              </button>
+              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
+                🔒 Controle de Acesso
               </button>
             </div>
           </div>

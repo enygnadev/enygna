@@ -262,21 +262,27 @@ service cloud.firestore {
     }
 
 
-    match /chamados/users/{userId} {
-      allow read, write: if isBootstrapAdmin() || (isOwner(userId) && hasDataProcessingConsent(userId));
+    match /chamados_users/{userId} {
+      allow read: if isBootstrapAdmin() || isAdminMaster() || isOwner(userId);
+      allow create: if isBootstrapAdmin() || isAdminMaster();
+      allow update: if isBootstrapAdmin() || isAdminMaster() || isOwner(userId);
+      allow delete: if isBootstrapAdmin() || isAdminMaster();
     }
 
-    match /chamados/tickets/{ticketId} {
+    match /chamados_tickets/{ticketId} {
       allow read: if isBootstrapAdmin() || (isSignedIn() &&
         (request.auth.uid == resource.data.userId || isAdmin()));
-      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp() && hasDataProcessingConsent(request.auth.uid));
+      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp());
       allow update: if isBootstrapAdmin() || (isSignedIn() && isWithinRateLimit() &&
         (request.auth.uid == resource.data.userId || isAdmin()));
       allow delete: if isBootstrapAdmin() || isAdminMaster();
     }
 
-    match /chamados/companies/{empresaId} {
-      allow read, write: if sameCompany(empresaId) && isValidTimestamp();
+    match /chamados_empresas/{empresaId} {
+      allow read: if isBootstrapAdmin() || isAdminMaster() || sameCompany(empresaId);
+      allow create: if isBootstrapAdmin() || isAdminMaster();
+      allow update: if isBootstrapAdmin() || isAdminMaster() || (isAdmin() && sameCompany(empresaId));
+      allow delete: if isBootstrapAdmin() || isAdminMaster();
     }
 
 

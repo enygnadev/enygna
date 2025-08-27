@@ -1,5 +1,5 @@
 
-'use client';
+<old_str>'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -499,4 +499,34 @@ export default function ChamadosAuthPage() {
       </div>
     </div>
   );
-}
+}</old_str>
+<new_str>'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function ChamadosAdminAuthPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redireciona para o painel admin principal
+    router.push('/admin');
+  }, [router]);
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%)',
+      color: 'white'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔄</div>
+        <h2 style={{ margin: '0 0 1rem 0' }}>Redirecionando...</h2>
+        <p style={{ opacity: 0.8 }}>Você será redirecionado para o painel administrativo principal.</p>
+      </div>
+    </div>
+  );
+}</new_str>

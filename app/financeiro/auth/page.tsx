@@ -240,9 +240,9 @@ export default function FinanceiroAuth() {
           <h1 className="h1" style={{ marginBottom: 'var(--gap-sm)' }}>
             💰 Sistema Financeiro
           </h1>
-          <p className="text-muted">
-            {isLogin ? 'Entre na sua conta' : 'Crie sua conta'}
-          </p>
+          <p style={{ color: 'var(--color-textSecondary)' }}>
+              Acesso somente para usuários autorizados
+            </p>
         </div>
 
         {/* Mensagens */}
@@ -440,6 +440,13 @@ export default function FinanceiroAuth() {
           <Link href="/sistemas" className="button button-ghost">
             ← Voltar aos Sistemas
           </Link>
+        </div>
+
+        {/* Footer Message */}
+        <div style={{ textAlign: 'center', marginTop: 'var(--gap-lg)' }}>
+          <p style={{ marginBottom: 'var(--gap-md)' }}>
+                🔐 Acesso controlado pelo Admin Master
+              </p>
         </div>
       </div>
     </div>

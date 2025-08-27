@@ -44,12 +44,13 @@ export default function FrotaAuthPage() {
 
         // Redirecionar baseado no papel do usuário
         if (role === 'superadmin' || role === 'admin' || role === 'gestor') {
-          router.push('/frota');
+          router.push('/admin'); // Redireciona para o painel admin
         } else if (role === 'colaborador') {
-          // Colaboradores vão direto para a área do motorista
-          router.push('/frota/colaborador');
+          // Colaboradores, se ainda permitidos em alguma página específica, iriam aqui.
+          // Para este caso, todos os fluxos não-admin devem ser removidos ou redirecionados para o login geral.
+          setError('Acesso restrito ao painel administrativo.');
         } else {
-          setError('Você não tem permissão para acessar o sistema de frota');
+          setError('Você não tem permissão para acessar o sistema.');
         }
       } else {
         setError('Usuário não encontrado no sistema');
@@ -277,7 +278,7 @@ export default function FrotaAuthPage() {
           margin-bottom: var(--gap-md);
         }
 
-        
+
       `}</style>
 
       <div className="auth-container">
@@ -289,7 +290,7 @@ export default function FrotaAuthPage() {
               Sistema de Frota
             </h1>
             <p style={{ color: 'var(--color-textSecondary)' }}>
-              Login no Sistema
+              Acesso somente para usuários autorizados
             </p>
           </div>
 
@@ -342,7 +343,12 @@ export default function FrotaAuthPage() {
               </button>
             </div>
 
-            
+            {/* Admin controlled access message */}
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
+              <p style={{ marginBottom: 'var(--gap-md)' }}>
+                🔐 Acesso controlado pelo Admin Master
+              </p>
+            </div>
 
             <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
               <Link href="/sistemas" className="button button-ghost">
