@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ThemeSelector from '@/src/components/ThemeSelector';
+import EmpresaManager from '@/src/components/EmpresaManager';
 
 // Import dinâmico do Firebase para evitar erros SSR
 let auth: any, db: any;
@@ -74,8 +75,9 @@ interface ChatMessage {
 
 export default function DocumentosPage() {
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null); // State to store user role
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas'>('generator');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
@@ -113,7 +115,7 @@ export default function DocumentosPage() {
         if (!mounted) return;
 
         const authInstance = firebase.auth;
-        const dbInstance = firebase.db;
+        const dbInstance = firestoreModule; // Use firestoreModule directly for functions
 
         unsubscribe = authModule.onAuthStateChanged(authInstance, async (currentUser) => {
           if (!mounted) return;
@@ -127,6 +129,9 @@ export default function DocumentosPage() {
               if (userDoc.exists()) {
                 if (mounted) {
                   setUser(currentUser);
+                  const userData = userDoc.data();
+                  setUserRole(userData?.role || null); // Set user role
+
                   // Carregar templates e documentos
                   try {
                     const templatesQuery = firestoreModule.query(
@@ -606,6 +611,17 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
     }
   };
 
+  // Define the tabs, including the new 'empresas' tab
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'documentos', label: 'Documentos', icon: '📄' },
+    { id: 'upload', label: 'Upload', icon: '⬆️' },
+    { id: 'templates', label: 'Templates', icon: '📋' },
+    { id: 'assinatura', label: 'Assinatura', icon: '✍️' },
+    { id: 'empresas', label: 'Empresas', icon: '🏢' },
+    { id: 'relatorios', label: 'Relatórios', icon: '📈' }
+  ];
+
   if (loading) {
     return (
       <div className="container" style={{ 
@@ -808,36 +824,15 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
 
       {/* Navigation Tabs */}
       <div className="tab-nav">
-        <button
-          className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
-        >
-          🤖 Chat IA
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'generator' ? 'active' : ''}`}
-          onClick={() => setActiveTab('generator')}
-        >
-          📝 Gerar Documento
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'ocr' ? 'active' : ''}`}
-          onClick={() => setActiveTab('ocr')}
-        >
-          📷 Extrair Dados (OCR)
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-        >
-          📋 Templates
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          📂 Histórico
-        </button>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id as any)} // Cast to any to satisfy the type
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Chat IA Tab */}
@@ -1168,6 +1163,22 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
         </div>
       )}
 
+      {/* Companies Tab */}
+      {activeTab === 'empresas' && (
+        <div className="card">
+          <EmpresaManager 
+            sistema="documentos"
+            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
+            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
+            allowDelete={userRole === 'superadmin'}
+            onEmpresaSelect={(empresa) => {
+              console.log('Empresa selecionada para documentos:', empresa);
+              // Implementar filtros de documentos por empresa
+            }}
+          />
+        </div>
+      )}
+
       {/* History Tab */}
       {activeTab === 'history' && (
         <div className="card">
@@ -1231,6 +1242,26 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
               <p>Nenhum documento encontrado</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Reports Tab */}
+      {activeTab === 'relatorios' && (
+        <div>
+          <h2 style={{ fontSize: '2rem', marginBottom: '2rem' }}>📈 Relatórios</h2>
+          <div style={{
+            background: 'rgba(255,255,255,0.1)',
+            padding: '3rem',
+            borderRadius: '16px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
+            <h3 style={{ marginBottom: '1rem' }}>Relatórios de Documentos</h3>
+            <p style={{ opacity: 0.8, maxWidth: '600px', margin: '0 auto' }}>
+              Sistema de relatórios em desenvolvimento. Em breve você terá acesso a relatórios sobre:
+              uso de documentos, assinaturas, templates mais utilizados e análises de conformidade.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProf
 import { doc, getDoc, collection, addDoc, getDocs, query, where, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import ThemeSelector from '@/src/components/ThemeSelector';
 import { useRouter } from 'next/navigation'; // Import useRouter
+import EmpresaManager from '@/src/components/EmpresaManager';
 
 interface Veiculo {
   id: string;
@@ -118,6 +119,21 @@ export default function FrotaPage() {
 
   const countries = ['🌍 Todos', '🇧🇷 Brasil', '🇺🇸 EUA', '🇦🇷 Argentina', '🇨🇱 Chile', '🇵🇪 Peru', '🇨🇴 Colômbia'];
 
+  const [activeTab, setActiveTab] = useState('dashboard'); // Estado para gerenciar a aba ativa
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'veiculos', label: 'Veículos', icon: '🚗' },
+    { id: 'motoristas', label: 'Motoristas', icon: '👨‍💼' },
+    { id: 'viagens', label: 'Viagens', icon: '🛣️' },
+    { id: 'manutencao', label: 'Manutenção', icon: '🔧' },
+    { id: 'combustivel', label: 'Combustível', icon: '⛽' },
+    { id: 'empresas', label: 'Empresas', icon: '🏢' },
+    { id: 'relatorios', label: 'Relatórios', icon: '📈' }
+  ];
+
+  const userRole = userPermissions?.role || ''; // Obtém o papel do usuário para controle de permissões
+
   // Função para gerar análise IA
   const generateAIAnalysis = async () => {
     try {
@@ -173,7 +189,7 @@ export default function FrotaPage() {
   const checkUserPermissions = async (userEmail: string) => {
     try {
       setLoading(true);
-      
+
       // Permitir acesso para todos os usuários autenticados temporariamente
       setHasAccess(true);
       setUserPermissions({ 
@@ -181,7 +197,7 @@ export default function FrotaPage() {
         role: 'admin', 
         permissions: { frota: true } 
       });
-      
+
       showSnackbar('Acesso autorizado ao sistema de frota!', 'success');
     } catch (error) {
       console.error('Erro ao verificar permissões:', error);
@@ -526,9 +542,6 @@ export default function FrotaPage() {
         hourlyRate: 0,
         monthlySalary: 0,
         monthlyBaseHours: 220,
-        toleranceMinutes: 0,
-        lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
         permissions: {
           frota: true,
           ponto: true,
@@ -908,119 +921,209 @@ export default function FrotaPage() {
         </div>
       </div>
 
-      {/* Estatísticas da Frota */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="card p-4">
-          <h3 className="text-xl font-semibold text-primary">Total de Veículos</h3>
-          <p className="text-3xl font-bold">{stats.totalVeiculos}</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-xl font-semibold text-primary">Veículos Ativos</h3>
-          <p className="text-3xl font-bold">{stats.veiculosAtivos}</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-xl font-semibold text-primary">Multas Pendentes</h3>
-          <p className="text-3xl font-bold">{stats.multasPendentes}</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-xl font-semibold text-primary">Débitos Totais</h3>
-          <p className="text-3xl font-bold">R$ {stats.totalDebitos.toLocaleString('pt-BR')}</p>
-        </div>
+      {/* Abas de Navegação */}
+      <div className="tabs mb-8">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
+            disabled={!hasAccess}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Filtros e Busca */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 card">
-        <div className="flex flex-col sm:flex-row gap-4 w-full">
-          <select 
-            value={selectedCountry} 
-            onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
-            className="select w-full sm:w-auto"
-          >
-            {countries.map((country, index) => (
-              <option key={index} value={index}>{country}</option>
-            ))}
-          </select>
-          <select 
-            value={statusFilter} 
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="select w-full sm:w-auto"
-          >
-            <option value="todos">Todos os Status</option>
-            <option value="ativo">Ativo</option>
-            <option value="manutencao">Manutenção</option>
-            <option value="inativo">Inativo</option>
-            <option value="em_viagem">Em Viagem</option>
-          </select>
-          <input 
-            type="text" 
-            placeholder="Buscar por placa, condutor ou modelo..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input w-full sm:w-64"
-          />
-        </div>
-      </div>
+      {/* Conteúdo das Abas */}
+      <div className="content-area">
+        {/* Aba Dashboard */}
+        {activeTab === 'dashboard' && (
+          <>
+            {/* Estatísticas da Frota */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="card p-4">
+                <h3 className="text-xl font-semibold text-primary">Total de Veículos</h3>
+                <p className="text-3xl font-bold">{stats.totalVeiculos}</p>
+              </div>
+              <div className="card p-4">
+                <h3 className="text-xl font-semibold text-primary">Veículos Ativos</h3>
+                <p className="text-3xl font-bold">{stats.veiculosAtivos}</p>
+              </div>
+              <div className="card p-4">
+                <h3 className="text-xl font-semibold text-primary">Multas Pendentes</h3>
+                <p className="text-3xl font-bold">{stats.multasPendentes}</p>
+              </div>
+              <div className="card p-4">
+                <h3 className="text-xl font-semibold text-primary">Débitos Totais</h3>
+                <p className="text-3xl font-bold">R$ {stats.totalDebitos.toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
 
-      {/* Tabela de Veículos */}
-      <div className="overflow-x-auto card">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placa</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condutor</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredVeiculos.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-gray-500">
-                  Nenhum veículo encontrado.
-                </td>
-              </tr>
-            ) : (
-              filteredVeiculos.map((veiculo) => (
-                <tr key={veiculo.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{veiculo.placa}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.modelo}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.condutorNome || 'Não atribuído'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span 
-                      className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                      style={{ backgroundColor: getStatusColor(veiculo.status), color: '#fff' }}
-                    >
-                      {veiculo.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button 
-                      onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }} 
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Ver
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }} 
-                      className="text-yellow-600 hover:text-yellow-900"
-                      disabled={!hasAccess}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }} 
-                      className="text-green-600 hover:text-green-900"
-                      disabled={!hasAccess}
-                    >
-                      Atribuir
-                    </button>
-                  </td>
+            {/* Filtros e Busca */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 card">
+              <div className="flex flex-col sm:flex-row gap-4 w-full">
+                <select 
+                  value={selectedCountry} 
+                  onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
+                  className="select w-full sm:w-auto"
+                >
+                  {countries.map((country, index) => (
+                    <option key={index} value={index}>{country}</option>
+                  ))}
+                </select>
+                <select 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="select w-full sm:w-auto"
+                >
+                  <option value="todos">Todos os Status</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="manutencao">Manutenção</option>
+                  <option value="inativo">Inativo</option>
+                  <option value="em_viagem">Em Viagem</option>
+                </select>
+                <input 
+                  type="text" 
+                  placeholder="Buscar por placa, condutor ou modelo..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input w-full sm:w-64"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Aba Veículos */}
+        {activeTab === 'veiculos' && (
+          <div className="overflow-x-auto card">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placa</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condutor</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredVeiculos.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-gray-500">
+                      Nenhum veículo encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredVeiculos.map((veiculo) => (
+                    <tr key={veiculo.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{veiculo.placa}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.modelo}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{veiculo.condutorNome || 'Não atribuído'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                          style={{ backgroundColor: getStatusColor(veiculo.status), color: '#fff' }}
+                        >
+                          {veiculo.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button 
+                          onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }} 
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Ver
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }} 
+                          className="text-yellow-600 hover:text-yellow-900"
+                          disabled={!hasAccess}
+                        >
+                          Editar
+                        </button>
+                        <button 
+                          onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }} 
+                          className="text-green-600 hover:text-green-900"
+                          disabled={!hasAccess}
+                        >
+                          Atribuir
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Aba Motoristas (exemplo, precisa ser implementado) */}
+        {activeTab === 'motoristas' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">👨‍💼 Motoristas</h2>
+            <p>Gerenciamento de motoristas será implementado aqui.</p>
+          </div>
+        )}
+
+        {/* Aba Viagens (exemplo, precisa ser implementado) */}
+        {activeTab === 'viagens' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">🛣️ Viagens</h2>
+            <p>Gerenciamento de viagens será implementado aqui.</p>
+          </div>
+        )}
+
+        {/* Aba Manutenção (exemplo, precisa ser implementado) */}
+        {activeTab === 'manutencao' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">🔧 Manutenção</h2>
+            <p>Gerenciamento de manutenção será implementado aqui.</p>
+          </div>
+        )}
+
+        {/* Aba Combustível (exemplo, precisa ser implementado) */}
+        {activeTab === 'combustivel' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">⛽ Combustível</h2>
+            <p>Gerenciamento de combustível será implementado aqui.</p>
+          </div>
+        )}
+
+        {/* Aba Empresas */}
+        {activeTab === 'empresas' && (
+          <EmpresaManager 
+            sistema="frota"
+            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
+            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
+            allowDelete={userRole === 'superadmin'}
+            onEmpresaSelect={(empresa) => {
+              console.log('Empresa selecionada para frota:', empresa);
+              // Implementar filtros de veículos por empresa
+            }}
+          />
+        )}
+
+        {/* Aba Relatórios */}
+        {activeTab === 'relatorios' && (
+          <div>
+            <h2 style={{ fontSize: '2rem', marginBottom: '2rem' }}>📈 Relatórios</h2>
+            <div style={{
+              background: 'rgba(255,255,255,0.1)',
+              padding: '3rem',
+              borderRadius: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
+              <h3 style={{ marginBottom: '1rem' }}>Relatórios Avançados</h3>
+              <p style={{ opacity: 0.8, maxWidth: '600px', margin: '0 auto' }}>
+                Sistema de relatórios em desenvolvimento. Em breve você terá acesso a relatórios detalhados sobre:
+                performance da frota, custos operacionais, eficiência de combustível e muito mais.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modais */}
@@ -1371,6 +1474,47 @@ export default function FrotaPage() {
           color: var(--color-text-secondary);
         }
 
+        /* Estilos das abas */
+        .tabs {
+          display: flex;
+          overflow-x: auto;
+          border-bottom: 2px solid var(--color-border);
+          margin-bottom: 1.5rem;
+          padding-bottom: 0.5rem;
+          white-space: nowrap;
+        }
+        .tab {
+          padding: 0.75rem 1.5rem;
+          margin-right: 0.5rem;
+          background-color: transparent;
+          border: none;
+          color: var(--color-text-secondary);
+          font-weight: bold;
+          cursor: pointer;
+          border-radius: var(--radius-md);
+          transition: background-color 0.3s, color 0.3s;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem; /* Espaçamento entre ícone e texto */
+        }
+        .tab:hover:not(:disabled) {
+          background-color: var(--color-primary-light);
+          color: var(--color-primary);
+        }
+        .tab-active {
+          background-color: var(--color-primary);
+          color: white;
+        }
+        .tab:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .content-area {
+          background-color: var(--color-surface);
+          padding: 1.5rem;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--color-border);
+        }
       `}</style>
     </div>
   );

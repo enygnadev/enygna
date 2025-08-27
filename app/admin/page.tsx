@@ -33,6 +33,7 @@ import { backupService } from '@/lib/backupService';
 import { cacheService } from '@/lib/cache';
 import { realTimeMonitoring } from '@/lib/realTimeMonitoring';
 import { advancedAnalytics } from '@/lib/advancedAnalytics';
+import EmpresaManager from '@/src/components/EmpresaManager';
 
 // ==================== INTERFACES ====================
 interface Company {
@@ -3205,6 +3206,18 @@ export default function AdminMasterPage() {
 
         {activeTab === 'companies' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="companies-section">
+            
+            {/* Gestão Unificada de Empresas */}
+            <EmpresaManager 
+              sistema="ponto" 
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa selecionada:', empresa);
+                // Implementar navegação ou ações específicas
+              }}
+            />
             {/* Controles Premium */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
