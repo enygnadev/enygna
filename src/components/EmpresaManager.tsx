@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,8 +29,16 @@ interface Empresa {
     selfieObrigatoria?: boolean;
     notificacaoEmail?: boolean;
   };
+  sistemasAtivos: string[];
   criadoEm: any;
   atualizadoEm: any;
+}
+
+interface Sistema {
+  id: string;
+  nome: string;
+  descricao: string;
+  icon: string;
 }
 
 interface EmpresaManagerProps {
@@ -55,7 +62,15 @@ export default function EmpresaManager({
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
+  const sistemasDisponiveis: Sistema[] = [
+    { id: 'chamados', nome: 'Sistema de Chamados', descricao: 'Gerencie solicitações de suporte.', icon: '📞' },
+    { id: 'frota', nome: 'Sistema de Frota', descricao: 'Controle de veículos e manutenções.', icon: '🚗' },
+    { id: 'financeiro', nome: 'Sistema Financeiro', descricao: 'Controle de contas a pagar/receber.', icon: '💰' },
+    { id: 'documentos', nome: 'Sistema de Documentos', descricao: 'Armazenamento e organização de arquivos.', icon: '📄' },
+    { id: 'ponto', nome: 'Sistema de Ponto', descricao: 'Registro de jornada de trabalho.', icon: '⏰' },
+  ];
+
   // Estados do formulário
   const [formData, setFormData] = useState({
     nome: '',
@@ -66,7 +81,8 @@ export default function EmpresaManager({
     plano: 'basico' as const,
     geofencing: false,
     selfieObrigatoria: false,
-    notificacaoEmail: true
+    notificacaoEmail: true,
+    sistemasAtivos: [] as string[]
   });
 
   useEffect(() => {
@@ -80,12 +96,13 @@ export default function EmpresaManager({
       const empresasRef = collection(db, collectionName);
       const q = query(empresasRef, orderBy('nome'));
       const snapshot = await getDocs(q);
-      
+
       const empresasList = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        sistemasAtivos: (doc.data().sistemasAtivos as string[]) || [] // Garante que sistemasAtivos seja um array
       })) as Empresa[];
-      
+
       setEmpresas(empresasList);
     } catch (error) {
       console.error('Erro ao carregar empresas:', error);
@@ -115,7 +132,7 @@ export default function EmpresaManager({
     try {
       const collectionName = getCollectionName();
       const empresaId = `empresa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const empresaData = {
         nome: formData.nome,
         email: formData.email,
@@ -129,15 +146,16 @@ export default function EmpresaManager({
           selfieObrigatoria: formData.selfieObrigatoria,
           notificacaoEmail: formData.notificacaoEmail
         },
+        sistemasAtivos: formData.sistemasAtivos,
         criadoEm: serverTimestamp(),
         atualizadoEm: serverTimestamp()
       };
 
       await setDoc(doc(db, collectionName, empresaId), empresaData);
-      
+
       // Criar configurações específicas do sistema
       await createSystemSpecificData(empresaId);
-      
+
       setShowCreateModal(false);
       resetForm();
       loadEmpresas();
@@ -159,7 +177,7 @@ export default function EmpresaManager({
     setLoading(true);
     try {
       const collectionName = getCollectionName();
-      
+
       const updateData = {
         nome: formData.nome,
         email: formData.email,
@@ -172,11 +190,12 @@ export default function EmpresaManager({
           selfieObrigatoria: formData.selfieObrigatoria,
           notificacaoEmail: formData.notificacaoEmail
         },
+        sistemasAtivos: formData.sistemasAtivos,
         atualizadoEm: serverTimestamp()
       };
 
       await updateDoc(doc(db, collectionName, selectedEmpresa.id), updateData);
-      
+
       setShowEditModal(false);
       setSelectedEmpresa(null);
       resetForm();
@@ -207,7 +226,7 @@ export default function EmpresaManager({
             criadoEm: serverTimestamp()
           });
           break;
-          
+
         case 'frota':
           // Criar configurações padrão para frota
           await setDoc(doc(db, 'frota_empresas', empresaId, 'configuracoes', 'default'), {
@@ -224,7 +243,7 @@ export default function EmpresaManager({
             criadoEm: serverTimestamp()
           });
           break;
-          
+
         case 'financeiro':
           // Criar configurações padrão para financeiro
           await setDoc(doc(db, 'financeiro_empresas', empresaId, 'configuracoes', 'default'), {
@@ -234,7 +253,7 @@ export default function EmpresaManager({
             criadoEm: serverTimestamp()
           });
           break;
-          
+
         case 'documentos':
           // Criar configurações padrão para documentos
           await setDoc(doc(db, 'documentos_empresas', empresaId, 'configuracoes', 'default'), {
@@ -244,7 +263,7 @@ export default function EmpresaManager({
             criadoEm: serverTimestamp()
           });
           break;
-          
+
         case 'ponto':
           // Criar configurações padrão para ponto
           await setDoc(doc(db, 'empresas', empresaId, 'configuracoes', 'default'), {
@@ -275,7 +294,8 @@ export default function EmpresaManager({
       plano: empresa.plano,
       geofencing: empresa.configuracoes?.geofencing || false,
       selfieObrigatoria: empresa.configuracoes?.selfieObrigatoria || false,
-      notificacaoEmail: empresa.configuracoes?.notificacaoEmail || true
+      notificacaoEmail: empresa.configuracoes?.notificacaoEmail || true,
+      sistemasAtivos: empresa.sistemasAtivos || []
     });
     setShowEditModal(true);
   };
@@ -290,7 +310,17 @@ export default function EmpresaManager({
       plano: 'basico',
       geofencing: false,
       selfieObrigatoria: false,
-      notificacaoEmail: true
+      notificacaoEmail: true,
+      sistemasAtivos: []
+    });
+  };
+
+  const handleSistemaToggle = (sistemaId: string) => {
+    setFormData(prev => {
+      const newSistemas = prev.sistemasAtivos.includes(sistemaId)
+        ? prev.sistemasAtivos.filter(id => id !== sistemaId)
+        : [...prev.sistemasAtivos, sistemaId];
+      return { ...prev, sistemasAtivos: newSistemas };
     });
   };
 
@@ -322,7 +352,7 @@ export default function EmpresaManager({
         }}>
           🏢 Gestão de Empresas - {sistema.charAt(0).toUpperCase() + sistema.slice(1)}
         </h2>
-        
+
         {allowCreate && (
           <button
             onClick={() => setShowCreateModal(true)}
@@ -423,6 +453,22 @@ export default function EmpresaManager({
                     📊 {empresa.plano}
                   </span>
                 </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {empresa.sistemasAtivos.map(sistemaId => {
+                    const sistema = sistemasDisponiveis.find(s => s.id === sistemaId);
+                    return sistema ? (
+                      <span key={sistemaId} style={{
+                        padding: '0.25rem 0.75rem',
+                        background: 'rgba(107, 114, 128, 0.4)',
+                        borderRadius: '20px',
+                        fontSize: '0.75rem',
+                        opacity: 0.9
+                      }}>
+                        {sistema.icon} {sistema.nome}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -487,7 +533,7 @@ export default function EmpresaManager({
             overflowY: 'auto'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>➕ Nova Empresa</h3>
-            
+
             <div style={{ display: 'grid', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
@@ -589,6 +635,76 @@ export default function EmpresaManager({
                 </select>
               </div>
 
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  Sistemas Ativos (selecione quais sistemas a empresa poderá usar)
+                </label>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                  gap: '0.75rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  padding: '0.5rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  {sistemasDisponiveis.map(sistema => (
+                    <label
+                      key={sistema.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.75rem',
+                        background: formData.sistemasAtivos.includes(sistema.id) 
+                          ? 'rgba(59, 130, 246, 0.3)' 
+                          : 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        if (!formData.sistemasAtivos.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (!formData.sistemasAtivos.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.sistemasAtivos.includes(sistema.id)}
+                        onChange={() => handleSistemaToggle(sistema.id)}
+                        style={{ marginRight: '0.5rem' }}
+                      />
+                      <span style={{ fontSize: '1.2rem' }}>{sistema.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
+                          {sistema.nome}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          {sistema.descricao}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ 
+                  fontSize: '0.8rem', 
+                  opacity: 0.7, 
+                  marginTop: '0.5rem',
+                  fontStyle: 'italic'
+                }}>
+                  💡 Dica: Selecione apenas os sistemas que a empresa realmente utilizará
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
@@ -598,7 +714,7 @@ export default function EmpresaManager({
                   />
                   🗺️ Geofencing
                 </label>
-                
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
@@ -607,7 +723,7 @@ export default function EmpresaManager({
                   />
                   📸 Selfie Obrigatória
                 </label>
-                
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
@@ -636,7 +752,7 @@ export default function EmpresaManager({
               >
                 ❌ Cancelar
               </button>
-              
+
               <button
                 onClick={handleCreate}
                 disabled={loading}
@@ -681,7 +797,7 @@ export default function EmpresaManager({
             overflowY: 'auto'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>✏️ Editar Empresa</h3>
-            
+
             {/* Mesmo formulário do modal de criação, mas com dados preenchidos */}
             <div style={{ display: 'grid', gap: '1rem' }}>
               <div>
@@ -784,6 +900,58 @@ export default function EmpresaManager({
                 </select>
               </div>
 
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  Sistemas Ativos
+                </label>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                  gap: '0.75rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  padding: '0.5rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  {sistemasDisponiveis.map(sistema => (
+                    <label
+                      key={sistema.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.75rem',
+                        background: formData.sistemasAtivos.includes(sistema.id) 
+                          ? 'rgba(59, 130, 246, 0.3)' 
+                          : 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.sistemasAtivos.includes(sistema.id)}
+                        onChange={() => handleSistemaToggle(sistema.id)}
+                        style={{ marginRight: '0.5rem' }}
+                      />
+                      <span style={{ fontSize: '1.2rem' }}>{sistema.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
+                          {sistema.nome}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          {sistema.descricao}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
@@ -793,7 +961,7 @@ export default function EmpresaManager({
                   />
                   🗺️ Geofencing
                 </label>
-                
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
@@ -802,7 +970,7 @@ export default function EmpresaManager({
                   />
                   📸 Selfie Obrigatória
                 </label>
-                
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
@@ -832,7 +1000,7 @@ export default function EmpresaManager({
               >
                 ❌ Cancelar
               </button>
-              
+
               <button
                 onClick={handleEdit}
                 disabled={loading}

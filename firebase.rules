@@ -53,6 +53,19 @@ service cloud.firestore {
       return isSignedIn() && (getUserEmpresaId() == empresaId || isAdminMaster());
     }
 
+    function hasSystemAccess(empresaId, sistema) {
+      return isSignedIn() && (
+        isAdminMaster() || 
+        (getUserEmpresaId() == empresaId && userHasSystemPermission(sistema))
+      );
+    }
+
+    function userHasSystemPermission(sistema) {
+      // Esta função seria idealmente implementada com dados do usuário
+      // Por enquanto, permitir acesso se o usuário pertence à empresa
+      return isSignedIn();
+    }
+
 
     function isValidEmail(email) {
       return email != null && email.matches('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}');

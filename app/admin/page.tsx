@@ -64,6 +64,8 @@ interface Company {
     nextBilling: any;
     features: string[];
   };
+  sistemasAtivos?: string[]; // Campo adicionado para sistemas ativos
+  plano?: string; // Campo para plano caso subscription não esteja preenchido
 }
 
 interface Employee {
@@ -807,17 +809,37 @@ export default function AdminMasterPage() {
         index === self.findIndex((e) => e.id === empresa.id)
       );
 
-      setEmpresas(uniqueEmpresas.length > 0 ? uniqueEmpresas : [
-        {
-          id: 'demo-empresa-1',
-          nome: 'Empresa Demo 1',
-          cnpj: '12.345.678/0001-90',
-          email: 'contato@demo1.com',
-          criadoEm: new Date(),
-          ativo: true,
-          source: 'mock'
-        }
-      ]);
+      // Adicionar um mock se a lista estiver vazia
+      if (uniqueEmpresas.length === 0) {
+        setEmpresas([
+          {
+            id: 'demo-empresa-1',
+            name: 'Empresa Demo 1',
+            email: 'contato@demo1.com',
+            createdAt: new Date(),
+            active: true,
+            employees: 10,
+            monthlyRevenue: 15000,
+            lastActivity: new Date(),
+            settings: {
+              geofencing: false,
+              requireSelfie: false,
+              emailNotifications: true,
+              workingHours: { start: '09:00', end: '18:00' }
+            },
+            subscription: {
+              plan: 'basic',
+              status: 'active',
+              nextBilling: new Date(),
+              features: []
+            },
+            sistemasAtivos: ['chamados', 'financeiro'], // Mock de sistemas
+            plano: 'basic' // Mock de plano
+          }
+        ]);
+      } else {
+        setEmpresas(uniqueEmpresas);
+      }
 
     } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
@@ -1951,7 +1973,8 @@ export default function AdminMasterPage() {
           fuso: 'America/Sao_Paulo',
           moeda: 'BRL',
           idioma: 'pt-BR'
-        }
+        },
+        sistemasAtivos: empresaData.sistemasAtivos || ['chamados', 'ponto'] // Define sistemas ativos padrão
       };
 
       await setDoc(empresaRef, empresaDoc);
@@ -3492,19 +3515,26 @@ export default function AdminMasterPage() {
                           </div>
                         </td>
                         <td style={{ padding: '1rem' }}>
-                          <div style={{
-                            display: 'inline-block',
-                            padding: '0.5rem 1rem',
-                            background: company.subscription.plan === 'enterprise' 
-                              ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
-                              : company.subscription.plan === 'premium'
-                              ? 'linear-gradient(45deg, #f59e0b, #d97706)'
-                              : 'linear-gradient(45deg, #6b7280, #4b5563)',
-                            borderRadius: '20px',
-                            fontSize: '0.9rem',
-                            fontWeight: '600'
-                          }}>
-                            {company.subscription.plan.toUpperCase()}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{
+                              display: 'inline-block',
+                              padding: '0.5rem 1rem',
+                              background: company.subscription?.plan === 'enterprise' 
+                                ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
+                                : company.subscription?.plan === 'premium'
+                                ? 'linear-gradient(45deg, #f59e0b, #d97706)'
+                                : 'linear-gradient(45deg, #6b7280, #4b5563)',
+                              borderRadius: '20px',
+                              fontSize: '0.9rem',
+                              fontWeight: '600'
+                            }}>
+                              {(company.subscription?.plan || company.plano || 'básico').toUpperCase()}
+                            </div>
+                            {(company.sistemasAtivos || []).length > 0 && (
+                              <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                                🎯 {(company.sistemasAtivos || []).length} sistemas ativos
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: '1rem' }}>
