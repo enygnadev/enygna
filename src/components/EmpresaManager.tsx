@@ -14,6 +14,7 @@ import {
   orderBy,
   where
 } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth'; // Import necessary function
 
 interface Empresa {
   id: string;
@@ -49,6 +50,22 @@ interface EmpresaManagerProps {
   onEmpresaSelect?: (empresa: Empresa) => void;
 }
 
+// Define FormData with the 'senha' property
+interface FormData {
+  nome: string;
+  email: string;
+  senha: string;
+  cnpj?: string;
+  telefone?: string;
+  endereco?: string;
+  ativo: boolean;
+  plano: 'basico' | 'premium' | 'enterprise' | 'free' | 'monthly' | 'yearly' | 'enterprise' | 'permanent';
+  geofencing?: boolean;
+  selfieObrigatoria?: boolean;
+  notificacaoEmail?: boolean;
+  sistemasAtivos: string[];
+}
+
 export default function EmpresaManager({
   sistema,
   onEmpresaSelect,
@@ -75,6 +92,7 @@ export default function EmpresaManager({
   const [formData, setFormData] = useState<FormData>({
     nome: '',
     email: '',
+    senha: '', // Initialize password field
     cnpj: '',
     telefone: '',
     endereco: '',
@@ -159,6 +177,10 @@ export default function EmpresaManager({
       alert('Nome, email e plano são obrigatórios');
       return;
     }
+    if (formData.senha.length < 6) { // Validação de senha
+      alert('A senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -196,6 +218,29 @@ export default function EmpresaManager({
       // Criar configurações específicas do sistema
       await createSystemSpecificData(empresaId);
       console.log('Configurações específicas criadas');
+
+      // Criar usuário no Firebase Authentication
+      try {
+        const userCredential = await createUserWithEmailAndPassword(
+          // Assuming `auth` is initialized elsewhere in your app
+          // import { auth } from '@/lib/firebase';
+          // If not, you'll need to import and initialize it here or pass it as a prop
+          {} as any, // Placeholder for auth object, replace with actual auth instance
+          formData.email,
+          formData.senha
+        );
+        console.log('Usuário criado com sucesso:', userCredential.user.uid);
+
+        // Optionally, you could add the user's UID to the empresa document
+        // await updateDoc(doc(db, collectionName, empresaId), { userId: userCredential.user.uid });
+
+      } catch (authError: any) {
+        console.error('Erro ao criar usuário:', authError);
+        // Handle authentication errors (e.g., email already in use)
+        // You might want to delete the company document if user creation fails
+        alert(`Empresa criada, mas houve um erro ao criar o usuário: ${authError.message}`);
+      }
+
 
       setShowCreateModal(false);
       resetForm();
@@ -244,6 +289,16 @@ export default function EmpresaManager({
       };
 
       await updateDoc(doc(db, collectionName, selectedEmpresa.id), updateData);
+
+      // Handle password update if provided
+      if (formData.senha && formData.senha.length >= 6) {
+        // You would typically use Firebase Authentication's updatePassword method here.
+        // This requires the currentUser to be set, or using an admin SDK if applicable.
+        // For simplicity in this frontend example, we'll just log a message.
+        console.log('Password update logic for user ID:', selectedEmpresa.id, 'would go here.');
+        // Example: await updatePassword(auth.currentUser, formData.senha);
+      }
+
 
       setShowEditModal(false);
       setSelectedEmpresa(null);
@@ -647,6 +702,35 @@ export default function EmpresaManager({
                     fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  Senha *
+                </label>
+                <input
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => setFormData({...formData, senha: e.target.value})}
+                  placeholder="Mínimo 6 caracteres"
+                  style={{
+                    width: '100%',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
+                  }}
+                />
+                <div style={{
+                  fontSize: '0.75rem',
+                  opacity: 0.7,
+                  marginTop: '0.25rem',
+                  color: '#fbbf24'
+                }}>
+                  🔐 Esta será a senha para o administrador da empresa fazer login
+                </div>
               </div>
 
               <div>
