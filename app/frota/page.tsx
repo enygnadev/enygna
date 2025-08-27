@@ -830,78 +830,30 @@ export default function FrotaPage() {
 
   if (!hasAccess && !loading) {
     return (
-      <div className="frota-container">
-        <style jsx global>{`
+      <div className="container">
+        <style jsx>{`
           .access-denied {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: var(--frota-container-background, linear-gradient(135deg, #1e293b 0%, #334155 100%));
-            font-family: 'Inter', sans-serif;
+            background: var(--color-background);
           }
           .access-card {
             text-align: center;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--color-surface);
             padding: 3rem;
-            border-radius: 20px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
             max-width: 500px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-          }
-          .access-card h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            font-family: 'Playfair Display', serif;
-            background: linear-gradient(45deg, #ffffff, #e0e7ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 1rem;
-          }
-          .access-card p {
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 2rem;
-          }
-          .button {
-            padding: 0.875rem 1.75rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            text-decoration: none;
-            color: white;
-          }
-          .button-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-          }
-          .button-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-          }
-          .button-outline {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid #667eea;
-            color: #8a9df8;
-            backdrop-filter: blur(10px);
-          }
-          .button-outline:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
           }
         `}</style>
 
         <div className="access-denied">
           <div className="access-card">
-            <div style={{ fontSize: '4rem', marginBottom: '1rem', color: '#f093fb' }}>🚫</div>
-            <h1>Acesso Negado</h1>
-            <p>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
+            <h1>Acesso Restrito</h1>
+            <p style={{ marginBottom: '2rem' }}>
               Você não tem permissão para acessar o sistema de frota.
             </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -920,7 +872,7 @@ export default function FrotaPage() {
 
   if (loading) {
     return (
-      <div className="frota-container">
+      <div className="container">
         <div className="loading">
           <div className="spinner"></div>
           <div className="loading-text">Carregando sistema de frota...</div>
@@ -931,100 +883,136 @@ export default function FrotaPage() {
 
   // Renderização principal da página de frota
   return (
-    <div className="frota-container">
-      <header className="frota-header">
-        <div className="header-content">
-          <div className="brand-section">
-            <div className="brand-icon">🚗</div>
-            <div className="brand-text">
-              <h1>Gerenciamento de Frota</h1>
-              <p>Visão Geral</p>
-            </div>
+    <div className="container py-8 px-4 sm:px-6 lg:px-8">
+      <div className="fleet-header fade-in">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <div>
+            <h1 className="fleet-title">🚗 Gerenciamento de Frota</h1>
+            <p className="fleet-subtitle">Controle total da sua frota em tempo real</p>
           </div>
-          <div className="header-actions">
+          <div className="action-buttons">
             <ThemeSelector />
-            <div className="user-info">
-              <span>{user?.displayName || user?.email}</span>
-            </div>
-            <button onClick={() => signOut(auth)} className="logout-btn">
-              Sair
+            <button
+              onClick={() => setShowAddVehicleModal(true)}
+              className="button button-primary interactive"
+              disabled={!hasAccess}
+            >
+              🚗 Adicionar Veículo
+            </button>
+            <button
+              onClick={() => setShowAddColaboradorModal(true)}
+              className="button button-secondary interactive"
+              disabled={!hasAccess}
+            >
+              👨‍💼 Adicionar Colaborador
+            </button>
+            <button
+              onClick={generateAIAnalysis}
+              className="button button-outline interactive"
+              disabled={loading || !hasAccess}
+            >
+              🤖 Análise IA
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="main-content">
+      {/* Abas de Navegação */}
+      <div className="tabs mb-8">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
+            disabled={!hasAccess}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Conteúdo das Abas */}
+      <div className="content-area">
         {/* Aba Dashboard */}
         {activeTab === 'dashboard' && (
           <>
-            <div className="dashboard-grid">
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">🚗</div>
-                  <div className="stat-label">Total Veículos</div>
-                </div>
+            {/* Estatísticas da Frota */}
+            <div className="stats-grid fade-in">
+              <div className="stat-card interactive">
+                <span className="stat-icon">🚗</span>
+                <div className="stat-title">Total de Veículos</div>
                 <div className="stat-value">{stats.totalVeiculos}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">✅</div>
-                  <div className="stat-label">Veículos Ativos</div>
+                <div className="stat-change positive">
+                  <span>↗</span> +{Math.floor(stats.totalVeiculos * 0.1)} este mês
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">✅</span>
+                <div className="stat-title">Veículos Ativos</div>
                 <div className="stat-value">{stats.veiculosAtivos}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">⚠️</div>
-                  <div className="stat-label">Multas Pendentes</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {((stats.veiculosAtivos / Math.max(stats.totalVeiculos, 1)) * 100).toFixed(0)}% da frota
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">⚠️</span>
+                <div className="stat-title">Multas Pendentes</div>
                 <div className="stat-value">{stats.multasPendentes}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">💰</div>
-                  <div className="stat-label">Débitos Totais</div>
+                <div className="stat-change negative">
+                  <span>↘</span> -2 esta semana
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">💰</span>
+                <div className="stat-title">Débitos Totais</div>
                 <div className="stat-value">R$ {(stats.totalDebitos / 1000).toFixed(0)}K</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">👨‍💼</div>
-                  <div className="stat-label">Motoristas</div>
+                <div className="stat-change negative">
+                  <span>↘</span> R$ {stats.totalDebitos.toLocaleString('pt-BR')}
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">👨‍💼</span>
+                <div className="stat-title">Motoristas</div>
                 <div className="stat-value">{stats.motoristasCadastrados}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">📊</div>
-                  <div className="stat-label">KM Total/Mês</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {stats.motoristasCadastrados} cadastrados
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">📊</span>
+                <div className="stat-title">KM Total/Mês</div>
                 <div className="stat-value">{(stats.kmTotalMes / 1000).toFixed(1)}K</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">⛽</div>
-                  <<div className="stat-label">Combustível/Mês</div>
+                <div className="stat-change positive">
+                  <span>↗</span> {stats.kmTotalMes.toLocaleString('pt-BR')} km
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">⛽</span>
+                <div className="stat-title">Combustível/Mês</div>
                 <div className="stat-value">R$ {(stats.consumoTotalCombustivel / 1000).toFixed(0)}K</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-header">
-                  <div className="stat-icon">🔧</div>
-                  <div className="stat-label">Manutenção</div>
+                <div className="stat-change negative">
+                  <span>↗</span> R$ {stats.consumoTotalCombustivel.toLocaleString('pt-BR')}
                 </div>
+              </div>
+              <div className="stat-card interactive">
+                <span className="stat-icon">🔧</span>
+                <div className="stat-title">Manutenção</div>
                 <div className="stat-value">R$ {(stats.custosManutencao / 1000).toFixed(0)}K</div>
+                <div className="stat-change positive">
+                  <span>↘</span> -15% vs mês passado
+                </div>
               </div>
             </div>
 
             {/* Filtros e Busca */}
-            <div className="filters-container">
+            <div className="filters-container fade-in">
               <div className="filters-grid">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">🌍 País/Região</label>
                   <select
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(parseInt(e.target.value))}
-                    className="form-input"
+                    className="select"
                   >
                     {countries.map((country, index) => (
                       <option key={index} value={index}>{country}</option>
@@ -1036,7 +1024,7 @@ export default function FrotaPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="form-input"
+                    className="select"
                   >
                     <option value="todos">📋 Todos os Status</option>
                     <option value="ativo">✅ Ativo</option>
@@ -1052,7 +1040,7 @@ export default function FrotaPage() {
                     placeholder="Buscar por placa, condutor ou modelo..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="form-input"
+                    className="input"
                   />
                 </div>
               </div>
@@ -1062,69 +1050,101 @@ export default function FrotaPage() {
 
         {/* Aba Veículos */}
         {activeTab === 'veiculos' && (
-          <div className="vehicles-section">
-            <div className="section-header">
-              <h2 className="section-title">
-                <span className="text-white">🚗</span> Veículos Cadastrados
-              </h2>
-              <button onClick={() => setShowAddVehicleModal(true)} className="add-vehicle-btn">
-                <span>+</span> Adicionar Veículo
-              </button>
-            </div>
-            <div className="vehicles-grid">
-              {filteredVeiculos.length === 0 && !loading ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">🚗</div>
-                  <h3>Nenhum veículo encontrado</h3>
-                  <p>Adicione veículos à sua frota ou ajuste os filtros de busca.</p>
-                </div>
-              ) : (
-                filteredVeiculos.map((veiculo) => (
-                  <div key={veiculo.id} className="vehicle-card">
-                    <div className="vehicle-header">
-                      <div className="vehicle-info">
-                        <h3>{veiculo.placa}</h3>
-                        <p>{veiculo.marca} - {veiculo.modelo}</p>
-                      </div>
-                      <span className={`vehicle-status status-${veiculo.status}`}>
-                        {veiculo.status === 'ativo' && 'Ativo'}
-                        {veiculo.status === 'manutencao' && 'Manutenção'}
-                        {veiculo.status === 'inativo' && 'Inativo'}
-                        {veiculo.status === 'em_viagem' && 'Em Viagem'}
-                      </span>
-                    </div>
-                    <div className="vehicle-details">
-                      <div className="detail-item">
-                        <div className="detail-label">Condutor</div>
-                        <div className="detail-value">{veiculo.condutorNome || 'Não atribuído'}</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">KM</div>
-                        <div className="detail-value">{veiculo.kmRodados} km</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">Status IPVA</div>
-                        <div className="detail-value">{veiculo.vencimentoIPVA || 'N/A'}</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">Manutenção</div>
-                        <div className="detail-value">{veiculo.proximaManutencao || 'N/A'}</div>
-                      </div>
-                    </div>
-                    <div className="vehicle-actions">
-                      <button onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }} className="action-btn">
-                        Detalhes
-                      </button>
-                      <button onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }} className="action-btn edit">
-                        Editar
-                      </button>
-                      <button onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }} className="action-btn">
-                        Atribuir
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+          <div className="table-container fade-in">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="table-header">
+                  <tr>
+                    <th className="table-cell text-left font-semibold">🚗 Placa</th>
+                    <th className="table-cell text-left font-semibold">🏭 Modelo</th>
+                    <th className="table-cell text-left font-semibold">👨‍💼 Condutor</th>
+                    <th className="table-cell text-left font-semibold">📊 Status</th>
+                    <th className="table-cell text-left font-semibold">⚙️ Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {filteredVeiculos.length === 0 && !loading ? (
+                    <tr>
+                      <td colSpan={5} className="table-cell text-center">
+                        <div className="empty-state">
+                          <div className="empty-icon">🚗</div>
+                          <div className="empty-title">Nenhum veículo encontrado</div>
+                          <div className="empty-description">
+                            Adicione veículos à sua frota ou ajuste os filtros de busca.
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredVeiculos.map((veiculo) => (
+                      <tr key={veiculo.id} className="table-row interactive">
+                        <td className="table-cell">
+                          <div className="font-semibold text-gray-900">{veiculo.placa}</div>
+                          <div className="text-sm text-gray-500">{veiculo.marca}</div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="font-medium">{veiculo.modelo}</div>
+                          <div className="text-sm text-gray-500">{veiculo.ano}</div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center">
+                            {veiculo.condutorNome ? (
+                              <div>
+                                <div className="font-medium">{veiculo.condutorNome}</div>
+                                <div className="text-sm text-gray-500">{veiculo.condutor}</div>
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 italic">👤 Não atribuído</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`status-badge status-${veiculo.status}`}>
+                            {veiculo.status === 'ativo' && '✅ Ativo'}
+                            {veiculo.status === 'manutencao' && '🔧 Manutenção'}
+                            {veiculo.status === 'inativo' && '❌ Inativo'}
+                            {veiculo.status === 'em_viagem' && '🛣️ Em Viagem'}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => { setSelectedVehicle(veiculo); setDetailsModalOpen(true); }}
+                              className="button button-outline"
+                              style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                              title="Ver detalhes"
+                            >
+                              👁️ Ver
+                            </button>
+                            <button
+                              onClick={() => { setSelectedVehicle(veiculo); setEditMode(true); }}
+                              className="button button-primary"
+                              style={{ 
+                                padding: '0.5rem 0.75rem', 
+                                fontSize: '0.8rem',
+                                background: 'linear-gradient(135deg, var(--frota-warning), #d97706)'
+                              }}
+                              disabled={!hasAccess}
+                              title="Editar veículo"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => { setVeiculoParaAtribuir(veiculo); setShowAtribuirModal(true); loadColaboradoresDisponiveis(); }}
+                              className="button button-secondary"
+                              style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                              disabled={!hasAccess}
+                              title="Atribuir condutor"
+                            >
+                              👥 Atribuir
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -1194,7 +1214,7 @@ export default function FrotaPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modais */}
 
@@ -1204,7 +1224,7 @@ export default function FrotaPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Detalhes do Veículo: {selectedVehicle.placa}</h2>
-              <button onClick={() => setDetailsModalOpen(false)} className="close-btn">&times;</button>
+              <button onClick={() => setDetailsModalOpen(false)} className="modal-close-button">&times;</button>
             </div>
             <div className="modal-body">
               <div className="grid grid-cols-2 gap-4">
@@ -1237,7 +1257,7 @@ export default function FrotaPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button onClick={() => setDetailsModalOpen(false)} className="btn-cancel">Fechar</button>
+              <button onClick={() => setDetailsModalOpen(false)} className="button button-outline">Fechar</button>
             </div>
           </div>
         </div>
@@ -1249,49 +1269,30 @@ export default function FrotaPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Editar Veículo: {selectedVehicle.placa}</h2>
-              <button onClick={() => { setEditMode(false); setSelectedVehicle(null); }} className="close-btn">&times;</button>
+              <button onClick={() => { setEditMode(false); setSelectedVehicle(null); }} className="modal-close-button">&times;</button>
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => { e.preventDefault(); /* Lógica de atualização aqui */ }}>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Marca</label>
-                    <input type="text" placeholder="Marca" value={selectedVehicle.marca} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, marca: e.target.value })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Modelo</label>
-                    <input type="text" placeholder="Modelo" value={selectedVehicle.modelo} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, modelo: e.target.value })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Ano</label>
-                    <input type="number" placeholder="Ano" value={selectedVehicle.ano} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, ano: parseInt(e.target.value) || 0 })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Cor</label>
-                    <input type="text" placeholder="Cor" value={selectedVehicle.cor} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, cor: e.target.value })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Placa</label>
-                    <input type="text" placeholder="Placa" value={selectedVehicle.placa} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, placa: e.target.value.toUpperCase() })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Renavam</label>
-                    <input type="text" placeholder="Renavam" value={selectedVehicle.renavam || ''} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, renavam: e.target.value })} className="form-input" />
-                  </div>
-                  <div className="form-group col-span-2">
-                    <label className="form-label">Status</label>
-                    <select value={selectedVehicle.status} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, status: e.target.value as Veiculo['status'] })} className="form-input">
-                      <option value="ativo">Ativo</option>
-                      <option value="manutencao">Manutenção</option>
-                      <option value="inativo">Inativo</option>
-                      <option value="em_viagem">Em Viagem</option>
-                    </select>
-                  </div>
+                  <input type="text" placeholder="Marca" value={selectedVehicle.marca} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, marca: e.target.value })} className="input" />
+                  <input type="text" placeholder="Modelo" value={selectedVehicle.modelo} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, modelo: e.target.value })} className="input" />
+                  <input type="number" placeholder="Ano" value={selectedVehicle.ano} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, ano: parseInt(e.target.value) || 0 })} className="input" />
+                  <input type="text" placeholder="Cor" value={selectedVehicle.cor} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, cor: e.target.value })} className="input" />
+                  <input type="text" placeholder="Placa" value={selectedVehicle.placa} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, placa: e.target.value.toUpperCase() })} className="input" />
+                  <input type="text" placeholder="Renavam" value={selectedVehicle.renavam || ''} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, renavam: e.target.value })} className="input" />
+                  <select value={selectedVehicle.status} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, status: e.target.value as Veiculo['status'] })} className="select">
+                    <option value="ativo">Ativo</option>
+                    <option value="manutencao">Manutenção</option>
+                    <option value="inativo">Inativo</option>
+                    <option value="em_viagem">Em Viagem</option>
+                  </select>
+                  <input type="text" placeholder="País" value={selectedVehicle.pais} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, pais: e.target.value })} className="input" />
+                  <input type="text" placeholder="Cidade" value={selectedVehicle.cidade} onChange={(e) => setSelectedVehicle({ ...selectedVehicle, cidade: e.target.value })} className="input" />
                   {/* Adicione outros campos editáveis conforme necessário */}
                 </div>
-                <div className="modal-footer">
-                  <button type="button" onClick={() => { setEditMode(false); setSelectedVehicle(null); }} className="btn-cancel">Cancelar</button>
-                  <button type="submit" className="btn-submit">Salvar</button>
+                <div className="modal-footer mt-6">
+                  <button type="submit" className="button button-primary mr-2">Salvar</button>
+                  <button type="button" onClick={() => { setEditMode(false); setSelectedVehicle(null); }} className="button button-outline">Cancelar</button>
                 </div>
               </form>
             </div>
@@ -1305,37 +1306,22 @@ export default function FrotaPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Adicionar Novo Veículo</h2>
-              <button onClick={() => setShowAddVehicleModal(false)} className="close-btn">&times;</button>
+              <button onClick={() => setShowAddVehicleModal(false)} className="modal-close-button">&times;</button>
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => { e.preventDefault(); handleAddVehicle(); }}>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Marca*</label>
-                    <input type="text" placeholder="Marca" value={newVehicleData.marca} onChange={(e) => setNewVehicleData({ ...newVehicleData, marca: e.target.value })} className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Modelo*</label>
-                    <input type="text" placeholder="Modelo" value={newVehicleData.modelo} onChange={(e) => setNewVehicleData({ ...newVehicleData, modelo: e.target.value })} className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Placa*</label>
-                    <input type="text" placeholder="Placa" value={newVehicleData.placa} onChange={(e) => setNewVehicleData({ ...newVehicleData, placa: e.target.value.toUpperCase() })} className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Ano</label>
-                    <input type="number" placeholder="Ano" value={newVehicleData.ano} onChange={(e) => setNewVehicleData({ ...newVehicleData, ano: e.target.value })} className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Cor</label>
-                    <input type="text" placeholder="Cor" value={newVehicleData.cor} onChange={(e) => setNewVehicleData({ ...newVehicleData, cor: e.target.value })} className="form-input" />
-                  </div>
+                  <input type="text" placeholder="Marca*" value={newVehicleData.marca} onChange={(e) => setNewVehicleData({ ...newVehicleData, marca: e.target.value })} className="input" required />
+                  <input type="text" placeholder="Modelo*" value={newVehicleData.modelo} onChange={(e) => setNewVehicleData({ ...newVehicleData, modelo: e.target.value })} className="input" required />
+                  <input type="text" placeholder="Placa*" value={newVehicleData.placa} onChange={(e) => setNewVehicleData({ ...newVehicleData, placa: e.target.value.toUpperCase() })} className="input" required />
+                  <input type="number" placeholder="Ano" value={newVehicleData.ano} onChange={(e) => setNewVehicleData({ ...newVehicleData, ano: e.target.value })} className="input" />
+                  <input type="text" placeholder="Cor" value={newVehicleData.cor} onChange={(e) => setNewVehicleData({ ...newVehicleData, cor: e.target.value })} className="input" />
                 </div>
-                <div className="modal-footer">
-                  <button type="button" onClick={() => setShowAddVehicleModal(false)} className="btn-cancel">Cancelar</button>
-                  <button type="submit" className="btn-submit" disabled={isAddingVehicle}>
+                <div className="modal-footer mt-6">
+                  <button type="submit" className="button button-primary mr-2" disabled={isAddingVehicle}>
                     {isAddingVehicle ? 'Adicionando...' : 'Adicionar Veículo'}
                   </button>
+                  <button type="button" onClick={() => setShowAddVehicleModal(false)} className="button button-outline">Cancelar</button>
                 </div>
               </form>
             </div>
@@ -1349,32 +1335,23 @@ export default function FrotaPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Adicionar Novo Colaborador</h2>
-              <button onClick={() => setShowAddColaboradorModal(false)} className="close-btn">&times;</button>
+              <button onClick={() => setShowAddColaboradorModal(false)} className="modal-close-button">&times;</button>
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => { e.preventDefault(); handleAddColaborador(); }}>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Nome Completo*</label>
-                    <input type="text" placeholder="Nome Completo" value={newColaborador.nome} onChange={(e) => setNewColaborador({ ...newColaborador, nome: e.target.value })} className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Email*</label>
-                    <input type="email" placeholder="Email" value={newColaborador.email} onChange={(e) => setNewColaborador({ ...newColaborador, email: e.target.value })} className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Senha*</label>
-                    <input type="password" placeholder="Senha (mínimo 6 caracteres)" value={newColaborador.senha} onChange={(e) => setNewColaborador({ ...newColaborador, senha: e.target.value })} className="form-input" required minLength={6} />
-                  </div>
+                  <input type="text" placeholder="Nome Completo*" value={newColaborador.nome} onChange={(e) => setNewColaborador({ ...newColaborador, nome: e.target.value })} className="input" required />
+                  <input type="email" placeholder="Email*" value={newColaborador.email} onChange={(e) => setNewColaborador({ ...newColaborador, email: e.target.value })} className="input" required />
+                  <input type="password" placeholder="Senha* (mínimo 6 caracteres)" value={newColaborador.senha} onChange={(e) => setNewColaborador({ ...newColaborador, senha: e.target.value })} className="input" required minLength={6} />
                   <div className="col-span-2 text-sm text-gray-600">
                     O colaborador receberá um email com as instruções para definir a senha.
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" onClick={() => setShowAddColaboradorModal(false)} className="btn-cancel">Cancelar</button>
-                  <button type="submit" className="btn-submit" disabled={isAddingColaborador}>
+                <div className="modal-footer mt-6">
+                  <button type="submit" className="button button-primary mr-2" disabled={isAddingColaborador}>
                     {isAddingColaborador ? 'Adicionando...' : 'Adicionar Colaborador'}
                   </button>
+                  <button type="button" onClick={() => setShowAddColaboradorModal(false)} className="button button-outline">Cancelar</button>
                 </div>
               </form>
             </div>
@@ -1388,26 +1365,23 @@ export default function FrotaPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Atribuir Veículo {veiculoParaAtribuir.placa}</h2>
-              <button onClick={() => setShowAtribuirModal(false)} className="close-btn">&times;</button>
+              <button onClick={() => setShowAtribuirModal(false)} className="modal-close-button">&times;</button>
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => { e.preventDefault(); handleAtribuirColaborador(); }}>
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Colaborador*</label>
-                    <select value={colaboradorSelecionado} onChange={(e) => setColaboradorSelecionado(e.target.value)} className="form-input" required>
-                      <option value="">Selecione um Colaborador</option>
-                      {colaboradoresDisponiveis.map((colab) => (
-                        <option key={colab.id} value={colab.id}>{colab.displayName || colab.email}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <select value={colaboradorSelecionado} onChange={(e) => setColaboradorSelecionado(e.target.value)} className="select" required>
+                    <option value="">Selecione um Colaborador</option>
+                    {colaboradoresDisponiveis.map((colab) => (
+                      <option key={colab.id} value={colab.id}>{colab.displayName || colab.email}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" onClick={() => setShowAtribuirModal(false)} className="btn-cancel">Cancelar</button>
-                  <button type="submit" className="btn-submit" disabled={isAtribuindo}>
+                <div className="modal-footer mt-6">
+                  <button type="submit" className="button button-primary mr-2" disabled={isAtribuindo}>
                     {isAtribuindo ? 'Atribuindo...' : 'Atribuir'}
                   </button>
+                  <button type="button" onClick={() => setShowAtribuirModal(false)} className="button button-outline">Cancelar</button>
                 </div>
               </form>
             </div>
@@ -1423,216 +1397,175 @@ export default function FrotaPage() {
       )}
 
       {/* Estilos avançados e modernos para o sistema de frota */}
-      <style jsx global>{`
+      <style jsx>{`
         /* Variáveis CSS personalizadas para o tema de frota */
         :global(:root) {
-          --frota-primary: #667eea; /* Indigo */
-          --frota-primary-dark: #4c5fd0;
-          --frota-secondary: #764ba2; /* Purple */
-          --frota-accent: #f093fb; /* Pink */
-          --frota-danger: #ef4444; /* Red */
-          --frota-warning: #f59e0b; /* Amber */
-          --frota-success: #10b981; /* Emerald */
+          --frota-primary: #0ea5e9;
+          --frota-primary-dark: #0284c7;
+          --frota-secondary: #22c55e;
+          --frota-accent: #f59e0b;
+          --frota-danger: #ef4444;
+          --frota-warning: #f59e0b;
+          --frota-success: #10b981;
           --frota-glass: rgba(255, 255, 255, 0.1);
           --frota-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-          --frota-shadow-hover: 0 12px 40px rgba(102, 126, 234, 0.15);
-          --frota-container-background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
-          --frota-header-background: rgba(15, 15, 35, 0.8);
-          --frota-card-background: rgba(255, 255, 255, 0.05);
-          --frota-card-border: 1px solid rgba(255, 255, 255, 0.1);
-          --frota-modal-background: linear-gradient(145deg, rgba(15, 15, 35, 0.95), rgba(26, 26, 62, 0.95));
-          --frota-modal-border: 1px solid rgba(255, 255, 255, 0.1);
-          --frota-modal-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
-          --frota-input-background: rgba(255, 255, 255, 0.05);
-          --frota-input-border: 2px solid rgba(255, 255, 255, 0.1);
-          --frota-input-focus-border: #667eea;
-          --frota-input-focus-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
-          --frota-button-primary-bg: linear-gradient(45deg, #667eea, #764ba2);
-          --frota-button-primary-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-          --frota-button-primary-hover-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-          --frota-button-secondary-bg: linear-gradient(45deg, #10b981, #059669);
-          --frota-button-secondary-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-          --frota-button-secondary-hover-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-          --frota-button-outline-bg: rgba(255, 255, 255, 0.1);
-          --frota-button-outline-border: 2px solid #667eea;
-          --frota-button-outline-color: #8a9df8;
-          --frota-button-outline-hover-bg: #667eea;
-          --frota-button-outline-hover-color: white;
-          --frota-text-primary: white;
-          --frota-text-secondary: rgba(255, 255, 255, 0.7);
-          --frota-text-subtle: rgba(255, 255, 255, 0.5);
-          --font-display: 'Playfair Display', serif;
-          --font-body: 'Inter', sans-serif;
-          --font-mono: 'JetBrains Mono', monospace;
+          --frota-shadow-hover: 0 12px 40px rgba(14, 165, 233, 0.15);
         }
 
         /* Container principal */
-        .frota-container {
+        .container {
+          background: linear-gradient(135deg, 
+            rgba(14, 165, 233, 0.05) 0%, 
+            rgba(34, 197, 94, 0.05) 100%);
           min-height: 100vh;
-          background: var(--frota-container-background);
-          color: var(--frota-text-primary);
-          font-family: var(--font-body);
           position: relative;
           overflow-x: hidden;
-          display: flex;
-          flex-direction: column;
         }
 
-        .frota-container::before {
+        .container::before {
           content: '';
-          position: fixed;
+          position: absolute;
           top: 0;
           left: 0;
-          width: 100%;
-          height: 100%;
-          background-image:
-            radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(240, 147, 251, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 60%, rgba(67, 233, 123, 0.2) 0%, transparent 50%);
-          animation: float-particles 20s ease-in-out infinite;
-          z-index: -1;
+          right: 0;
+          bottom: 0;
+          background: 
+            radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
           pointer-events: none;
-        }
-
-        @keyframes float-particles {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          33% { transform: translateY(-20px) rotate(120deg); }
-          66% { transform: translateY(20px) rotate(240deg); }
+          z-index: 0;
         }
 
         /* Header principal */
-        .frota-header {
-          background: var(--frota-header-background);
+        .fleet-header {
+          position: relative;
+          z-index: 2;
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 1rem 2rem;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .header-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          width: 100%;
-        }
-
-        .brand-section {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .brand-icon {
-          font-size: 2.5rem;
-          background: linear-gradient(45deg, #667eea, #764ba2);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: rotate-logo 10s linear infinite;
-        }
-
-        @keyframes rotate-logo {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        .brand-text h1 {
-          font-size: 1.75rem;
-          font-weight: 700;
-          margin: 0;
-          font-family: var(--font-display);
-          background: linear-gradient(45deg, #ffffff, #e0e7ff);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .brand-text p {
-          font-size: 0.8rem;
-          color: var(--frota-text-subtle);
-          margin: 0;
-          font-weight: 500;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-        }
-
-        .header-actions {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-        }
-
-        .user-info {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: rgba(255, 255, 255, 0.1);
-          padding: 0.5rem 1rem;
-          border-radius: 50px;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .user-info span {
-          color: var(--frota-text-primary);
-          font-weight: 500;
-        }
-
-        .logout-btn {
-          background: linear-gradient(45deg, #ef4444, #dc2626);
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.3s ease;
-          font-size: 0.9rem;
-        }
-
-        .logout-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-        }
-
-        .main-content {
-          max-width: 1400px;
-          margin: 0 auto;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
           padding: 2rem;
-          width: 100%;
-          flex-grow: 1;
+          margin-bottom: 2rem;
+          box-shadow: var(--frota-shadow);
         }
 
-        .dashboard-grid {
+        .fleet-title {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          font-size: 2.5rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 0.5rem;
+        }
+
+        .fleet-subtitle {
+          color: var(--color-text-secondary);
+          font-size: 1.1rem;
+          opacity: 0.8;
+        }
+
+        /* Botões melhorados */
+        .action-buttons {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .button {
+          padding: 0.875rem 1.75rem;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          text-decoration: none;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.5s;
+        }
+
+        .button:hover::before {
+          left: 100%;
+        }
+
+        .button-primary {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-primary-dark));
+          color: white;
+          box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        }
+
+        .button-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        }
+
+        .button-secondary {
+          background: linear-gradient(135deg, var(--frota-secondary), #16a34a);
+          color: white;
+          box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .button-secondary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        .button-outline {
+          background: rgba(255, 255, 255, 0.1);
+          color: var(--frota-primary);
+          border: 2px solid var(--frota-primary);
+          backdrop-filter: blur(10px);
+        }
+
+        .button-outline:hover {
+          background: var(--frota-primary);
+          color: white;
+          transform: translateY(-2px);
+        }
+
+        .button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none !important;
+        }
+
+        /* Cards de estatísticas modernos */
+        .stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 2rem;
-          margin-bottom: 3rem;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
         }
 
         .stat-card {
-          background: var(--frota-card-background);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
-          border: var(--frota-card-border);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 20px;
           padding: 2rem;
-          transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-
-        .stat-card:hover {
-          transform: translateY(-5px);
-          border-color: rgba(255, 255, 255, 0.2);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
         }
 
         .stat-card::before {
@@ -1641,472 +1574,322 @@ export default function FrotaPage() {
           top: 0;
           left: 0;
           right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-          border-radius: 20px 20px 0 0;
+          height: 4px;
+          background: linear-gradient(90deg, var(--frota-primary), var(--frota-secondary));
+          transform: scaleX(0);
+          transition: transform 0.3s ease;
         }
 
-        .stat-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: var(--frota-shadow-hover);
+        }
+
+        .stat-card:hover::before {
+          transform: scaleX(1);
         }
 
         .stat-icon {
-          width: 50px;
-          height: 50px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.5rem;
-          background: linear-gradient(45deg, #667eea, #764ba2);
-          color: white;
-          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+          font-size: 3rem;
+          margin-bottom: 1rem;
+          display: block;
+          opacity: 0.8;
+        }
+
+        .stat-title {
+          color: var(--color-text-secondary);
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 0.5rem;
         }
 
         .stat-value {
           font-size: 2.5rem;
           font-weight: 800;
-          color: var(--frota-text-primary);
-          font-family: var(--font-mono);
-          margin-bottom: 0.5rem;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          line-height: 1;
         }
 
-        .stat-label {
-          color: var(--frota-text-subtle);
-          font-size: 1rem;
-          font-weight: 500;
+        .stat-change {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          margin-top: 0.5rem;
+          font-size: 0.85rem;
+          font-weight: 600;
         }
 
-        .vehicles-section {
-          background: var(--frota-card-background);
-          border-radius: 25px;
-          padding: 2.5rem;
-          border: var(--frota-card-border);
+        .stat-change.positive { color: var(--frota-success); }
+        .stat-change.negative { color: var(--frota-danger); }
+
+        /* Sistema de abas moderno */
+        .tabs {
+          display: flex;
+          overflow-x: auto;
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 0.5rem;
+          margin-bottom: 2rem;
+          gap: 0.25rem;
           box-shadow: var(--frota-shadow);
         }
 
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-
-        .section-title {
-          font-size: 1.8rem;
-          font-weight: 700;
-          font-family: var(--font-display);
-          color: var(--frota-text-primary);
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .add-vehicle-btn {
-          background: var(--frota-button-primary-bg);
-          color: white;
+        .tab {
+          padding: 0.875rem 1.5rem;
+          background: transparent;
           border: none;
-          padding: 0.8rem 1.5rem;
-          border-radius: 50px;
-          cursor: pointer;
+          color: var(--color-text-secondary);
           font-weight: 600;
-          display: flex;
+          font-size: 0.95rem;
+          cursor: pointer;
+          border-radius: 12px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          transition: all 0.3s ease;
-          box-shadow: var(--frota-button-primary-shadow);
+          white-space: nowrap;
           position: relative;
           overflow: hidden;
         }
 
-        .add-vehicle-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--frota-button-primary-hover-shadow);
-        }
-
-        .add-vehicle-btn::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-          transform: rotate(45deg);
-          transition: all 0.6s ease;
-        }
-
-        .add-vehicle-btn:hover::before {
-          animation: shine 1.5s ease-in-out;
-        }
-
-        @keyframes shine {
-          0% { transform: rotate(45deg) translateX(-100%); }
-          100% { transform: rotate(45deg) translateX(100%); }
-        }
-
-        .vehicles-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .vehicle-card {
-          background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          padding: 1.5rem;
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-
-        .vehicle-card:hover {
-          transform: translateY(-3px);
-          border-color: rgba(255, 255, 255, 0.2);
-          box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .vehicle-card::before {
+        .tab::before {
           content: '';
           position: absolute;
           top: 0;
           left: 0;
           right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.6), transparent);
-          opacity: 0.6;
+          bottom: 0;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          opacity: 0;
+          transition: opacity 0.3s ease;
         }
 
-        .vehicle-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 1rem;
+        .tab-active::before {
+          opacity: 1;
         }
 
-        .vehicle-info h3 {
-          color: var(--frota-text-primary);
-          font-size: 1.2rem;
-          font-weight: 700;
-          margin-bottom: 0.25rem;
+        .tab-active {
+          color: white;
+          transform: translateY(-1px);
         }
 
-        .vehicle-info p {
-          color: var(--frota-text-subtle);
-          font-size: 0.9rem;
+        .tab:hover:not(:disabled):not(.tab-active) {
+          background: rgba(14, 165, 233, 0.1);
+          color: var(--frota-primary);
+          transform: translateY(-1px);
         }
 
-        .vehicle-status {
-          padding: 0.3rem 0.8rem;
+        .tab:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Área de conteúdo */
+        .content-area {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 20px;
+          padding: 2rem;
+          box-shadow: var(--frota-shadow);
+          position: relative;
+          z-index: 1;
+        }
+
+        /* Filtros e busca */
+        .filters-container {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 1.5rem;
+          margin-bottom: 2rem;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .filters-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+
+        /* Inputs melhorados */
+        .input, .select {
+          width: 100%;
+          padding: 0.875rem 1rem;
+          border: 2px solid rgba(14, 165, 233, 0.2);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(10px);
+          color: var(--color-text-primary);
+          font-size: 0.95rem;
+          transition: all 0.3s ease;
+        }
+
+        .input:focus, .select:focus {
+          outline: none;
+          border-color: var(--frota-primary);
+          box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+          transform: translateY(-1px);
+        }
+
+        /* Tabela moderna */
+        .table-container {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: var(--frota-shadow);
+        }
+
+        .table-header {
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          color: white;
+        }
+
+        .table-row {
+          transition: all 0.2s ease;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .table-row:hover {
+          background: rgba(14, 165, 233, 0.05);
+          transform: translateX(5px);
+        }
+
+        .table-cell {
+          padding: 1rem;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Status badges */
+        .status-badge {
+          padding: 0.375rem 0.875rem;
           border-radius: 20px;
           font-size: 0.8rem;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-          border: 1px solid transparent; /* Placeholder */
-        }
-
-        .status-active {
-          background: rgba(16, 185, 129, 0.2);
-          color: #10b981;
-          border-color: rgba(16, 185, 129, 0.3);
-        }
-
-        .status-inactive {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
-          border-color: rgba(239, 68, 68, 0.3);
-        }
-
-        .vehicle-details {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .detail-item {
-          display: flex;
-          flex-direction: column;
+          letter-spacing: 0.025em;
+          display: inline-flex;
+          align-items: center;
           gap: 0.25rem;
         }
 
-        .detail-label {
-          color: var(--frota-text-subtle);
-          font-size: 0.8rem;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+        .status-ativo {
+          background: rgba(16, 185, 129, 0.1);
+          color: #059669;
+          border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
-        .detail-value {
-          color: var(--frota-text-primary);
-          font-size: 0.9rem;
-          font-weight: 600;
+        .status-manutencao {
+          background: rgba(245, 158, 11, 0.1);
+          color: #d97706;
+          border: 1px solid rgba(245, 158, 11, 0.2);
         }
 
-        .vehicle-actions {
-          display: flex;
-          gap: 0.5rem;
+        .status-inativo {
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
+          border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
-        .action-btn {
-          flex: 1;
-          padding: 0.6rem;
-          border: var(--frota-input-border);
-          border-radius: 8px;
-          background: var(--frota-input-background);
-          color: var(--frota-text-subtle);
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-size: 0.8rem;
-          font-weight: 500;
+        .status-em_viagem {
+          background: rgba(59, 130, 246, 0.1);
+          color: #2563eb;
+          border: 1px solid rgba(59, 130, 246, 0.2);
         }
 
-        .action-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: rgba(255, 255, 255, 0.3);
-          color: var(--frota-text-primary);
-          transform: translateY(-1px);
-        }
-
-        .action-btn.edit {
-          background: linear-gradient(45deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-          border-color: rgba(102, 126, 234, 0.3);
-          color: #8a9df8;
-        }
-
-        .action-btn.delete {
-          background: linear-gradient(45deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
-          border-color: rgba(239, 68, 68, 0.3);
-          color: #f87171;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 4rem 2rem;
-          color: var(--frota-text-subtle);
-        }
-
-        .empty-state-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-          opacity: 0.5;
-          background: linear-gradient(45deg, #667eea, #764ba2);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .empty-state h3 {
-          font-size: 1.5rem;
-          margin-bottom: 0.5rem;
-          color: rgba(255, 255, 255, 0.8);
-          font-family: var(--font-display);
-        }
-
-        /* Modais */
+        /* Modais melhorados */
         .modal-overlay {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          backdrop-filter: blur(10px);
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
           display: flex;
-          align-items: center;
           justify-content: center;
-          z-index: 1000;
-          padding: 1rem;
+          align-items: center;
+          z-index: 50;
+          animation: modal-fade-in 0.3s ease;
         }
 
         .modal-content {
-          background: var(--frota-modal-background);
-          border: var(--frota-modal-border);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 20px;
           padding: 2rem;
-          width: 100%;
-          max-width: 500px;
-          backdrop-filter: blur(20px);
-          box-shadow: var(--frota-modal-shadow);
+          width: 90%;
+          max-width: 600px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: modal-slide-up 0.3s ease;
         }
 
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 2rem;
-        }
-
-        .modal-title {
-          color: var(--frota-text-primary);
-          font-size: 1.5rem;
-          font-weight: 700;
-          font-family: var(--font-display);
-        }
-
-        .close-btn {
-          background: none;
-          border: none;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 1.75rem;
-          cursor: pointer;
-          transition: color 0.3s ease;
-        }
-
-        .close-btn:hover {
-          color: #ffffff;
-        }
-
-        .modal-body {
-          max-height: 65vh;
-          overflow-y: auto;
-          padding-right: 10px; /* Add padding for scrollbar */
-        }
-
-        .modal-body::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        .modal-body::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 4px;
-        }
-
-        .modal-body::-webkit-scrollbar-thumb {
-          background: rgba(102, 126, 234, 0.5);
-          border-radius: 4px;
-        }
-
-        .modal-body::-webkit-scrollbar-thumb:hover {
-          background: rgba(102, 126, 234, 0.8);
-        }
-
-        .form-group {
+          border-bottom: 2px solid rgba(14, 165, 233, 0.1);
+          padding-bottom: 1rem;
           margin-bottom: 1.5rem;
         }
 
-        .form-label {
-          display: block;
-          color: var(--frota-text-subtle);
-          font-size: 0.9rem;
-          font-weight: 600;
-          margin-bottom: 0.5rem;
+        .modal-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
-        .form-input {
-          width: 100%;
-          background: var(--frota-input-background);
-          border: var(--frota-input-border);
-          border-radius: 8px;
-          padding: 0.8rem 1rem;
-          color: var(--frota-text-primary);
-          font-size: 0.9rem;
-          transition: all 0.3s ease;
-          backdrop-filter: blur(10px);
-        }
-
-        .form-input:focus {
-          outline: none;
-          border-color: var(--frota-input-focus-border);
-          background: rgba(255, 255, 255, 0.08);
-          box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
-        }
-
-        .form-input::placeholder {
-          color: rgba(255, 255, 255, 0.4);
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          justify-content: flex-end;
-          margin-top: 2rem;
-        }
-
-        .btn-cancel {
-          background: var(--frota-button-outline-bg);
-          border: var(--frota-button-outline-border);
-          color: var(--frota-button-outline-color);
-          padding: 0.8rem 1.5rem;
-          border-radius: 8px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.3s ease;
-        }
-
-        .btn-cancel:hover {
-          background: rgba(255, 255, 255, 0.15);
-          color: var(--frota-text-primary);
-          transform: translateY(-1px);
-        }
-
-        .btn-submit {
-          background: var(--frota-button-primary-bg);
+        .modal-close-button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
           border: none;
-          color: white;
-          padding: 0.8rem 1.5rem;
-          border-radius: 8px;
           cursor: pointer;
-          font-weight: 600;
-          transition: all 0.3s ease;
-          box-shadow: var(--frota-button-primary-shadow);
-          position: relative;
-          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          transition: all 0.2s ease;
         }
 
-        .btn-submit:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--frota-button-primary-hover-shadow);
+        .modal-close-button:hover {
+          background: rgba(239, 68, 68, 0.2);
+          transform: scale(1.1);
         }
 
-        .btn-submit::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-          transition: left 0.6s;
+        .modal-body {
+          max-height: 60vh;
+          overflow-y: auto;
         }
 
-        .btn-submit:hover::before {
-          left: 100%;
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+          border-top: 2px solid rgba(14, 165, 233, 0.1);
+          padding-top: 1.5rem;
+          margin-top: 1.5rem;
         }
 
-        /* Gradientes orbitais de fundo */
-        .frota-container::after {
-          content: '';
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background:
-            radial-gradient(circle at 10% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 40%),
-            radial-gradient(circle at 80% 80%, rgba(240, 147, 251, 0.1) 0%, transparent 40%),
-            radial-gradient(circle at 40% 60%, rgba(67, 233, 123, 0.05) 0%, transparent 40%);
-          z-index: -1;
-          pointer-events: none;
-          animation: orbit-bg 30s linear infinite;
-        }
-
-        @keyframes orbit-bg {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        /* Snackbar */
+        /* Snackbar melhorado */
         .snackbar {
           position: fixed;
           bottom: 2rem;
@@ -2119,11 +1902,89 @@ export default function FrotaPage() {
           backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.2);
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-          animation: snackbar-slide-in 0.3s ease, snackbar-fade-out 0.3s ease 3s;
+          animation: snackbar-slide-in 0.3s ease, snackbar-slide-out 0.3s ease 2.7s;
           display: flex;
           align-items: center;
           gap: 0.5rem;
           max-width: 400px;
+        }
+
+        .snackbar-success {
+          background: linear-gradient(135deg, var(--frota-success), #059669);
+        }
+
+        .snackbar-error {
+          background: linear-gradient(135deg, var(--frota-danger), #dc2626);
+        }
+
+        /* Loading melhorado */
+        .loading {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          min-height: 50vh;
+          text-align: center;
+        }
+
+        .spinner {
+          width: 50px;
+          height: 50px;
+          border: 4px solid rgba(14, 165, 233, 0.1);
+          border-left: 4px solid var(--frota-primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+
+        .loading-text {
+          color: var(--color-text-secondary);
+          font-size: 1.1rem;
+          font-weight: 500;
+        }
+
+        /* Seção vazia melhorada */
+        .empty-state {
+          text-align: center;
+          padding: 4rem 2rem;
+          color: var(--color-text-secondary);
+        }
+
+        .empty-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+          opacity: 0.5;
+        }
+
+        .empty-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+          color: var(--color-text-primary);
+        }
+
+        .empty-description {
+          font-size: 1rem;
+          opacity: 0.8;
+          max-width: 400px;
+          margin: 0 auto;
+        }
+
+        /* Animações */
+        @keyframes modal-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes modal-slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(50px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
 
         @keyframes snackbar-slide-in {
@@ -2137,41 +1998,15 @@ export default function FrotaPage() {
           }
         }
 
-        @keyframes snackbar-fade-out {
+        @keyframes snackbar-slide-out {
           from {
             opacity: 1;
+            transform: translateX(0);
           }
           to {
             opacity: 0;
+            transform: translateX(100%);
           }
-        }
-
-        .snackbar-success {
-          background: linear-gradient(135deg, #10b981, #059669);
-        }
-
-        .snackbar-error {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-        }
-
-        /* Loading */
-        .loading {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          min-height: 70vh;
-          text-align: center;
-        }
-
-        .spinner {
-          width: 50px;
-          height: 50px;
-          border: 4px solid rgba(102, 126, 234, 0.1);
-          border-left: 4px solid var(--frota-primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-bottom: 1rem;
         }
 
         @keyframes spin {
@@ -2179,112 +2014,104 @@ export default function FrotaPage() {
           100% { transform: rotate(360deg); }
         }
 
-        .loading-text {
-          color: var(--frota-text-subtle);
-          font-size: 1.1rem;
-          font-weight: 500;
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
 
-        /* Responsividade */
+        .pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Responsividade melhorada */
         @media (max-width: 768px) {
-          .main-content {
-            padding: 1rem;
-          }
-
-          .dashboard-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
-
-          .vehicles-section {
+          .fleet-header {
             padding: 1.5rem;
+            text-align: center;
           }
 
-          .section-header {
-            flex-direction: column;
-            gap: 1rem;
-            align-items: flex-start;
-          }
-
-          .vehicles-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .header-content {
-            flex-direction: column;
-            gap: 1rem;
-            align-items: flex-start;
-          }
-
-          .header-actions {
-            width: 100%;
-            justify-content: space-between;
-          }
-
-          .brand-text h1 {
-            font-size: 1.3rem;
-          }
-
-          .stat-card {
-            padding: 1.5rem;
-          }
-
-          .stat-value {
+          .fleet-title {
             font-size: 2rem;
           }
 
-          .modal-content {
-            margin: 1rem;
-            padding: 1.5rem;
-          }
-
-          .form-actions {
-            flex-direction: column;
-          }
-
-          .btn-cancel,
-          .btn-submit {
+          .action-buttons {
+            justify-content: center;
             width: 100%;
+          }
+
+          .tabs {
+            padding: 0.25rem;
+          }
+
+          .tab {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+          }
+
+          .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+
+          .filters-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .modal-content {
+            width: 95%;
+            padding: 1.5rem;
+            margin: 1rem;
+          }
+
+          .snackbar {
+            bottom: 1rem;
+            right: 1rem;
+            left: 1rem;
+            max-width: none;
           }
         }
 
-        @media (max-width: 480px) {
-          .frota-header {
-            padding: 1rem;
-          }
+        /* Melhorias de acessibilidade */
+        .button:focus,
+        .tab:focus,
+        .input:focus,
+        .select:focus {
+          outline: 2px solid var(--frota-primary);
+          outline-offset: 2px;
+        }
 
-          .vehicles-section {
-            padding: 1rem;
-          }
+        /* Animação de entrada para elementos */
+        .fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
 
-          .dashboard-grid {
-            gap: 0.8rem;
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
           }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
-          .stat-card {
-            padding: 1rem;
-          }
+        /* Efeito de glassmorphism para cards */
+        .glass-card {
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
 
-          .vehicle-card {
-            padding: 1rem;
-          }
+        /* Hover effects para interatividade */
+        .interactive:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
 
-          .vehicle-details {
-            grid-template-columns: 1fr;
-            gap: 0.8rem;
-          }
-
-          .vehicle-actions {
-            flex-direction: column;
-          }
-
-          .action-btn {
-            padding: 0.8rem;
-          }
-
-          .modal-content {
-            padding: 1rem;
-          }
+        .interactive {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
     </div>
