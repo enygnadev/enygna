@@ -1835,7 +1835,7 @@ export default function AdminMasterPage() {
 
     } catch (error: any) {
       console.error('Erro ao criar admin:', error);
-      
+
       if (error.code === 'auth/email-already-in-use') {
         setCreateAdminError('❌ Este email já está em uso. Escolha outro email.');
       } else if (error.code === 'auth/invalid-email') {
@@ -2180,7 +2180,7 @@ export default function AdminMasterPage() {
                     fontSize: '0.9rem',
                     opacity: 0.9
                   }}>
-                    💡 <strong>Dica:</strong> Use as credenciais que você criou em /bootstrap-admin
+                    Dica: Use as credenciais que você criou em /bootstrap-admin
                   </p>
                   <button
                     onClick={() => window.location.href = '/bootstrap-admin'}
@@ -2196,7 +2196,7 @@ export default function AdminMasterPage() {
                       transition: 'all 0.3s ease'
                     }}
                   >
-                    🔄 Ir para Bootstrap Admin
+                    Ir para Bootstrap Admin
                   </button>
                 </div>
 
@@ -2232,165 +2232,164 @@ export default function AdminMasterPage() {
             </div>
 
             {/* Formulário expansível para criar admin */}
-              {showCreateAdminForm && (
-                <div style={{
-                  marginTop: '2rem',
-                  background: 'rgba(139,92,246,0.1)',
-                  border: '2px solid rgba(139,92,246,0.3)',
-                  borderRadius: '20px',
-                  padding: '2rem',
-                  animation: 'slideDown 0.3s ease-out'
+            {showCreateAdminForm && (
+              <div style={{
+                marginTop: '2rem',
+                background: 'rgba(139,92,246,0.1)',
+                border: '2px solid rgba(139,92,246,0.3)',
+                borderRadius: '20px',
+                padding: '2rem',
+                animation: 'slideDown 0.3s ease-out'
+              }}>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1.5rem',
+                  color: '#ffffff',
+                  textAlign: 'center'
                 }}>
-                  <h3 style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    marginBottom: '1.5rem',
-                    color: '#ffffff',
-                    textAlign: 'center'
-                  }}>
-                    👑 Criar Novo Administrador
-                  </h3>
+                  👑 Criar Novo Administrador
+                </h3>
+
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.5rem',
+                  textAlign: 'left'
+                }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      marginBottom: '0.5rem',
+                      fontWeight: '600',
+                      color: 'rgba(255,255,255,0.9)'
+                    }}>
+                      📧 Email do novo admin:
+                    </label>
+                    <input
+                      type="email"
+                      value={createAdminEmail}
+                      onChange={(e) => setCreateAdminEmail(e.target.value)}
+                      placeholder="admin@exemplo.com"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      marginBottom: '0.5rem',
+                      fontWeight: '600',
+                      color: 'rgba(255,255,255,0.9)'
+                    }}>
+                      🔑 Senha (mínimo 6 caracteres):
+                    </label>
+                    <input
+                      type="password"
+                      value={createAdminPassword}
+                      onChange={(e) => setCreateAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                    />
+                  </div>
+
+                  {createAdminError && (
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(239,68,68,0.2)',
+                      border: '1px solid rgba(239,68,68,0.4)',
+                      borderRadius: '8px',
+                      color: '#fca5a5',
+                      fontSize: '0.9rem',
+                      whiteSpace: 'pre-line'
+                    }}>
+                      {createAdminError}
+                    </div>
+                  )}
+
+                  {createAdminSuccess && (
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(16,185,129,0.2)',
+                      border: '1px solid rgba(16,185,129,0.4)',
+                      borderRadius: '8px',
+                      color: '#6ee7b7',
+                      fontSize: '0.9rem',
+                      whiteSpace: 'pre-line'
+                    }}>
+                      {createAdminSuccess}
+                    </div>
+                  )}
 
                   <div style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1.5rem',
-                    textAlign: 'left'
+                    gap: '1rem',
+                    justifyContent: 'center'
                   }}>
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        marginBottom: '0.5rem',
+                    <button
+                      onClick={() => {
+                        setShowCreateAdminForm(false);
+                        setCreateAdminEmail('');
+                        setCreateAdminPassword('');
+                        setCreateAdminError('');
+                        setCreateAdminSuccess('');
+                      }}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
                         fontWeight: '600',
-                        color: 'rgba(255,255,255,0.9)'
-                      }}>
-                        📧 Email do novo admin:
-                      </label>
-                      <input
-                        type="email"
-                        value={createAdminEmail}
-                        onChange={(e) => setCreateAdminEmail(e.target.value)}
-                        placeholder="admin@exemplo.com"
-                        style={{
-                          width: '100%',
-                          padding: '1rem',
-                          background: 'rgba(255,255,255,0.1)',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          borderRadius: '12px',
-                          color: 'white',
-                          fontSize: '1rem',
-                          backdropFilter: 'blur(10px)'
-                        }}
-                      />
-                    </div>
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      ❌ Cancelar
+                    </button>
 
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        marginBottom: '0.5rem',
-                        fontWeight: '600',
-                        color: 'rgba(255,255,255,0.9)'
-                      }}>
-                        🔑 Senha (mínimo 6 caracteres):
-                      </label>
-                      <input
-                        type="password"
-                        value={createAdminPassword}
-                        onChange={(e) => setCreateAdminPassword(e.target.value)}
-                        placeholder="••••••••"
-                        style={{
-                          width: '100%',
-                          padding: '1rem',
-                          background: 'rgba(255,255,255,0.1)',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          borderRadius: '12px',
-                          color: 'white',
-                          fontSize: '1rem',
-                          backdropFilter: 'blur(10px)'
-                        }}
-                      />
-                    </div>
-
-                    {createAdminError && (
-                      <div style={{
-                        padding: '1rem',
-                        background: 'rgba(239,68,68,0.2)',
-                        border: '1px solid rgba(239,68,68,0.4)',
-                        borderRadius: '8px',
-                        color: '#fca5a5',
-                        fontSize: '0.9rem',
-                        whiteSpace: 'pre-line'
-                      }}>
-                        {createAdminError}
-                      </div>
-                    )}
-
-                    {createAdminSuccess && (
-                      <div style={{
-                        padding: '1rem',
-                        background: 'rgba(16,185,129,0.2)',
-                        border: '1px solid rgba(16,185,129,0.4)',
-                        borderRadius: '8px',
-                        color: '#6ee7b7',
-                        fontSize: '0.9rem',
-                        whiteSpace: 'pre-line'
-                      }}>
-                        {createAdminSuccess}
-                      </div>
-                    )}
-
-                    <div style={{
-                      display: 'flex',
-                      gap: '1rem',
-                      justifyContent: 'center'
-                    }}>
-                      <button
-                        onClick={() => {
-                          setShowCreateAdminForm(false);
-                          setCreateAdminEmail('');
-                          setCreateAdminPassword('');
-                          setCreateAdminError('');
-                          setCreateAdminSuccess('');
-                        }}
-                        style={{
-                          padding: '1rem 2rem',
-                          background: 'rgba(255,255,255,0.1)',
-                          color: 'white',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          fontSize: '1rem',
-                          fontWeight: '600',
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
-                        ❌ Cancelar
-                      </button>
-
-                      <button
-                        onClick={handleCreateAdmin}
-                        disabled={createAdminLoading || !createAdminEmail || !createAdminPassword}
-                        style={{
-                          padding: '1rem 2rem',
-                          background: createAdminLoading ? 'rgba(139,92,246,0.5)' : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '12px',
-                          cursor: createAdminLoading ? 'not-allowed' : 'pointer',
-                          fontSize: '1rem',
-                          fontWeight: '700',
-                          transition: 'all 0.3s ease',
-                          opacity: (!createAdminEmail || !createAdminPassword) ? 0.5 : 1
-                        }}
-                      >
-                        {createAdminLoading ? '🔄 Criando...' : '👑 Criar Administrador'}
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleCreateAdmin}
+                      disabled={createAdminLoading || !createAdminEmail || !createAdminPassword}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: createAdminLoading ? 'rgba(139,92,246,0.5)' : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: createAdminLoading ? 'not-allowed' : 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        transition: 'all 0.3s ease',
+                        opacity: (!createAdminEmail || !createAdminPassword) ? 0.5 : 1
+                      }}
+                    >
+                      {createAdminLoading ? '🔄 Criando...' : '👑 Criar Administrador'}
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         <style jsx>{`
@@ -2608,7 +2607,7 @@ export default function AdminMasterPage() {
       <div style={{ padding: '2rem' }}>
         {activeTab === 'dashboard' && analytics && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="dashboard-metrics">
-            
+
             {/* Banner especial para Bootstrap Admin */}
             {user && (
               <div style={{
@@ -2632,7 +2631,7 @@ export default function AdminMasterPage() {
                   CONTROLE ABSOLUTO ATIVADO
                 </h2>
                 <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '1rem' }}>
-                  🔥 Você possui acesso TOTAL a todos os dados empresariais e colaboradores
+                  Você possui acesso TOTAL a todos os dados empresariais e colaboradores
                 </p>
                 <div style={{
                   display: 'grid',
