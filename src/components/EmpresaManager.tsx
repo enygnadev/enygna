@@ -521,7 +521,7 @@ export default function EmpresaManager({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 2147483647,
+          zIndex: 9999,
           backdropFilter: 'blur(15px)',
           padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
@@ -533,7 +533,7 @@ export default function EmpresaManager({
             maxHeight: '90vh',
             overflowY: 'auto',
             position: 'relative',
-            zIndex: 2147483647,
+            zIndex: 9999,
             boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
             border: '1px solid rgba(255,255,255,0.1)'
           }}>

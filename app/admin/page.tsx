@@ -3332,7 +3332,7 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'companies' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="companies-section">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem',zIndex: 9999 }} className="companies-section">
 
             {/* Gestão Unificada de Empresas */}
             <EmpresaManager 
@@ -3350,6 +3350,7 @@ export default function AdminMasterPage() {
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
               padding: '1.5rem',
+            zIndex: 1,
               borderRadius: '20px',
               border: '2px solid rgba(255,255,255,0.1)',
               display: 'flex',
@@ -3368,6 +3369,7 @@ export default function AdminMasterPage() {
                   border: '2px solid rgba(255,255,255,0.2)',
                   borderRadius: '12px',
                   color: 'white',
+                  zIndex: 1,
                   fontSize: '1rem',
                   minWidth: '300px',
                   backdropFilter: 'blur(10px)'
@@ -3399,6 +3401,7 @@ export default function AdminMasterPage() {
                   border: '2px solid rgba(255,255,255,0.2)',
                   borderRadius: '12px',
                   color: 'white',
+                  zIndex: 1,
                   fontSize: '1rem',
                   backdropFilter: 'blur(10px)'
                 }}
@@ -3427,18 +3430,22 @@ export default function AdminMasterPage() {
             </div>
 
             {/* Lista de Empresas Premium */}
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(30px)',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)',
-              overflow: 'hidden'
-            }}>
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  backdropFilter: "blur(30px)",
+                  borderRadius: "20px",
+                  zIndex: 1, // ✅ camelCase e número
+                  border: "2px solid rgba(255,255,255,0.1)",
+                  overflow: "hidden",
+                }}
+              >
               <div style={{
                 padding: '1.5rem',
                 borderBottom: '2px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.05)',
                 display: 'flex',
+                zIndex: 1, // ✅ camelCase e número
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
@@ -3447,6 +3454,7 @@ export default function AdminMasterPage() {
                   fontSize: '1.5rem', 
                   fontWeight: '700',
                   display: 'flex',
+                zIndex: 1, // ✅ camelCase e número
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}>
@@ -4828,7 +4836,7 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'sistema-chamados' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' , zIndex: 9999 , }}>
             {/* Gestão de Empresas do Sistema de Chamados */}
             <EmpresaManager 
               sistema="chamados" 
