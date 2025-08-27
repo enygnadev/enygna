@@ -4,9 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ========== FUNÇÕES DE SEGURANÇA E VALIDAÇÃO ==========
-    
-    // Verificações de autenticação
+
     function isSignedIn() {
       return request.auth != null && request.auth.uid != null;
     }
@@ -27,7 +25,7 @@ service cloud.firestore {
         : null;
     }
 
-    // Verificações de privilégios
+
     function isAdminMaster() {
       return getUserRole() in ['adminmaster', 'superadmin'];
     }
@@ -44,7 +42,7 @@ service cloud.firestore {
       return isSignedIn() && (getUserEmpresaId() == empresaId || isAdminMaster());
     }
 
-    // Validações de dados
+
     function isValidEmail(email) {
       return email != null && email.matches('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}');
     }
@@ -57,7 +55,7 @@ service cloud.firestore {
       return cnpj == null || cnpj.matches('[0-9]{14}');
     }
 
-    // Validações de tempo e integridade
+
     function isValidTimestamp() {
       return request.time > timestamp.date(2024, 1, 1) 
         && request.time < timestamp.date(2035, 12, 31);
@@ -65,7 +63,7 @@ service cloud.firestore {
 
     function isWithinRateLimit() {
       return resource == null || resource.data.lastRequest == null 
-        || request.time.toMillis() - resource.data.lastRequest.toMillis() > 1000; // 1 segundo
+        || request.time.toMillis() - resource.data.lastRequest.toMillis() > 1000; 
     }
 
     function isValidGeoLocation(lat, lng) {
@@ -74,18 +72,18 @@ service cloud.firestore {
 
     function isWithinBusinessHours() {
       let hour = request.time.toMillis() / 3600000 % 24;
-      return hour >= 5 && hour <= 23; // 5h às 23h
-    }
+      return hour >= 5 && hour <= 23; 
 
-    // Validações específicas de dados
-    function isValidUserData(data) {
-      return data.keys().hasAll(['email', 'role', 'createdAt'])
-        && isValidEmail(data.email)
-        && isValidRole(data.role)
-        && data.createdAt == request.time
-        && (!('cpf' in data) || isValidCPF(data.cpf))
-        && data.size() < 50; // Limite de campos
-    }
+   }
+
+   function isValidUserData(data) {
+  return data.keys().hasAll(['email', 'role', 'createdAt']) &&
+         isValidEmail(data.email) &&
+         isValidRole(data.role) &&
+         data.createdAt == request.time &&
+         (!('cpf' in data) || isValidCPF(data.cpf)) &&
+         data.size() < 50;
+}
 
     function isValidSessionData(data) {
       return data.keys().hasAll(['userId', 'timestamp', 'type'])
@@ -109,7 +107,7 @@ service cloud.firestore {
         && data.size() < 30;
     }
 
-    // Validações de LGPD
+
     function hasDataProcessingConsent(userId) {
       return exists(/databases/$(database)/documents/lgpd_consent/$(userId)) &&
         get(/databases/$(database)/documents/lgpd_consent/$(userId)).data.dataProcessing == true;
@@ -121,11 +119,11 @@ service cloud.firestore {
         (isAdmin() && sameCompany(get(/databases/$(database)/documents/users/$(targetUserId)).data.empresaId) && hasDataProcessingConsent(targetUserId));
     }
 
-    // ========== REGRAS DE USUÁRIOS ==========
-    
+
+
     match /users/{userId} {
       allow read: if canAccessPersonalData(userId);
-      
+
       allow create: if isOwner(userId)
                     && isValidUserData(request.resource.data)
                     && isValidTimestamp()
@@ -140,10 +138,10 @@ service cloud.firestore {
 
       allow delete: if isAdminMaster() && isValidTimestamp();
 
-      // Sessões de ponto eletrônico
+
       match /sessions/{sessionId} {
         allow read: if canAccessPersonalData(userId);
-        
+
         allow create: if isOwner(userId)
                       && isValidSessionData(request.resource.data)
                       && isValidTimestamp()
@@ -158,14 +156,14 @@ service cloud.firestore {
         allow delete: if isAdmin() && canAccessPersonalData(userId);
       }
 
-      // Dados salariais (super protegidos)
+
       match /salary/{docId} {
         allow read: if isAdminMaster() || 
                     (isOwner(userId) && hasDataProcessingConsent(userId));
         allow write: if isAdminMaster();
       }
 
-      // Notificações
+
       match /notifications/{notificationId} {
         allow read: if isOwner(userId);
         allow create: if isAdmin() && sameCompany(getUserEmpresaId());
@@ -174,8 +172,8 @@ service cloud.firestore {
       }
     }
 
-    // ========== REGRAS DE EMPRESAS ==========
-    
+
+
     match /empresas/{empresaId} {
       allow read: if sameCompany(empresaId) || isAdminMaster();
       allow write: if isAdmin() && (sameCompany(empresaId) || isAdminMaster()) && isValidTimestamp();
@@ -204,8 +202,8 @@ service cloud.firestore {
       }
     }
 
-    // ========== SISTEMA FINANCEIRO ==========
-    
+
+
     match /financeiro_users/{userId} {
       allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
     }
@@ -222,16 +220,16 @@ service cloud.firestore {
          (isAdmin() && sameCompany(resource.data.empresaId)) ||
          isAdminMaster()) && 
         hasDataProcessingConsent(resource.data.userId);
-      
+
       allow create: if isSignedIn() && 
                     isValidFinanceiroDoc(request.resource.data) &&
                     hasDataProcessingConsent(request.auth.uid);
-      
+
       allow update: if isSignedIn() && 
                     (request.auth.uid == resource.data.userId || isAdmin()) &&
                     isWithinRateLimit() &&
                     hasDataProcessingConsent(resource.data.userId);
-      
+
       allow delete: if isAdminMaster();
     }
 
@@ -244,11 +242,10 @@ service cloud.firestore {
     match /financeiro_auditoria/{auditoriaId} {
       allow read: if isAdmin() || isAdminMaster();
       allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if false; // Auditoria é imutável
+      allow update, delete: if false;
     }
 
-    // ========== SISTEMA DE CHAMADOS ==========
-    
+
     match /chamados/users/{userId} {
       allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
     }
@@ -266,8 +263,8 @@ service cloud.firestore {
       allow read, write: if sameCompany(empresaId) && isValidTimestamp();
     }
 
-    // ========== SISTEMA DE DOCUMENTOS ==========
-    
+
+
     match /documentos_users/{userId} {
       allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
     }
@@ -288,8 +285,8 @@ service cloud.firestore {
       allow delete: if isAdminMaster();
     }
 
-    // ========== LGPD E CONSENTIMENTOS ==========
-    
+
+
     match /lgpd_consent/{userId} {
       allow read: if isOwner(userId) || isAdminMaster();
       allow create, update: if isOwner(userId) && isValidTimestamp();
@@ -309,8 +306,8 @@ service cloud.firestore {
       allow update, delete: if false; // Log é imutável
     }
 
-    // ========== SEGURANÇA E MONITORAMENTO ==========
-    
+
+
     match /security_events/{eventId} {
       allow read: if isAdmin();
       allow create: if isSignedIn() && isValidTimestamp();
@@ -331,7 +328,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
       allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if false; // Auditoria é imutável
+      allow update, delete: if false; 
     }
 
     match /performance_metrics/{metricId} {
@@ -358,8 +355,7 @@ service cloud.firestore {
       allow update, delete: if isAdminMaster();
     }
 
-    // ========== CONFIGURAÇÕES DO SISTEMA ==========
-    
+
     match /system_settings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isAdminMaster() && isValidTimestamp();
@@ -375,8 +371,8 @@ service cloud.firestore {
       allow write: if isAdminMaster();
     }
 
-    // ========== PLANOS E PAGAMENTOS ==========
-    
+
+
     match /plans/{planId} {
       allow read: if isSignedIn();
       allow write: if isAdminMaster();
@@ -393,8 +389,8 @@ service cloud.firestore {
       allow update, delete: if isAdminMaster();
     }
 
-    // ========== CACHE E OTIMIZAÇÕES ==========
-    
+
+
     match /cache/{cacheId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && 
@@ -406,8 +402,8 @@ service cloud.firestore {
       allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
     }
 
-    // ========== BACKUPS E RECUPERAÇÃO ==========
-    
+
+
     match /backups/{backupId} {
       allow read, write: if isAdminMaster();
     }
@@ -415,11 +411,10 @@ service cloud.firestore {
     match /backup_logs/{logId} {
       allow read: if isAdminMaster();
       allow create: if isAdminMaster() && isValidTimestamp();
-      allow update, delete: if false; // Log é imutável
+      allow update, delete: if false; 
     }
 
-    // ========== INTEGRAÇÕES EXTERNAS ==========
-    
+
     match /integrations/{integrationId} {
       allow read: if isAdmin();
       allow write: if isAdminMaster() && isValidTimestamp();
@@ -434,8 +429,8 @@ service cloud.firestore {
       allow write: if isAdminMaster() && isValidTimestamp();
     }
 
-    // ========== ANALYTICS E MÉTRICAS ==========
-    
+
+
     match /usage_analytics/{analyticsId} {
       allow read: if isAdmin();
       allow create: if isSignedIn() && isValidTimestamp();
@@ -453,27 +448,27 @@ service cloud.firestore {
       allow update, delete: if isAdminMaster();
     }
 
-    // ========== REGRA DE NEGAÇÃO GERAL ==========
-    
+
+
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
 
-// ========== REGRAS PARA FIREBASE STORAGE ==========
+
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Validações de arquivo
+
+
     function isValidImageFile() {
       return resource.contentType.matches('image/.*') && resource.size < 10 * 1024 * 1024; // 10MB
     }
 
     function isValidDocumentFile() {
       return resource.contentType.matches('(application/pdf|image/.*|text/.*)') && 
-             resource.size < 50 * 1024 * 1024; // 50MB
+             resource.size < 50 * 1024 * 1024; 
     }
 
     function hasStorageConsent(userId) {
@@ -481,77 +476,84 @@ service firebase.storage {
         get(/databases/{database}/documents/lgpd_consent/$(userId)).data.fileStorage == true;
     }
 
-    // Imagens de perfil
+
     match /profile-images/{userId}/{fileName} {
       allow read: if request.auth != null &&
                   (request.auth.uid == userId || 
                    request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin']);
-      
+
       allow write: if request.auth != null && 
                    request.auth.uid == userId &&
                    isValidImageFile() &&
                    hasStorageConsent(userId);
-      
+
       allow delete: if request.auth != null &&
                     (request.auth.uid == userId || 
                      request.auth.token.role in ['adminmaster', 'superadmin']);
     }
 
-    // Fotos de ponto eletrônico
+
     match /attendance-photos/{empresaId}/{userId}/{fileName} {
       allow read: if request.auth != null && 
                   (request.auth.uid == userId || 
                    request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin']);
-      
+
       allow write: if request.auth != null && 
                    request.auth.uid == userId &&
                    isValidImageFile() &&
                    hasStorageConsent(userId);
-      
+
       allow delete: if request.auth != null &&
                     request.auth.token.role in ['adminmaster', 'superadmin'];
     }
 
-    // Documentos financeiros
+
     match /financeiro-docs/{empresaId}/{userId}/{fileName} {
       allow read: if request.auth != null && 
                   (request.auth.uid == userId || 
                    (request.auth.token.empresaId == empresaId && 
                     request.auth.token.role in ['admin', 'gestor', 'contador']) ||
                    request.auth.token.role in ['adminmaster', 'superadmin']);
-      
+
       allow write: if request.auth != null && 
                    request.auth.uid == userId &&
                    isValidDocumentFile() &&
                    hasStorageConsent(userId);
-      
+
       allow delete: if request.auth != null &&
                     request.auth.token.role in ['adminmaster', 'superadmin'];
     }
 
-    // Documentos da empresa
+
     match /company-documents/{empresaId}/{allPaths=**} {
       allow read: if request.auth != null && 
                   (request.auth.token.empresaId == empresaId ||
                    request.auth.token.role in ['adminmaster', 'superadmin']);
-      
-      allow write: if request.auth != null && 
-                   (request.auth.token.empresaId == empresaId && 
-                    request.auth.token.role in ['admin', 'gestor']) ||
-                   request.auth.token.role in ['adminmaster', 'superadmin']) &&
-                   isValidDocumentFile();
-      
+
+     allow write: if
+  request.auth != null &&
+  (
+    (request.auth.token.empresaId == empresaId &&
+     request.auth.token.role in ['admin', 'gestor'])
+    ||
+    (request.auth.token.role in ['adminmaster', 'superadmin'])
+  ) &&
+  isValidDocumentFile();
+
+
+
+
       allow delete: if request.auth != null &&
                     request.auth.token.role in ['adminmaster', 'superadmin'];
     }
 
-    // Backups (apenas admin master)
+
     match /backups/{allPaths=**} {
       allow read, write: if request.auth != null && 
                          request.auth.token.role in ['adminmaster', 'superadmin'];
     }
 
-    // Logs de segurança
+
     match /security-logs/{allPaths=**} {
       allow read: if request.auth != null &&
                   request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin'];
@@ -559,7 +561,7 @@ service firebase.storage {
                    request.auth.token.role in ['adminmaster', 'superadmin'];
     }
 
-    // Negar acesso a outros arquivos
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
