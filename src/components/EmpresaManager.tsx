@@ -68,13 +68,14 @@ export default function EmpresaManager({
     { id: 'frota', nome: 'Sistema de Frota', descricao: 'Controle de veículos e manutenções.', icon: '🚗' },
     { id: 'financeiro', nome: 'Sistema Financeiro', descricao: 'Controle de contas a pagar/receber.', icon: '💰' },
     { id: 'documentos', nome: 'Sistema de Documentos', descricao: 'Armazenamento e organização de arquivos.', icon: '📄' },
-    { id: 'ponto', nome: 'Sistema de Ponto', descricao: 'Registro de jornada de trabalho.', icon: '⏰' },
+    { id: 'ponto', nome: 'Sistema de Ponto',descricao: 'Registro de jornada de trabalho.', icon: '⏰' },
   ];
 
   // Estados do formulário
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
+    senha: '', // Adicionado campo de senha
     cnpj: '',
     telefone: '',
     endereco: '',
@@ -94,7 +95,7 @@ export default function EmpresaManager({
     try {
       const collectionName = getCollectionName();
       console.log('Carregando empresas do sistema:', sistema, 'Collection:', collectionName);
-      
+
       const empresasRef = collection(db, collectionName);
       const q = query(empresasRef, orderBy('nome'));
       const snapshot = await getDocs(q);
@@ -109,7 +110,7 @@ export default function EmpresaManager({
       setEmpresas(empresasList);
     } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
-      
+
       if (error?.code === 'permission-denied') {
         console.warn(`Permissão negada para ${getCollectionName()}, criando empresas demo...`);
         // Criar empresas demo para testar
@@ -151,8 +152,8 @@ export default function EmpresaManager({
   };
 
   const handleCreate = async () => {
-    if (!formData.nome || !formData.email) {
-      alert('Nome e email são obrigatórios');
+    if (!formData.nome || !formData.email || !formData.senha) { // Adicionado validação de senha
+      alert('Nome, email e senha são obrigatórios');
       return;
     }
 
@@ -168,6 +169,7 @@ export default function EmpresaManager({
       const empresaData = {
         nome: formData.nome,
         email: formData.email,
+        senha: formData.senha, // Incluindo senha nos dados da empresa
         cnpj: formData.cnpj || '',
         telefone: formData.telefone || '',
         endereco: formData.endereco || '',
@@ -199,14 +201,14 @@ export default function EmpresaManager({
       alert('Empresa criada com sucesso!');
     } catch (error: any) {
       console.error('Erro ao criar empresa:', error);
-      
+
       let errorMessage = 'Erro ao criar empresa';
       if (error?.code === 'permission-denied') {
         errorMessage = 'Erro de permissão. Verifique se você tem privilégios de administrador.';
       } else if (error?.message) {
         errorMessage = `Erro: ${error.message}`;
       }
-      
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -238,6 +240,11 @@ export default function EmpresaManager({
         sistemasAtivos: formData.sistemasAtivos,
         atualizadoEm: serverTimestamp()
       };
+
+      // Se uma nova senha foi fornecida, adiciona ao updateData
+      if (formData.senha) {
+        updateData.senha = formData.senha;
+      }
 
       await updateDoc(doc(db, collectionName, selectedEmpresa.id), updateData);
 
@@ -333,6 +340,7 @@ export default function EmpresaManager({
     setFormData({
       nome: empresa.nome,
       email: empresa.email,
+      senha: '', // Limpa o campo de senha ao abrir o modal de edição
       cnpj: empresa.cnpj || '',
       telefone: empresa.telefone || '',
       endereco: empresa.endereco || '',
@@ -349,6 +357,7 @@ export default function EmpresaManager({
     setFormData({
       nome: '',
       email: '',
+      senha: '', // Reseta a senha
       cnpj: '',
       telefone: '',
       endereco: '',
@@ -623,6 +632,35 @@ export default function EmpresaManager({
                     fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  Senha de Acesso *
+                </label>
+                <input
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => setFormData({...formData, senha: e.target.value})}
+                  placeholder="Mínimo 6 caracteres"
+                  style={{
+                    width: '100%',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
+                  }}
+                />
+                <div style={{
+                  fontSize: '0.75rem',
+                  opacity: 0.7,
+                  marginTop: '0.25rem',
+                  color: '#fbbf24'
+                }}>
+                  🔐 Esta senha será usada para login da empresa nos sistemas
+                </div>
               </div>
 
               <div style={{
@@ -908,6 +946,35 @@ export default function EmpresaManager({
                 />
               </div>
 
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  Nova Senha (deixe em branco para manter a atual)
+                </label>
+                <input
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => setFormData({...formData, senha: e.target.value})}
+                  placeholder="Mínimo 6 caracteres"
+                  style={{
+                    width: '100%',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
+                  }}
+                />
+                <div style={{
+                  fontSize: '0.75rem',
+                  opacity: 0.7,
+                  marginTop: '0.25rem',
+                  color: '#fbbf24'
+                }}>
+                  🔐 Preencha apenas se quiser alterar a senha
+                </div>
+              </div>
+
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1027,39 +1094,6 @@ export default function EmpresaManager({
                     </label>
                   ))}
                 </div>
-              </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: 'clamp(0.5rem, 2vw, 1rem)'
-              }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.geofencing}
-                    onChange={(e) => setFormData({...formData, geofencing: e.target.checked})}
-                  />
-                  🗺️ Geofencing
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.selfieObrigatoria}
-                    onChange={(e) => setFormData({...formData, selfieObrigatoria: e.target.checked})}
-                  />
-                  📸 Selfie Obrigatória
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.notificacaoEmail}
-                    onChange={(e) => setFormData({...formData, notificacaoEmail: e.target.checked})}
-                  />
-                  📧 Notificações Email
-                </label>
               </div>
             </div>
 
