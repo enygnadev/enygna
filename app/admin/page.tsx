@@ -4468,6 +4468,53 @@ export default function AdminMasterPage() {
             </div>
           </div>
         )}
+        {activeTab === 'create-admin' && (
+          <div className="create-admin-section" style={{ padding: '2rem' }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              textAlign: 'center'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 2rem 0', 
+                fontSize: '1.5rem', 
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                justifyContent: 'center'
+              }}>
+                👑 Criação de Super Administrador
+              </h3>
+              <p style={{ 
+                fontSize: '1.1rem', 
+                opacity: 0.9, 
+                marginBottom: '2rem' 
+              }}>
+                Para criar novos administradores com acesso total ao sistema, utilize o formulário de criação na tela de login.
+              </p>
+              <button
+                onClick={() => setShowCreateAdminForm(true)}
+                style={{
+                  padding: '1rem 2rem',
+                  background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                👑 Abrir Formulário de Criação
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
