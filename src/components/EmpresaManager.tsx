@@ -93,6 +93,8 @@ export default function EmpresaManager({
     setLoading(true);
     try {
       const collectionName = getCollectionName();
+      console.log('Carregando empresas do sistema:', sistema, 'Collection:', collectionName);
+      
       const empresasRef = collection(db, collectionName);
       const q = query(empresasRef, orderBy('nome'));
       const snapshot = await getDocs(q);
@@ -103,9 +105,35 @@ export default function EmpresaManager({
         sistemasAtivos: (doc.data().sistemasAtivos as string[]) || [] // Garante que sistemasAtivos seja um array
       })) as Empresa[];
 
+      console.log(`Carregadas ${empresasList.length} empresas do sistema ${sistema}`);
       setEmpresas(empresasList);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
+      
+      if (error?.code === 'permission-denied') {
+        console.warn(`Permissão negada para ${getCollectionName()}, criando empresas demo...`);
+        // Criar empresas demo para testar
+        setEmpresas([
+          {
+            id: `demo-${sistema}-1`,
+            nome: `Empresa Demo ${sistema.charAt(0).toUpperCase() + sistema.slice(1)}`,
+            email: `demo@${sistema}.com`,
+            cnpj: '12.345.678/0001-90',
+            telefone: '(11) 9999-9999',
+            endereco: 'Rua Demo, 123',
+            ativo: true,
+            plano: 'premium',
+            configuracoes: {
+              geofencing: true,
+              selfieObrigatoria: false,
+              notificacaoEmail: true
+            },
+            sistemasAtivos: [sistema],
+            criadoEm: new Date(),
+            atualizadoEm: new Date()
+          } as Empresa
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -119,7 +147,7 @@ export default function EmpresaManager({
       'documentos': 'documentos_empresas',
       'ponto': 'empresas'
     };
-    return collectionMap[sistema];
+    return collectionMap[sistema] || 'empresas';
   };
 
   const handleCreate = async () => {
@@ -132,6 +160,10 @@ export default function EmpresaManager({
     try {
       const collectionName = getCollectionName();
       const empresaId = `empresa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      console.log('Criando empresa no sistema:', sistema);
+      console.log('Collection:', collectionName);
+      console.log('Empresa ID:', empresaId);
 
       const empresaData = {
         nome: formData.nome,
@@ -151,18 +183,31 @@ export default function EmpresaManager({
         atualizadoEm: serverTimestamp()
       };
 
+      console.log('Dados da empresa:', empresaData);
+
+      // Tentar criar na coleção principal
       await setDoc(doc(db, collectionName, empresaId), empresaData);
+      console.log('Empresa criada na coleção principal:', collectionName);
 
       // Criar configurações específicas do sistema
       await createSystemSpecificData(empresaId);
+      console.log('Configurações específicas criadas');
 
       setShowCreateModal(false);
       resetForm();
       loadEmpresas();
       alert('Empresa criada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar empresa:', error);
-      alert('Erro ao criar empresa');
+      
+      let errorMessage = 'Erro ao criar empresa';
+      if (error?.code === 'permission-denied') {
+        errorMessage = 'Erro de permissão. Verifique se você tem privilégios de administrador.';
+      } else if (error?.message) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -49,26 +49,67 @@ service cloud.firestore {
     match /empresas/{empresaId} {
       allow read, write: if isAdmin();
       allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     match /companies/{companyId} {
       allow read, write: if isAdmin();
       allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     match /chamados_empresas/{empresaId} {
       allow read, write: if isAdmin();
       allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     match /financeiro_empresas/{empresaId} {
       allow read, write: if isAdmin();
       allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     match /documentos_empresas/{empresaId} {
       allow read, write: if isAdmin();
       allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
+    }
+
+    match /frota_empresas/{empresaId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
+      
+      // Permitir subcoleções
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     // === COLEÇÕES DE SISTEMA ===
@@ -140,6 +181,24 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /frota_empresas/{empresaId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
+      
+      match /configuracoes/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
+      
+      match /veiculos/{document} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      match /motoristas/{document} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
     // === COLEÇÕES DE SISTEMA DE DOCUMENTOS ===
     match /documentos_users/{document} {
       allow read, write: if isAuthenticated();
@@ -159,6 +218,17 @@ service cloud.firestore {
     match /userTutorialStatus/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
       allow read, write: if isAdmin();
+    }
+
+    // === REGRAS ESPECÍFICAS PARA TODAS AS COLEÇÕES DE EMPRESAS ===
+    match /frota_empresas/{empresaId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
+      
+      match /{subcollection}/{document} {
+        allow read, write: if isAdmin();
+        allow read: if isAuthenticated();
+      }
     }
 
     // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
