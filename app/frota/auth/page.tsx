@@ -43,14 +43,14 @@ export default function FrotaAuthPage() {
         const role = userData.role?.toLowerCase();
 
         // Redirecionar baseado no papel do usuário
-        if (role === 'superadmin' || role === 'admin' || role === 'gestor') {
-          router.push('/admin'); // Redireciona para o painel admin
+        if (role === 'superadmin' || role === 'adminmaster') {
+          router.push('/admin'); // Super admins vão para o painel master
+        } else if (role === 'admin' || role === 'gestor') {
+          router.push('/frota'); // Admins e gestores vão para o sistema de frota
         } else if (role === 'colaborador') {
-          // Colaboradores, se ainda permitidos em alguma página específica, iriam aqui.
-          // Para este caso, todos os fluxos não-admin devem ser removidos ou redirecionados para o login geral.
-          setError('Acesso restrito ao painel administrativo.');
+          router.push('/frota/colaborador'); // Colaboradores vão para a área específica
         } else {
-          setError('Você não tem permissão para acessar o sistema.');
+          setError('Você não tem permissão para acessar o sistema de frota.');
         }
       } else {
         setError('Usuário não encontrado no sistema');
