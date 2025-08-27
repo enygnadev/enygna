@@ -2232,7 +2232,7 @@ export default function AdminMasterPage() {
               </div>
             </div>
 
-            {/* Formulário expansível para criar admin */}
+           
             {showCreateAdminForm && (
               <div style={{
                 marginTop: '2rem',
