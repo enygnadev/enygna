@@ -5294,7 +5294,60 @@ export default function AdminMasterPage() {
 
         {activeTab === 'cria-contas' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Gestão de Empresas - Sistema de Chamados */}
+            {/* Header Universal */}
+            <div style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6d28d9 50%, #5b21b6 100%)',
+              padding: '2rem',
+              borderRadius: '24px',
+              border: '3px solid #ffffff20',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px rgba(139,92,246,0.3)',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
+              <h2 style={{ 
+                fontSize: '2rem', 
+                fontWeight: '900', 
+                marginBottom: '1rem',
+                background: 'linear-gradient(45deg, #ffffff, #ffd700)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                CRIAÇÃO UNIVERSAL DE EMPRESAS
+              </h2>
+              <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '1rem' }}>
+                Crie empresas para todos os sistemas com seleção de plano integrada
+              </p>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '1rem',
+                marginTop: '1.5rem'
+              }}>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>🎫</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Chamados</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>⏰</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Ponto</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>🚗</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Frota</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>💰</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Financeiro</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>📁</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Documentos</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Gestão Universal de Empresas */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
@@ -5302,22 +5355,66 @@ export default function AdminMasterPage() {
               borderRadius: '20px',
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                🎫 Criar Contas - Sistema de Chamados
-              </h3>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '2rem'
+              }}>
+                <h3 style={{ margin: '0', fontSize: '1.5rem', fontWeight: '700' }}>
+                  🌐 Gestão Universal de Empresas
+                </h3>
+                <div style={{
+                  display: 'flex',
+                  gap: '1rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{
+                    padding: '0.5rem 1rem',
+                    background: 'rgba(16,185,129,0.2)',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    color: '#6ee7b7'
+                  }}>
+                    ✅ Criação em Todos os Sistemas
+                  </div>
+                  <div style={{
+                    padding: '0.5rem 1rem',
+                    background: 'rgba(59,130,246,0.2)',
+                    border: '1px solid rgba(59,130,246,0.3)',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    color: '#93c5fd'
+                  }}>
+                    💳 Seleção de Plano Integrada
+                  </div>
+                  <div style={{
+                    padding: '0.5rem 1rem',
+                    background: 'rgba(139,92,246,0.2)',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    color: '#c4b5fd'
+                  }}>
+                    🔧 Configuração Automática
+                  </div>
+                </div>
+              </div>
+
               <EmpresaManager 
-                sistema="chamados" 
+                sistema="universal" 
                 allowCreate={true}
                 allowEdit={true}
                 allowDelete={isSuperAdmin}
                 onEmpresaSelect={(empresa) => {
-                  console.log('Empresa selecionada para chamados:', empresa);
-                  alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
+                  console.log('Empresa selecionada universalmente:', empresa);
+                  alert(`Empresa ${empresa.nome} criada com sucesso em todos os sistemas!`);
                 }}
               />
             </div>
 
-            {/* Gestão de Empresas - Sistema de Ponto */}
+            {/* Estatísticas de Criação */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
@@ -5326,18 +5423,143 @@ export default function AdminMasterPage() {
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
               <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                ⏰ Criar Contas - Sistema de Ponto
+                📊 Estatísticas de Criação
               </h3>
-              <EmpresaManager 
-                sistema="ponto" 
-                allowCreate={true}
-                allowEdit={true}
-                allowDelete={isSuperAdmin}
-                onEmpresaSelect={(empresa) => {
-                  console.log('Empresa selecionada:', empresa);
-                  alert(`Empresa ${empresa.nome} selecionada para o sistema de ponto`);
-                }}
-              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>
+                    {empresas.length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>🏢 Empresas Criadas</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>
+                    {empresas.filter(e => e.ativo).length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>✅ Empresas Ativas</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>
+                    {empresas.filter(e => e.plano === 'premium').length}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>💎 Plano Premium</div>
+                </div>
+                <div style={{ padding: '1rem', background: 'rgba(139,92,246,0.1)', borderRadius: '12px', border: '1px solid rgba(139,92,246,0.3)' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#c4b5fd' }}>
+                    5
+                  </div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>🎯 Sistemas Ativos</div>
+                </div>
+              </div>
+
+              {/* Ações Rápidas */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <button
+                  onClick={() => {
+                    exportData('companies');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,185,129,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📥 Exportar Todas as Empresas
+                </button>
+                <button
+                  onClick={() => {
+                    generateReport('companies');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139,92,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📊 Gerar Relatório Completo
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('companies');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  🔧 Gerenciar Empresas
+                </button>
+                <button
+                  onClick={() => {
+                    loadAllData();
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(239,68,68,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  🔄 Atualizar Dados
+                </button>
+              </div>
             </div>
           </div>
         )}

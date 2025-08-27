@@ -23,7 +23,7 @@ interface Empresa {
   telefone?: string;
   endereco?: string;
   ativo: boolean;
-  plano: 'basico' | 'premium' | 'enterprise';
+  plano: 'basico' | 'premium' | 'enterprise' | 'free' | 'monthly' | 'yearly' | 'enterprise' | 'permanent';
   configuracoes: {
     geofencing?: boolean;
     selfieObrigatoria?: boolean;
@@ -42,11 +42,11 @@ interface Sistema {
 }
 
 interface EmpresaManagerProps {
-  sistema: 'chamados' | 'frota' | 'financeiro' | 'documentos' | 'ponto';
-  onEmpresaSelect?: (empresa: Empresa) => void;
+  sistema: 'chamados' | 'ponto' | 'frota' | 'financeiro' | 'documentos' | 'universal';
   allowCreate?: boolean;
   allowEdit?: boolean;
   allowDelete?: boolean;
+  onEmpresaSelect?: (empresa: Empresa) => void;
 }
 
 export default function EmpresaManager({
@@ -72,18 +72,20 @@ export default function EmpresaManager({
   ];
 
   // Estados do formulário
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nome: '',
     email: '',
-    senha: '', // Adicionado campo de senha
     cnpj: '',
     telefone: '',
     endereco: '',
-    plano: 'basico' as const,
-    geofencing: false,
-    selfieObrigatoria: false,
-    notificacaoEmail: true,
-    sistemasAtivos: [] as string[]
+    ativo: true,
+    plano: 'free',
+    configuracoes: {
+      geofencing: false,
+      selfieObrigatoria: false,
+      notificacaoEmail: true
+    },
+    sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos'] : [sistema]
   });
 
   useEffect(() => {
@@ -146,14 +148,15 @@ export default function EmpresaManager({
       'frota': 'frota_empresas',
       'financeiro': 'financeiro_empresas',
       'documentos': 'documentos_empresas',
-      'ponto': 'empresas'
+      'ponto': 'empresas',
+      'universal': 'empresas'
     };
     return collectionMap[sistema] || 'empresas';
   };
 
   const handleCreate = async () => {
-    if (!formData.nome || !formData.email || !formData.senha) { // Adicionado validação de senha
-      alert('Nome, email e senha são obrigatórios');
+    if (!formData.nome || !formData.email || !formData.plano) { // Adicionado validação de plano
+      alert('Nome, email e plano são obrigatórios');
       return;
     }
 
@@ -169,7 +172,6 @@ export default function EmpresaManager({
       const empresaData = {
         nome: formData.nome,
         email: formData.email,
-        senha: formData.senha, // Incluindo senha nos dados da empresa
         cnpj: formData.cnpj || '',
         telefone: formData.telefone || '',
         endereco: formData.endereco || '',
@@ -216,8 +218,8 @@ export default function EmpresaManager({
   };
 
   const handleEdit = async () => {
-    if (!selectedEmpresa || !formData.nome || !formData.email) {
-      alert('Nome e email são obrigatórios');
+    if (!selectedEmpresa || !formData.nome || !formData.email || !formData.plano) { // Adicionado validação de plano
+      alert('Nome, email e plano são obrigatórios');
       return;
     }
 
@@ -240,11 +242,6 @@ export default function EmpresaManager({
         sistemasAtivos: formData.sistemasAtivos,
         atualizadoEm: serverTimestamp()
       };
-
-      // Se uma nova senha foi fornecida, adiciona ao updateData
-      if (formData.senha) {
-        updateData.senha = formData.senha;
-      }
 
       await updateDoc(doc(db, collectionName, selectedEmpresa.id), updateData);
 
@@ -329,6 +326,14 @@ export default function EmpresaManager({
             criadoEm: serverTimestamp()
           });
           break;
+
+        case 'universal':
+          // Criar configurações padrão para todos os sistemas
+          const sistemasParaConfig = ['chamados', 'frota', 'financeiro', 'documentos', 'ponto'];
+          for (const sist of sistemasParaConfig) {
+            await createSystemSpecificData(empresaId, sist); // Chama recursivamente para cada sistema
+          }
+          break;
       }
     } catch (error) {
       console.error('Erro ao criar dados específicos do sistema:', error);
@@ -340,7 +345,8 @@ export default function EmpresaManager({
     setFormData({
       nome: empresa.nome,
       email: empresa.email,
-      senha: '', // Limpa o campo de senha ao abrir o modal de edição
+      // Não preenche a senha aqui, apenas limpa se já houver algum valor
+      senha: '',
       cnpj: empresa.cnpj || '',
       telefone: empresa.telefone || '',
       endereco: empresa.endereco || '',
@@ -357,15 +363,15 @@ export default function EmpresaManager({
     setFormData({
       nome: '',
       email: '',
-      senha: '', // Reseta a senha
+      senha: '',
       cnpj: '',
       telefone: '',
       endereco: '',
-      plano: 'basico',
+      plano: 'free',
       geofencing: false,
       selfieObrigatoria: false,
       notificacaoEmail: true,
-      sistemasAtivos: []
+      sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos'] : [sistema]
     });
   };
 
@@ -400,11 +406,20 @@ export default function EmpresaManager({
         marginBottom: '1.5rem'
       }}>
         <h2 style={{
-          fontSize: '1.8rem',
-          fontWeight: 'bold',
-          margin: 0
+          fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+          fontWeight: '700',
+          margin: '0 0 clamp(1rem, 3vw, 1.5rem) 0',
+          color: 'var(--color-text)',
+          textAlign: 'center'
         }}>
-          🏢 Gestão de Empresas - {sistema.charAt(0).toUpperCase() + sistema.slice(1)}
+          🏢 Gestão de Empresas - {
+            sistema === 'universal' ? 'Criação Universal' :
+            sistema === 'chamados' ? 'Sistema de Chamados' :
+            sistema === 'ponto' ? 'Sistema de Ponto' :
+            sistema === 'frota' ? 'Sistema de Frota' :
+            sistema === 'financeiro' ? 'Sistema Financeiro' :
+            'Sistema de Documentos'
+          }
         </h2>
 
         {allowCreate && (
@@ -636,13 +651,11 @@ export default function EmpresaManager({
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  Senha de Acesso *
+                  Plano *
                 </label>
-                <input
-                  type="password"
-                  value={formData.senha}
-                  onChange={(e) => setFormData({...formData, senha: e.target.value})}
-                  placeholder="Mínimo 6 caracteres"
+                <select
+                  value={formData.plano}
+                  onChange={(e) => setFormData({...formData, plano: e.target.value as any})}
                   style={{
                     width: '100%',
                     padding: 'clamp(0.5rem, 2vw, 0.75rem)',
@@ -652,14 +665,38 @@ export default function EmpresaManager({
                     color: 'white',
                     fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
-                />
+                >
+                  <option value="free">🆓 Gratuito (30 dias)</option>
+                  <option value="monthly">💼 Mensal (R$ 29,90/mês)</option>
+                  <option value="yearly">📅 Anual (R$ 239,20/ano)</option>
+                  <option value="enterprise">🏢 Enterprise (R$ 99,90/mês)</option>
+                  <option value="permanent">💎 Permanente (R$ 2.999,99)</option>
+                </select>
+
+                {/* Informações do Plano Selecionado */}
                 <div style={{
-                  fontSize: '0.75rem',
-                  opacity: 0.7,
-                  marginTop: '0.25rem',
-                  color: '#fbbf24'
+                  padding: '1rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '8px',
+                  marginTop: '0.5rem',
+                  border: '1px solid rgba(255,255,255,0.1)'
                 }}>
-                  🔐 Esta senha será usada para login da empresa nos sistemas
+                  <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    📋 Detalhes do Plano: {
+                      formData.plano === 'free' ? 'Gratuito' :
+                      formData.plano === 'monthly' ? 'Mensal' :
+                      formData.plano === 'yearly' ? 'Anual' :
+                      formData.plano === 'enterprise' ? 'Enterprise' :
+                      'Permanente'
+                    }
+                  </div>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                    {formData.plano === 'free' && '👥 5 funcionários • 🏢 1 empresa • ⏱️ 30 dias de teste'}
+                    {formData.plano === 'monthly' && '👥 50 funcionários • 🏢 1 empresa • 🔄 Renovação mensal'}
+                    {formData.plano === 'yearly' && '👥 50 funcionários • 🏢 1 empresa • 💰 Economia de 33%'}
+                    {formData.plano === 'enterprise' && '👥 999 funcionários • 🏢 10 empresas • 🎯 Suporte dedicado'}
+                    {formData.plano === 'permanent' && '👥 Ilimitado • 🏢 Ilimitado • 💎 Vitalício'}
+                  </div>
                 </div>
               </div>
 
@@ -707,29 +744,6 @@ export default function EmpresaManager({
                     }}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  Plano
-                </label>
-                <select
-                  value={formData.plano}
-                  onChange={(e) => setFormData({...formData, plano: e.target.value as any})}
-                  style={{
-                    width: '100%',
-                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
-                    color: 'white',
-                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
-                  }}
-                >
-                  <option value="basico">Básico</option>
-                  <option value="premium">Premium</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
               </div>
 
               <div>
@@ -1038,10 +1052,38 @@ export default function EmpresaManager({
                     fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 >
-                  <option value="basico">Básico</option>
-                  <option value="premium">Premium</option>
-                  <option value="enterprise">Enterprise</option>
+                  <option value="free">🆓 Gratuito (30 dias)</option>
+                  <option value="monthly">💼 Mensal (R$ 29,90/mês)</option>
+                  <option value="yearly">📅 Anual (R$ 239,20/ano)</option>
+                  <option value="enterprise">🏢 Enterprise (R$ 99,90/mês)</option>
+                  <option value="permanent">💎 Permanente (R$ 2.999,99)</option>
                 </select>
+
+                {/* Informações do Plano Selecionado */}
+                <div style={{
+                  padding: '1rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '8px',
+                  marginTop: '0.5rem',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    📋 Detalhes do Plano: {
+                      formData.plano === 'free' ? 'Gratuito' :
+                      formData.plano === 'monthly' ? 'Mensal' :
+                      formData.plano === 'yearly' ? 'Anual' :
+                      formData.plano === 'enterprise' ? 'Enterprise' :
+                      'Permanente'
+                    }
+                  </div>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                    {formData.plano === 'free' && '👥 5 funcionários • 🏢 1 empresa • ⏱️ 30 dias de teste'}
+                    {formData.plano === 'monthly' && '👥 50 funcionários • 🏢 1 empresa • 🔄 Renovação mensal'}
+                    {formData.plano === 'yearly' && '👥 50 funcionários • 🏢 1 empresa • 💰 Economia de 33%'}
+                    {formData.plano === 'enterprise' && '👥 999 funcionários • 🏢 10 empresas • 🎯 Suporte dedicado'}
+                    {formData.plano === 'permanent' && '👥 Ilimitado • 🏢 Ilimitado • 💎 Vitalício'}
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -1074,6 +1116,16 @@ export default function EmpresaManager({
                         borderRadius: '8px',
                         cursor: 'pointer',
                         transition: 'all 0.3s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        if (!formData.sistemasAtivos.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (!formData.sistemasAtivos.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                        }
                       }}
                     >
                       <input
