@@ -2232,7 +2232,7 @@ export default function AdminMasterPage() {
               </div>
             </div>
 
-           
+
             {showCreateAdminForm && (
               <div style={{
                 marginTop: '2rem',
