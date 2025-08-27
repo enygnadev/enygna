@@ -1849,566 +1849,661 @@ export default function AdminMasterPage() {
       setCreateAdminLoading(false);
     }
   };
-
   // Se não for super admin, mostrar tela de login para admin
   if (!isSuperAdmin) {
     return (
       <>
-        <div style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: 'white',
-          position: 'relative'
-        }}>
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
-            animation: 'pulse 4s ease-in-out infinite alternate'
-          }}></div>
-
-          <div style={{
-            textAlign: 'center',
-            padding: '4rem',
-            background: 'rgba(0,0,0,0.4)',
-            borderRadius: '32px',
-            backdropFilter: 'blur(20px)',
-            border: '2px solid rgba(255,255,255,0.1)',
-            maxWidth: '600px',
+        <div
+          style={{
+            minHeight: '100vh',
+            background:
+              'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            color: 'white',
             position: 'relative',
-            zIndex: 10,
-            boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
-          }}>
-            <div style={{ 
-              fontSize: '5rem', 
-              marginBottom: '2rem',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
-            }}>🚫</div>
+          }}
+        >
+          {/* overlay decorativo */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
+              animation: 'pulse 4s ease-in-out infinite alternate',
+            }}
+          />
 
-            <h1 style={{ 
-              fontSize: '3rem', 
-              fontWeight: '900', 
-              marginBottom: '1.5rem',
-              background: 'linear-gradient(45deg, #ffffff, #fecaca)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-            }}>
+          {/* card principal */}
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '4rem',
+              background: 'rgba(0,0,0,0.4)',
+              borderRadius: '32px',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(255,255,255,0.1)',
+              maxWidth: '600px',
+              position: 'relative',
+              zIndex: 10,
+              boxShadow:
+                '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '5rem',
+                marginBottom: '2rem',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+              }}
+            >
+              🚫
+            </div>
+
+            <h1
+              style={{
+                fontSize: '3rem',
+                fontWeight: '900',
+                marginBottom: '1.5rem',
+                background: 'linear-gradient(45deg, #ffffff, #fecaca)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+              }}
+            >
               ACESSO RESTRITO
             </h1>
 
-          <div style={{
-            background: 'rgba(239,68,68,0.2)',
-            border: '2px solid rgba(239,68,68,0.4)',
-            borderRadius: '16px',
-            padding: '2rem',
-            marginBottom: '2rem'
-          }}>
-            <p style={{ 
-              opacity: 0.95, 
-              marginBottom: '1rem',
-              fontSize: '1.3rem',
-              fontWeight: '600'
-            }}>
-              🛡️ ZONA DE SEGURANÇA MÁXIMA
-            </p>
-            <p style={{ opacity: 0.9, fontSize: '1.1rem' }}>
-              Apenas <strong>Super Administradores</strong> autorizados podem acessar este painel de controle mestre.
-            </p>
-          </div>
-
-          {!showLoginForm ? (
-            <div style={{
-              display: 'flex',
-              gap: '1rem',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              flexDirection: 'column'
-            }}>
-              <div style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'center',
-                flexWrap: 'wrap'
-              }}>
-                <button
-                  onClick={() => window.location.href = '/'}
-                  style={{
-                    padding: '1.2rem 2.5rem',
-                    background: 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
-                    color: 'white',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  🏠 Voltar ao Início
-                </button>
-
-                <button
-                  onClick={() => window.location.href = '/promote-superadmin'}
-                  style={{
-                    padding: '1.2rem 2.5rem',
-                    background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 15px rgba(245,158,11,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #f59e0b, #d97706)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(245,158,11,0.5)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #fbbf24, #f59e0b)';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(245,158,11,0.4)';
-                  }}
-                >
-                  👑 Solicitar Acesso
-                </button>
-              </div>
-
-              <div style={{ 
-                marginTop: '2rem',
-                padding: '1.5rem',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '16px'
-              }}>
-                <p style={{ 
-                  marginBottom: '1rem',
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                  opacity: 0.9
-                }}>
-                  🔐 Já possui acesso de administrador?
-                </p>
-                <button
-                  onClick={() => setShowLoginForm(true)}
-                  style={{
-                    padding: '1rem 2rem',
-                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 15px rgba(59,130,246,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #1e40af, #1e3a8a)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59,130,246,0.5)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #3b82f6, #1e40af)';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(59,130,246,0.4)';
-                  }}
-                >
-                  📧 Fazer Login como Admin
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '20px',
-              padding: '2rem',
-              marginBottom: '2rem'
-            }}>
-              <h2 style={{
-                fontSize: '1.8rem',
-                fontWeight: '700',
-                marginBottom: '2rem',
-                color: '#ffffff'
-              }}>
-                🔐 Login de Administrador
-              </h2>
-
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem',
-                textAlign: 'left'
-              }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.9)'
-                  }}>
-                    📧 Email de Administrador:
-                  </label>
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="admin@exemplo.com"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '1rem',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.9)'
-                  }}>
-                    🔑 Senha:
-                  </label>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '1rem',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  />
-                </div>
-
-                {loginError && (
-                  <div style={{
-                    padding: '1rem',
-                    background: 'rgba(239,68,68,0.2)',
-                    border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: '8px',
-                    color: '#fca5a5',
-                    fontSize: '0.9rem'
-                  }}>
-                    ⚠️ {loginError}
-                  </div>
-                )}
-
-                <div style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  justifyContent: 'center',
-                  flexWrap: 'wrap'
-                }}>
-                  <button
-                    onClick={() => setShowLoginForm(false)}
-                    style={{
-                      padding: '1rem 2rem',
-                      background: 'rgba(255,255,255,0.1)',
-                      color: 'white',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    ❌ Cancelar
-                  </button>
-
-                  <button
-                    onClick={handleAdminLogin}
-                    disabled={loginLoading || !loginEmail || !loginPassword}
-                    style={{
-                      padding: '1rem 2rem',
-                      background: loginLoading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: loginLoading ? 'not-allowed' : 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '700',
-                      transition: 'all 0.3s ease',
-                      opacity: (!loginEmail || !loginPassword) ? 0.5 : 1
-                    }}
-                  >
-                    {loginLoading ? '🔄 Entrando...' : '🚀 Entrar como Admin'}
-                  </button>
-                </div>
-
-                <div style={{
-                  textAlign: 'center',
-                  marginTop: '1rem',
-                  padding: '1rem',
-                  background: 'rgba(245,158,11,0.1)',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  borderRadius: '12px'
-                }}>
-                  <p style={{ 
-                    margin: '0 0 1rem 0',
-                    fontSize: '0.9rem',
-                    opacity: 0.9
-                  }}>
-                    Dica: Use as credenciais que você criou em /bootstrap-admin
-                  </p>
-                  <button
-                    onClick={() => window.location.href = '/bootstrap-admin'}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      background: 'linear-gradient(45deg, #f59e0b, #d97706)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    Ir para Bootstrap Admin
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => setShowCreateAdminForm(!showCreateAdminForm)}
-                  style={{
-                    padding: '1rem 2rem',
-                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    transform: 'scale(1)',
-                    boxShadow: '0 4px 15px rgba(139,92,246,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #7c3aed, #6d28d9)';
-                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(139,92,246,0.6)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #8b5cf6, #7c3aed)';
-                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(139,92,246,0.4)';
-                  }}
-                >
-                  👑 Criar Admin
-                </button>
-              </div>
-            </div>
-
-
-        {showCreateAdminForm && (
-          <div
-            style={{
-              marginTop: '2rem',
-              background: 'rgba(139,92,246,0.1)',
-              border: '2px solid rgba(139,92,246,0.3)',
-              borderRadius: '20px',
-              padding: '2rem',
-              animation: 'slideDown 0.3s ease-out'
-            }}
-          >
-            <h3
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                marginBottom: '1.5rem',
-                color: '#ffffff',
-                textAlign: 'center'
-              }}
-            >
-              👑 Criar Novo Administrador
-            </h3>
-
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem',
-                textAlign: 'left'
+                background: 'rgba(239,68,68,0.2)',
+                border: '2px solid rgba(239,68,68,0.4)',
+                borderRadius: '16px',
+                padding: '2rem',
+                marginBottom: '2rem',
               }}
             >
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.9)'
-                  }}
-                >
-                  📧 Email do novo admin:
-                </label>
-                <input
-                  type="email"
-                  value={createAdminEmail}
-                  onChange={(e) => setCreateAdminEmail(e.target.value)}
-                  placeholder="admin@exemplo.com"
-                  style={{
-                    width: '100%',
-                    padding: '1rem',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '2px solid rgba(255,255,255,0.2)',
-                    borderRadius: '12px',
-                    color: 'white',
-                    fontSize: '1rem',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                />
-              </div>
+              <p
+                style={{
+                  opacity: 0.95,
+                  marginBottom: '1rem',
+                  fontSize: '1.3rem',
+                  fontWeight: '600',
+                }}
+              >
+                🛡️ ZONA DE SEGURANÇA MÁXIMA
+              </p>
+              <p style={{ opacity: 0.9, fontSize: '1.1rem' }}>
+                Apenas <strong>Super Administradores</strong> autorizados podem
+                acessar este painel de controle mestre.
+              </p>
+            </div>
 
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.9)'
-                  }}
-                >
-                  🔑 Senha (mínimo 6 caracteres):
-                </label>
-                <input
-                  type="password"
-                  value={createAdminPassword}
-                  onChange={(e) => setCreateAdminPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '1rem',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '2px solid rgba(255,255,255,0.2)',
-                    borderRadius: '12px',
-                    color: 'white',
-                    fontSize: '1rem',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                />
-              </div>
-
-              {createAdminError && (
-                <div
-                  style={{
-                    padding: '1rem',
-                    background: 'rgba(239,68,68,0.2)',
-                    border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: '8px',
-                    color: '#fca5a5',
-                    fontSize: '0.9rem',
-                    whiteSpace: 'pre-line'
-                  }}
-                >
-                  {createAdminError}
-                </div>
-              )}
-
-              {createAdminSuccess && (
-                <div
-                  style={{
-                    padding: '1rem',
-                    background: 'rgba(16,185,129,0.2)',
-                    border: '1px solid rgba(16,185,129,0.4)',
-                    borderRadius: '8px',
-                    color: '#6ee7b7',
-                    fontSize: '0.9rem',
-                    whiteSpace: 'pre-line'
-                  }}
-                >
-                  {createAdminSuccess}
-                </div>
-              )}
-
+            {/* Se ainda não abriu o login, mostra CTA */}
+            {!showLoginForm ? (
               <div
                 style={{
                   display: 'flex',
                   gap: '1rem',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  flexDirection: 'column',
                 }}
               >
-                <button
-                  onClick={() => {
-                    setShowCreateAdminForm(false);
-                    setCreateAdminEmail('');
-                    setCreateAdminPassword('');
-                    setCreateAdminError('');
-                    setCreateAdminSuccess('');
-                  }}
+                <div
                   style={{
-                    padding: '1rem 2rem',
-                    background: 'rgba(255,255,255,0.1)',
-                    color: 'white',
-                    border: '2px solid rgba(255,255,255,0.2)',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
+                    display: 'flex',
+                    gap: '1rem',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  ❌ Cancelar
-                </button>
+                  <button
+                    onClick={() => (window.location.href = '/')}
+                    style={{
+                      padding: '1.2rem 2.5rem',
+                      background:
+                        'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
+                      color: 'white',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 10px 20px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    🏠 Voltar ao Início
+                  </button>
 
-                <button
-                  onClick={handleCreateAdmin}
-                  disabled={createAdminLoading || !createAdminEmail || !createAdminPassword}
+                  <button
+                    onClick={() =>
+                      (window.location.href = '/promote-superadmin')
+                    }
+                    style={{
+                      padding: '1.2rem 2.5rem',
+                      background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(245,158,11,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #f59e0b, #d97706)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 10px 25px rgba(245,158,11,0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #fbbf24, #f59e0b)';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(245,158,11,0.4)';
+                    }}
+                  >
+                    👑 Solicitar Acesso
+                  </button>
+                </div>
+
+                <div
                   style={{
-                    padding: '1rem 2rem',
-                    background: createAdminLoading
-                      ? 'rgba(139,92,246,0.5)'
-                      : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: createAdminLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    transition: 'all 0.3s ease',
-                    opacity: !createAdminEmail || !createAdminPassword ? 0.5 : 1
+                    marginTop: '2rem',
+                    padding: '1.5rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '16px',
                   }}
                 >
-                  {createAdminLoading ? '🔄 Criando...' : '👑 Criar Administrador'}
-                </button>
+                  <p
+                    style={{
+                      marginBottom: '1rem',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      opacity: 0.9,
+                    }}
+                  >
+                    🔐 Já possui acesso de administrador?
+                  </p>
+                  <button
+                    onClick={() => setShowLoginForm(true)}
+                    style={{
+                      padding: '1rem 2rem',
+                      background:
+                        'linear-gradient(45deg, #3b82f6, #1e40af)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(59,130,246,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #1e40af, #1e3a8a)';
+                      e.currentTarget.style.transform =
+                        'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 8px 20px rgba(59,130,246,0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #3b82f6, #1e40af)';
+                      e.currentTarget.style.transform =
+                        'translateY(0px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(59,130,246,0.4)';
+                    }}
+                  >
+                    📧 Fazer Login como Admin
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            ) : (
+              // Formulário de login do admin
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '20px',
+                  padding: '2rem',
+                  marginBottom: '2rem',
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: '1.8rem',
+                    fontWeight: '700',
+                    marginBottom: '2rem',
+                    color: '#ffffff',
+                  }}
+                >
+                  🔐 Login de Administrador
+                </h2>
 
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600',
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      📧 Email de Administrador:
+                    </label>
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="admin@exemplo.com"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600',
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      🔑 Senha:
+                    </label>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    />
+                  </div>
+
+                  {loginError && (
+                    <div
+                      style={{
+                        padding: '1rem',
+                        background: 'rgba(239,68,68,0.2)',
+                        border: '1px solid rgba(239,68,68,0.4)',
+                        borderRadius: '8px',
+                        color: '#fca5a5',
+                        fontSize: '0.9rem',
+                      }}
+                    >
+                      ⚠️ {loginError}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      justifyContent: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      onClick={() => setShowLoginForm(false)}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      ❌ Cancelar
+                    </button>
+
+                    <button
+                      onClick={handleAdminLogin}
+                      disabled={loginLoading || !loginEmail || !loginPassword}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: loginLoading
+                          ? 'rgba(59,130,246,0.5)'
+                          : 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: loginLoading ? 'not-allowed' : 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        transition: 'all 0.3s ease',
+                        opacity:
+                          !loginEmail || !loginPassword ? 0.5 : 1,
+                      }}
+                    >
+                      {loginLoading
+                        ? '🔄 Entrando...'
+                        : '🚀 Entrar como Admin'}
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'rgba(245,158,11,0.1)',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: '0 0 1rem 0',
+                        fontSize: '0.9rem',
+                        opacity: 0.9,
+                      }}
+                    >
+                      Dica: Use as credenciais que você criou em
+                      {' '}/bootstrap-admin
+                    </p>
+                    <button
+                      onClick={() =>
+                        (window.location.href = '/bootstrap-admin')
+                      }
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        background:
+                          'linear-gradient(45deg, #f59e0b, #d97706)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      Ir para Bootstrap Admin
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setShowCreateAdminForm(!showCreateAdminForm)
+                    }
+                    style={{
+                      padding: '1rem 2rem',
+                      background:
+                        'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      transform: 'scale(1)',
+                      boxShadow: '0 4px 15px rgba(139,92,246,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #7c3aed, #6d28d9)';
+                      e.currentTarget.style.transform =
+                        'translateY(-2px) scale(1.02)';
+                      e.currentTarget.style.boxShadow =
+                        '0 8px 25px rgba(139,92,246,0.6)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #8b5cf6, #7c3aed)';
+                      e.currentTarget.style.transform =
+                        'translateY(0px) scale(1)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(139,92,246,0.4)';
+                    }}
+                  >
+                    👑 Criar Admin
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Formulário de criação de admin (condicional) */}
+            {showCreateAdminForm && (
+              <div
+                style={{
+                  marginTop: '2rem',
+                  background: 'rgba(139,92,246,0.1)',
+                  border: '2px solid rgba(139,92,246,0.3)',
+                  borderRadius: '20px',
+                  padding: '2rem',
+                  animation: 'slideDown 0.3s ease-out',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    marginBottom: '1.5rem',
+                    color: '#ffffff',
+                    textAlign: 'center',
+                  }}
+                >
+                  👑 Criar Novo Administrador
+                </h3>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      📧 Email do novo admin:
+                    </label>
+                    <input
+                      type="email"
+                      value={createAdminEmail}
+                      onChange={(e) => setCreateAdminEmail(e.target.value)}
+                      placeholder="admin@exemplo.com"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      🔑 Senha (mínimo 6 caracteres):
+                    </label>
+                    <input
+                      type="password"
+                      value={createAdminPassword}
+                      onChange={(e) =>
+                        setCreateAdminPassword(e.target.value)
+                      }
+                      placeholder="••••••••"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    />
+                  </div>
+
+                  {createAdminError && (
+                    <div
+                      style={{
+                        padding: '1rem',
+                        background: 'rgba(239,68,68,0.2)',
+                        border: '1px solid rgba(239,68,68,0.4)',
+                        borderRadius: '8px',
+                        color: '#fca5a5',
+                        fontSize: '0.9rem',
+                        whiteSpace: 'pre-line',
+                      }}
+                    >
+                      {createAdminError}
+                    </div>
+                  )}
+
+                  {createAdminSuccess && (
+                    <div
+                      style={{
+                        padding: '1rem',
+                        background: 'rgba(16,185,129,0.2)',
+                        border: '1px solid rgba(16,185,129,0.4)',
+                        borderRadius: '8px',
+                        color: '#6ee7b7',
+                        fontSize: '0.9rem',
+                        whiteSpace: 'pre-line',
+                      }}
+                    >
+                      {createAdminSuccess}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setShowCreateAdminForm(false);
+                        setCreateAdminEmail('');
+                        setCreateAdminPassword('');
+                        setCreateAdminError('');
+                        setCreateAdminSuccess('');
+                      }}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      ❌ Cancelar
+                    </button>
+
+                    <button
+                      onClick={handleCreateAdmin}
+                      disabled={
+                        createAdminLoading ||
+                        !createAdminEmail ||
+                        !createAdminPassword
+                      }
+                      style={{
+                        padding: '1rem 2rem',
+                        background: createAdminLoading
+                          ? 'rgba(139,92,246,0.5)'
+                          : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: createAdminLoading
+                          ? 'not-allowed'
+                          : 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        transition: 'all 0.3s ease',
+                        opacity:
+                          !createAdminEmail || !createAdminPassword ? 0.5 : 1,
+                      }}
+                    >
+                      {createAdminLoading
+                        ? '🔄 Criando...'
+                        : '👑 Criar Administrador'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2423,8 +2518,17 @@ export default function AdminMasterPage() {
               transform: translateY(0);
             }
           }
+          @keyframes pulse {
+            from {
+              transform: scale(1);
+              opacity: 0.8;
+            }
+            to {
+              transform: scale(1.02);
+              opacity: 1;
+            }
+          }
         `}</style>
-       
       </>
     );
   }
