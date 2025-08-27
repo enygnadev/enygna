@@ -1,660 +1,177 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-
-    function isSignedIn() {
-      return request.auth != null && request.auth.uid != null;
-    }
-
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
-    }
-
-    function getUserRole() {
-      return isSignedIn() && request.auth.token.role != null 
-        ? request.auth.token.role 
-        : 'colaborador';
-    }
-
-    function getUserEmpresaId() {
-      return isSignedIn() && request.auth.token.empresaId != null 
-        ? request.auth.token.empresaId 
-        : null;
-    }
-
-
-    function isBootstrapAdmin() {
-      return isSignedIn() && (
-        request.auth.token.bootstrapAdmin == true || 
-        request.auth.uid == 'enygnadev@gmail.com' ||
-        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
-        request.auth.email == 'enygnadev@gmail.com'
+    // Função para verificar se é super admin
+    function isSuperAdmin() {
+      return request.auth != null && (
+        request.auth.token.bootstrapAdmin == true ||
+        request.auth.token.role == 'superadmin' ||
+        request.auth.token.role == 'adminmaster' ||
+        request.auth.uid in ['BOOTSTRAP_ADMIN_UID'] // Substitua pelo UID real se necessário
       );
     }
 
-    function isAdminMaster() {
-      return isSignedIn() && (
-        getUserRole() in ['adminmaster', 'superadmin'] || 
-        isBootstrapAdmin() ||
-        request.auth.uid == 'enygnadev@gmail.com' ||
-        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
-        request.auth.email == 'enygnadev@gmail.com'
-      );
-    }
-
+    // Função para verificar se é admin
     function isAdmin() {
-      return isSignedIn() && (
-        getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || 
-        isBootstrapAdmin() ||
-        request.auth.uid == 'enygnadev@gmail.com'
+      return request.auth != null && (
+        isSuperAdmin() ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'gestor'
       );
     }
 
-    function isValidRole(role) {
-      return role in ['adminmaster', 'superadmin', 'admin', 'gestor', 'colaborador', 'contador'];
+    // Função para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    function sameCompany(empresaId) {
-      return isSignedIn() && (getUserEmpresaId() == empresaId || isAdminMaster());
+    // === REGRAS PARA SUPER ADMINS ===
+    // Super admins têm acesso total a tudo
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
     }
 
-    function hasSystemAccess(empresaId, sistema) {
-      return isSignedIn() && (
-        isAdminMaster() || 
-        (getUserEmpresaId() == empresaId && userHasSystemPermission(sistema))
-      );
-    }
-
-    function userHasSystemPermission(sistema) {
-      // Esta função seria idealmente implementada com dados do usuário
-      // Por enquanto, permitir acesso se o usuário pertence à empresa
-      return isSignedIn();
-    }
-
-
-    function isValidEmail(email) {
-      return email != null && email.matches('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}');
-    }
-
-    function isValidCPF(cpf) {
-      return cpf == null || cpf.matches('[0-9]{11}');
-    }
-
-    function isValidCNPJ(cnpj) {
-      return cnpj == null || cnpj.matches('[0-9]{14}');
-    }
-
-
-    function isValidTimestamp() {
-      return request.time > timestamp.date(2024, 1, 1) 
-        && request.time < timestamp.date(2035, 12, 31);
-    }
-
-    function isWithinRateLimit() {
-      return resource == null || resource.data.lastRequest == null 
-        || request.time.toMillis() - resource.data.lastRequest.toMillis() > 1000; 
-    }
-
-    function isValidGeoLocation(lat, lng) {
-      return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-    }
-
-    function isWithinBusinessHours() {
-      let hour = request.time.toMillis() / 3600000 % 24;
-      return hour >= 5 && hour <= 23; 
-
-   }
-
-   function isValidUserData(data) {
-  return data.keys().hasAll(['email', 'role', 'createdAt']) &&
-         isValidEmail(data.email) &&
-         isValidRole(data.role) &&
-         data.createdAt == request.time &&
-         (!('cpf' in data) || isValidCPF(data.cpf)) &&
-         data.size() < 50;
-}
-
-    function isValidSessionData(data) {
-      return data.keys().hasAll(['userId', 'timestamp', 'type'])
-        && data.userId is string
-        && data.type in ['entrada', 'saida', 'intervalo_inicio', 'intervalo_fim']
-        && data.userId == request.auth.uid
-        && ('location' in data ? (
-          'latitude' in data.location && 
-          'longitude' in data.location &&
-          isValidGeoLocation(data.location.latitude, data.location.longitude)
-        ) : true);
-    }
-
-    function isValidFinanceiroDoc(data) {
-      return data.keys().hasAll(['userId', 'tipo', 'status', 'criadoEm'])
-        && data.userId == request.auth.uid
-        && data.tipo in ['nota_fiscal', 'recibo', 'fatura', 'boleto', 'contrato']
-        && data.status in ['pendente', 'processado', 'aprovado', 'rejeitado']
-        && data.criadoEm == request.time
-        && (!('valor' in data) || (data.valor is number && data.valor >= 0))
-        && data.size() < 30;
-    }
-
-
-    function hasDataProcessingConsent(userId) {
-      return true; // Temporariamente simplificado para corrigir permissões
-    }
-
-    function canAccessPersonalData(targetUserId) {
-      return isAdminMaster() || 
-        isOwner(targetUserId) ||
-        isAdmin();
-    }
-
-    function canQueryUsers() {
-      return isSignedIn();
-    }
-
-
-
+    // === COLEÇÕES ADMINISTRATIVAS ===
+    // Usuários - acesso completo para admins
     match /users/{userId} {
-      allow read: if isBootstrapAdmin() || 
-                     isOwner(userId) ||
-                     isAdmin() ||
-                     // Permitir consultas por email durante autenticação
-                     isSignedIn() ||
-                     // Permitir leitura para bootstrap admins
-                     (exists(/databases/$(database)/documents/users/$(userId)) &&
-                      get(/databases/$(database)/documents/users/$(userId)).data.bootstrapAdmin == true);
-
-      allow list: if canQueryUsers(); // Permitir listagem e consultas para usuários autenticados
-
-      allow create: if isBootstrapAdmin() ||
-                    isOwner(userId) ||
-                    isAdmin() ||
-                    // Regra especial para bootstrap de admin
-                    (isOwner(userId) 
-                    && request.resource.data.role == 'superadmin'
-                    && request.resource.data.bootstrapAdmin == true
-                    && isValidTimestamp());
-
-      allow update: if isBootstrapAdmin() ||
-                    isOwner(userId) ||
-                    isAdmin() ||
-                    (isValidTimestamp() && isWithinRateLimit());
-
-      allow delete: if isBootstrapAdmin() || isAdminMaster();
-
-
-      match /sessions/{sessionId} {
-        allow read: if canAccessPersonalData(userId);
-
-        allow create: if isOwner(userId)
-                      && isValidSessionData(request.resource.data)
-                      && isValidTimestamp()
-                      && isWithinBusinessHours()
-                      && hasDataProcessingConsent(userId);
-
-        allow update: if (isOwner(userId) || isAdmin())
-                      && isValidTimestamp()
-                      && isWithinRateLimit()
-                      && canAccessPersonalData(userId);
-
-        allow delete: if isAdmin() && canAccessPersonalData(userId);
-      }
-
-
-      match /salary/{docId} {
-        allow read: if isAdminMaster() || 
-                    (isOwner(userId) && hasDataProcessingConsent(userId));
-        allow write: if isAdminMaster();
-      }
-
-
-      match /notifications/{notificationId} {
-        allow read: if isOwner(userId);
-        allow create: if isAdmin() && sameCompany(getUserEmpresaId());
-        allow update: if isOwner(userId) && isWithinRateLimit();
-        allow delete: if isOwner(userId) || isAdminMaster();
-      }
+      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Bootstrap admins - apenas para super admins
+    match /bootstrap_admins/{userId} {
+      allow read, write: if isSuperAdmin();
+    }
 
-
+    // === COLEÇÕES DE EMPRESAS ===
     match /empresas/{empresaId} {
-      allow read, write: if isBootstrapAdmin() || isSignedIn();
-
-      match /colaboradores/{colaboradorId} {
-        allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
-        allow write: if isAdmin() || isAdminMaster();
-
-        match /sessions/{sessionId} {
-          allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin());
-          allow create: if isSignedIn() && isValidTimestamp();
-          allow update: if isSignedIn() && isWithinRateLimit();
-          allow delete: if isAdmin() || isAdminMaster();
-        }
-      }
-
-      match /veiculos/{veiculoId} {
-        allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
-        allow write: if isAdmin() || isAdminMaster();
-      }
-
-      match /atribuicoes/{atribuicaoId} {
-        allow read: if isSignedIn() && (sameCompany(empresaId) || isAdmin() || isAdminMaster());
-        allow write: if isAdmin() || isAdminMaster();
-      }
-
-      match /settings/{settingId} {
-        allow read: if isSignedIn() && sameCompany(empresaId);
-        allow write: if isAdmin() && sameCompany(empresaId);
-      }
-
-      match /reports/{reportId} {
-        allow read: if isAdmin() && sameCompany(empresaId);
-        allow create: if isAdmin() && sameCompany(empresaId);
-        allow update, delete: if isAdminMaster();
-      }
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
     }
 
-
-
-    match /financeiro_users/{userId} {
-      allow read, write: if isBootstrapAdmin() || (isOwner(userId) && hasDataProcessingConsent(userId));
-    }
-
-    match /financeiro_empresas/{empresaId} {
-      allow read: if isBootstrapAdmin() || sameCompany(empresaId);
-      allow write: if isBootstrapAdmin() || (isAdmin() && sameCompany(empresaId) && isValidTimestamp());
-    }
-
-    match /financeiro_documentos/{docId} {
-      allow read: if isSignedIn() && 
-        (request.auth.uid == resource.data.userId ||
-         request.auth.uid == resource.data.createdBy ||
-         (isAdmin() && sameCompany(resource.data.empresaId)) ||
-         isAdminMaster()) && 
-        hasDataProcessingConsent(resource.data.userId);
-
-      allow create: if isSignedIn() && 
-                    isValidFinanceiroDoc(request.resource.data) &&
-                    hasDataProcessingConsent(request.auth.uid);
-
-      allow update: if isSignedIn() && 
-                    (request.auth.uid == resource.data.userId || isAdmin()) &&
-                    isWithinRateLimit() &&
-                    hasDataProcessingConsent(resource.data.userId);
-
-      allow delete: if isAdminMaster();
-    }
-
-    match /financeiro_relatorios/{relatorioId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isAdmin() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
-    }
-
-    match /financeiro_auditoria/{auditoriaId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if false;
-    }
-
-
-    match /chamados_users/{userId} {
-      allow read: if isBootstrapAdmin() || isAdminMaster() || isOwner(userId);
-      allow create: if isBootstrapAdmin() || isAdminMaster();
-      allow update: if isBootstrapAdmin() || isAdminMaster() || isOwner(userId);
-      allow delete: if isBootstrapAdmin() || isAdminMaster();
-    }
-
-    match /chamados_tickets/{ticketId} {
-      allow read: if isBootstrapAdmin() || (isSignedIn() &&
-        (request.auth.uid == resource.data.userId || isAdmin()));
-      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp());
-      allow update: if isBootstrapAdmin() || (isSignedIn() && isWithinRateLimit() &&
-        (request.auth.uid == resource.data.userId || isAdmin()));
-      allow delete: if isBootstrapAdmin() || isAdminMaster();
+    match /companies/{companyId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
     }
 
     match /chamados_empresas/{empresaId} {
-      allow read: if isBootstrapAdmin() || isAdminMaster() || sameCompany(empresaId);
-      allow create: if isBootstrapAdmin() || isAdminMaster();
-      allow update: if isBootstrapAdmin() || isAdminMaster() || (isAdmin() && sameCompany(empresaId));
-      allow delete: if isBootstrapAdmin() || isAdminMaster();
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
     }
 
-
-
-    match /documentos_users/{userId} {
-      allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
+    match /financeiro_empresas/{empresaId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
     }
 
     match /documentos_empresas/{empresaId} {
-      allow read: if sameCompany(empresaId);
-      allow write: if isAdmin() && sameCompany(empresaId) && isValidTimestamp();
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
     }
 
-    match /documentos/{docId} {
-      allow read: if isSignedIn() &&
-        (request.auth.uid == resource.data.userId || 
-         isAdmin() && sameCompany(resource.data.empresaId) ||
-         isAdminMaster());
-      allow create: if isSignedIn() && isValidTimestamp() && hasDataProcessingConsent(request.auth.uid);
-      allow update: if isSignedIn() && isWithinRateLimit() &&
-        (request.auth.uid == resource.data.userId || isAdmin());
-      allow delete: if isAdminMaster();
+    // === COLEÇÕES DE SISTEMA ===
+    match /system_settings/{document} {
+      allow read, write: if isAdmin();
     }
 
-
-
-    match /lgpd_consent/{userId} {
-      allow read: if isOwner(userId) || isAdminMaster();
-      allow create, update: if isOwner(userId) && isValidTimestamp();
-      allow delete: if isOwner(userId) || isAdminMaster();
+    match /system_logs/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /lgpd_requests/{requestId} {
-      allow read: if request.auth.uid == resource.data.userId || isAdminMaster();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidTimestamp();
-      allow update: if isAdminMaster() && isValidTimestamp();
-      allow delete: if isAdminMaster();
+    match /system_reports/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /data_processing_log/{logId} {
-      allow read: if isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if false; // Log é imutável
+    match /admin_actions/{document} {
+      allow read, write: if isAdmin();
     }
 
-
-
-    match /security_events/{eventId} {
-      allow read, list: if isBootstrapAdmin() || isAdmin() || isAdminMaster();
-      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp());
-      allow update, delete: if isBootstrapAdmin() || isAdminMaster();
+    match /admin_notifications/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /security_policies/{policyId} {
-      allow read: if isAdmin();
-      allow write: if isAdminMaster() && isValidTimestamp();
+    // === COLEÇÕES DE MONITORAMENTO ===
+    match /security_alerts/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /failed_login_attempts/{attemptId} {
-      allow read: if isAdmin();
-      allow create: if isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+    match /system_alerts/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /audit_logs/{logId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if false; 
+    match /business_alerts/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /performance_metrics/{metricId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+    match /security_events/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /error_reports/{errorId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+    match /audit_logs/{document} {
+      allow read, write: if isAdmin();
     }
 
-    match /health_checks/{checkId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidTimestamp();
-      allow delete: if isAdminMaster();
+    // === COLEÇÕES DE SISTEMA DE CHAMADOS ===
+    match /chamados/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /system_alerts/{alertId} {
-      allow read: if isAdmin() || isAdminMaster();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+    match /chamados_users/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-
-    match /system_settings/{settingId} {
-      allow read: if isBootstrapAdmin() || isSignedIn();
-      allow write: if isBootstrapAdmin() || (isAdminMaster() && isValidTimestamp());
+    // === COLEÇÕES DE SISTEMA FINANCEIRO ===
+    match /financeiro_users/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /company_settings/{empresaId} {
-      allow read: if isBootstrapAdmin() || sameCompany(empresaId);
-      allow write: if isBootstrapAdmin() || (isAdmin() && sameCompany(empresaId) && isValidTimestamp());
+    match /documentos_fiscais/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /feature_flags/{flagId} {
-      allow read: if isSignedIn();
-      allow write: if isAdminMaster();
+    // === COLEÇÕES DE SISTEMA DE FROTA ===
+    match /frota_users/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-
-
-    match /plans/{planId} {
-      allow read: if isSignedIn();
-      allow write: if isAdminMaster();
+    match /veiculos/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /subscriptions/{subscriptionId} {
-      allow read: if request.auth.uid == resource.data.userId || isAdminMaster();
-      allow write: if request.auth.uid == resource.data.userId || isAdminMaster();
+    // === COLEÇÕES DE SISTEMA DE DOCUMENTOS ===
+    match /documentos_users/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /payments/{paymentId} {
-      allow read: if request.auth.uid == resource.data.userId || isAdminMaster();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+    match /templates/{document} {
+      allow read, write: if isAuthenticated();
     }
 
-
-
-    match /cache/{cacheId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && 
-                   request.resource.data.expiresAt > request.time &&
-                   isValidTimestamp();
+    // === COLEÇÕES DE SESSÕES E PONTOS ===
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    match /user_preferences/{userId} {
-      allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
+    // === COLEÇÕES DE TUTORIAL ===
+    match /userTutorialStatus/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if isAdmin();
     }
 
-
-
-    match /backups/{backupId} {
-      allow read, write: if isAdminMaster();
+    // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
+    // Permitir leitura para usuários autenticados, escrita para admins
+    match /{collection}/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    match /backup_logs/{logId} {
-      allow read: if isAdminMaster();
-      allow create: if isAdminMaster() && isValidTimestamp();
-      allow update, delete: if false; 
-    }
-
-
-    match /integrations/{integrationId} {
-      allow read: if isAdmin();
-      allow write: if isAdminMaster() && isValidTimestamp();
-    }
-
-    match /api_keys/{keyId} {
-      allow read, write: if isAdminMaster();
-    }
-
-    match /webhooks/{webhookId} {
-      allow read: if isAdmin();
-      allow write: if isAdminMaster() && isValidTimestamp();
-    }
-
-
-
-    match /usage_analytics/{analyticsId} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
-    }
-
-    match /admin_notifications/{notificationId} {
-      allow read, write: if isBootstrapAdmin() || isSignedIn();
-    }
-
-    match /admin_actions/{actionId} {
-      allow read, write: if isBootstrapAdmin() || isSignedIn();
-    }
-
-    match /system_reports/{reportId} {
-      allow read, write: if isBootstrapAdmin() || isSignedIn();
-    }
-
-    match /business_metrics/{metricId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin() && isValidTimestamp();
-    }
-
-    match /user_activity/{activityId} {
-      allow read: if request.auth.uid == resource.data.userId || isAdmin();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
-    }
-
-
-    // Collection especial para bootstrap de admins (temporária)
-    // Companies collection for admin dashboard
-    match /companies/{companyId} {
-      allow read, write: if isBootstrapAdmin() || isSignedIn();
-    }
-
-    // Regra especial para UID específico do bootstrap admin
-    match /{path=**} {
-      allow read, write: if request.auth != null && (
-        request.auth.uid == 'kPvzAD7ugWPnrVZq7B5GJM4sakF2' ||
-        request.auth.email == 'enygnadev@gmail.com'
-      );
-    }
-
-    match /bootstrap_admins/{adminId} {
-      allow create: if isSignedIn() && request.auth.uid == adminId && isValidTimestamp();
-      allow read: if isAdminMaster() || isOwner(adminId);
-      allow update, delete: if isAdminMaster();
-    }
-
-
-
-    // Regra catch-all removida para permitir acesso do bootstrap admin
-  }
-}
-
-
-
-service firebase.storage {
-  match /b/{bucket}/o {
-
-
-    function isValidImageFile() {
-      return resource.contentType.matches('image/.*') && resource.size < 10 * 1024 * 1024; // 10MB
-    }
-
-    function isValidDocumentFile() {
-      return resource.contentType.matches('(application/pdf|image/.*|text/.*)') && 
-             resource.size < 50 * 1024 * 1024; 
-    }
-
-    function hasStorageConsent(userId) {
-      return exists(/databases/{database}/documents/lgpd_consent/$(userId)) &&
-        get(/databases/{database}/documents/lgpd_consent/$(userId)).data.fileStorage == true;
-    }
-
-
-    match /profile-images/{userId}/{fileName} {
-      allow read: if request.auth != null &&
-                  (request.auth.uid == userId || 
-                   request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin']);
-
-      allow write: if request.auth != null && 
-                   request.auth.uid == userId &&
-                   isValidImageFile() &&
-                   hasStorageConsent(userId);
-
-      allow delete: if request.auth != null &&
-                    (request.auth.uid == userId || 
-                     request.auth.token.role in ['adminmaster', 'superadmin']);
-    }
-
-
-    match /attendance-photos/{empresaId}/{userId}/{fileName} {
-      allow read: if request.auth != null && 
-                  (request.auth.uid == userId || 
-                   request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin']);
-
-      allow write: if request.auth != null && 
-                   request.auth.uid == userId &&
-                   isValidImageFile() &&
-                   hasStorageConsent(userId);
-
-      allow delete: if request.auth != null &&
-                    request.auth.token.role in ['adminmaster', 'superadmin'];
-    }
-
-
-    match /financeiro-docs/{empresaId}/{userId}/{fileName} {
-      allow read: if request.auth != null && 
-                  (request.auth.uid == userId || 
-                   (request.auth.token.empresaId == empresaId && 
-                    request.auth.token.role in ['admin', 'gestor', 'contador']) ||
-                   request.auth.token.role in ['adminmaster', 'superadmin']);
-
-      allow write: if request.auth != null && 
-                   request.auth.uid == userId &&
-                   isValidDocumentFile() &&
-                   hasStorageConsent(userId);
-
-      allow delete: if request.auth != null &&
-                    request.auth.token.role in ['adminmaster', 'superadmin'];
-    }
-
-
-    match /company-documents/{empresaId}/{allPaths=**} {
-      allow read: if request.auth != null && 
-                  (request.auth.token.empresaId == empresaId ||
-                   request.auth.token.role in ['adminmaster', 'superadmin']);
-
-     allow write: if
-  request.auth != null &&
-  (
-    (request.auth.token.empresaId == empresaId &&
-     request.auth.token.role in ['admin', 'gestor'])
-    ||
-    (request.auth.token.role in ['adminmaster', 'superadmin'])
-  ) &&
-  isValidDocumentFile();
-
-
-
-
-      allow delete: if request.auth != null &&
-                    request.auth.token.role in ['adminmaster', 'superadmin'];
-    }
-
-
-    match /backups/{allPaths=**} {
-      allow read, write: if request.auth != null && 
-                         request.auth.token.role in ['adminmaster', 'superadmin'];
-    }
-
-
-    match /security-logs/{allPaths=**} {
-      allow read: if request.auth != null &&
-                  request.auth.token.role in ['admin', 'gestor', 'adminmaster', 'superadmin'];
-      allow write: if request.auth != null &&
-                   request.auth.token.role in ['adminmaster', 'superadmin'];
-    }
-
-
-    match /{allPaths=**} {
-      allow read, write: if false;
+    // === SUBCOLEÇÕES ===
+    match /{path=**}/{subcollection}/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }
