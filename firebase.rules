@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -46,202 +45,158 @@ service cloud.firestore {
     }
 
     // === COLEÇÕES DE EMPRESAS ===
+    // Permitir criação e leitura para usuários autenticados
     match /empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     match /companies/{companyId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     match /chamados_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     match /financeiro_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     match /documentos_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     match /frota_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
+      allow read, write, create: if isAuthenticated();
+
       // Permitir subcoleções
       match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
+        allow read, write, create: if isAuthenticated();
       }
     }
 
     // === COLEÇÕES DE SISTEMA ===
     match /system_settings/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /system_logs/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /system_reports/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /admin_actions/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /admin_notifications/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     // === COLEÇÕES DE MONITORAMENTO ===
     match /security_alerts/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /system_alerts/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /business_alerts/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /security_events/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     match /audit_logs/{document} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     // === COLEÇÕES DE SISTEMA DE CHAMADOS ===
     match /chamados/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     match /chamados_users/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     // === COLEÇÕES DE SISTEMA FINANCEIRO ===
     match /financeiro_users/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     match /documentos_fiscais/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     // === COLEÇÕES DE SISTEMA DE FROTA ===
     match /frota_users/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     match /veiculos/{document} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /frota_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
-      match /configuracoes/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
-      }
-      
-      match /veiculos/{document} {
-        allow read, write: if isAuthenticated();
-      }
-      
-      match /motoristas/{document} {
-        allow read, write: if isAuthenticated();
-      }
+      allow read, write, create: if isAuthenticated();
     }
 
     // === COLEÇÕES DE SISTEMA DE DOCUMENTOS ===
     match /documentos_users/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     match /templates/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write, create: if isAuthenticated();
     }
 
     // === COLEÇÕES DE SESSÕES E PONTOS ===
     match /users/{userId}/sessions/{sessionId} {
-      allow read, write: if isAdmin();
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write, create: if isAuthenticated();
     }
 
     // === COLEÇÕES DE TUTORIAL ===
     match /userTutorialStatus/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-      allow read, write: if isAdmin();
-    }
-
-    // === REGRAS ESPECÍFICAS PARA TODAS AS COLEÇÕES DE EMPRESAS ===
-    match /frota_empresas/{empresaId} {
-      allow read, write: if isAdmin();
-      allow read: if isAuthenticated();
-      
-      match /{subcollection}/{document} {
-        allow read, write: if isAdmin();
-        allow read: if isAuthenticated();
-      }
+      allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
     }
 
     // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
-    // Permitir leitura para usuários autenticados, escrita para admins
+    // Permitir leitura e escrita para usuários autenticados
     match /{collection}/{document} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write, create: if isAuthenticated();
     }
 
     // === SUBCOLEÇÕES ===
     match /{path=**}/{subcollection}/{document} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write, create: if isAuthenticated();
     }
   }
 }
