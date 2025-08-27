@@ -179,6 +179,11 @@ interface SecurityEvent {
   userId?: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   details?: any;
+  type?: string;
+  description?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: any;
 }
 
 interface RealTimeMetrics {
@@ -189,6 +194,9 @@ interface RealTimeMetrics {
   averageResponseTime?: number;
   health?: { status: string; checks: any[] };
   lastUpdate?: Date;
+  startTime?: number;
+  lastUpdated?: Date;
+  uptime?: number;
 }
 
 interface IntelligenceData {
@@ -633,6 +641,15 @@ export default function AdminMasterPage() {
   const [intelligenceData, setIntelligenceData] = useState<IntelligenceData>({});
   const [threatLevel, setThreatLevel] = useState<'low' | 'medium' | 'high' | 'critical'>('low');
 
+  // Estados para métricas de segurança
+  const [securityMetrics, setSecurityMetrics] = useState({
+    failedLogins: 0,
+    suspiciousActivities: 0,
+    securityAlerts: 0,
+    blockedIPs: 0,
+    lastUpdated: new Date()
+  });
+
   // Estados de controle
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState(new Date());
@@ -672,7 +689,7 @@ export default function AdminMasterPage() {
       if (user) {
         try {
           console.log('Usuario logado:', user.email);
-          
+
           // Para desenvolvimento, permitir acesso total para usuários logados
           setIsSuperAdmin(true);
           setUser(user);
@@ -701,7 +718,7 @@ export default function AdminMasterPage() {
           try {
             const userRef = docRef(db, "users", user.uid);
             const userSnap = await getDoc(userRef);
-            
+
             if (!userSnap.exists()) {
               await setDoc(userRef, {
                 uid: user.uid,
@@ -1181,17 +1198,19 @@ export default function AdminMasterPage() {
 
   // Iniciar monitoramento em tempo real
   const startRealTimeMonitoring = () => {
-    // Atualizar métricas a cada 30 segundos
+    // Métricas de sistema
     const metricsInterval = setInterval(async () => {
       try {
+        // Atualizar métricas de sistema
         const systemMetrics = await realTimeMonitoring.getSystemMetrics();
         const healthCheck = await monitoringService.getHealthCheckResults();
 
-        setRealTimeMetrics({
+        setRealTimeMetrics(prev => ({
+          ...prev,
           ...systemMetrics,
           health: healthCheck,
           lastUpdate: new Date()
-        });
+        }));
 
         setSystemHealth(healthCheck);
 
@@ -1200,28 +1219,36 @@ export default function AdminMasterPage() {
       }
     }, 30000);
 
-    // Monitorar eventos de segurança em tempo real
+    // Eventos de segurança - consulta mais simples
     const securityInterval = setInterval(async () => {
       try {
+        // Buscar apenas eventos recentes sem filtros complexos
         const recentEvents = await getDocs(query(
           collection(db, 'security_events'),
-          where('timestamp', '>=', new Date(Date.now() - 5 * 60 * 1000)), // Últimos 5 min
-          orderBy('timestamp', 'desc')
+          limit(5)
         ));
 
-        const events = recentEvents.docs.map(doc => ({
-          id: doc.id,
-          userId: doc.data().userId || '',
-          type: doc.data().type || 'suspicious_activity',
-          severity: doc.data().severity || 'medium',
-          description: doc.data().description || '',
-          ipAddress: doc.data().ipAddress || '',
-          userAgent: doc.data().userAgent || '',
-          timestamp: doc.data().timestamp || new Date(),
-          metadata: doc.data().metadata || {},
-          ...doc.data()
-        } as SecurityEvent));
-        setSecurityEvents(prev => [...events, ...prev.slice(0, 100)]);
+        if (!recentEvents.empty) {
+          const events = recentEvents.docs.map(doc => ({
+            id: doc.id,
+            userId: doc.data().userId || '',
+            type: doc.data().type || 'info',
+            severity: doc.data().severity || 'low',
+            description: doc.data().description || '',
+            ipAddress: doc.data().ipAddress || '',
+            userAgent: doc.data().userAgent || '',
+            timestamp: doc.data().timestamp || new Date(),
+            metadata: doc.data().metadata || {},
+            ...doc.data()
+          } as SecurityEvent));
+
+          setSecurityEvents(prev => {
+            const newEvents = events.filter(event => 
+              !prev.some(existingEvent => existingEvent.id === event.id)
+            );
+            return [...newEvents, ...prev.slice(0, 20)];
+          });
+        }
 
       } catch (error) {
         console.error('Erro ao monitorar segurança:', error);
@@ -1235,46 +1262,59 @@ export default function AdminMasterPage() {
     };
   };
 
-  // Carregar métricas de segurança
+  // Carregar métricas de segurança - versão simplificada
   const loadSecurityMetrics = async () => {
     try {
-      const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-      // Tentativas de login falhadas
-      const failedLogins = await getDocs(query(
+      // Usar consultas simples sem filtros complexos
+      const allEvents = await getDocs(query(
         collection(db, 'security_events'),
-        where('event', '==', 'failed_login'),
-        where('timestamp', '>=', last24Hours)
+        limit(100)
       ));
 
-      // Acessos suspeitos
-      const suspiciousAccess = await getDocs(query(
-        collection(db, 'security_events'),
-        where('severity', 'in', ['high', 'critical']),
-        where('timestamp', '>=', last24Hours)
-      ));
+      if (!allEvents.empty) {
+        const events = allEvents.docs.map(doc => doc.data());
+        const last24Hours = Date.now() - (24 * 60 * 60 * 1000);
 
-      // Violações de geofencing
-      const geofenceViolations = await getDocs(query(
-        collection(db, 'geofence_violations'),
-        where('timestamp', '>=', last24Hours)
-      ));
+        // Filtrar no cliente para evitar índices complexos
+        const recentEvents = events.filter(event => {
+          const eventTime = event.timestamp?.toDate?.()?.getTime() || 
+                           event.timestamp?.getTime?.() || 
+                           Date.now();
+          return eventTime > last24Hours;
+        });
 
-      setIntelligenceData({
-        security: {
-          failedLogins: failedLogins.docs.length,
-          suspiciousAccess: suspiciousAccess.docs.length,
-          geofenceViolations: geofenceViolations.docs.length,
-          totalEvents: failedLogins.docs.length + suspiciousAccess.docs.length + geofenceViolations.docs.length
-        },
-        trends: {
-          securityTrend: suspiciousAccess.docs.length > 10 ? 'increasing' : 'stable',
-          threatLevel: suspiciousAccess.docs.length > 20 ? 'high' : 'low'
-        }
-      });
+        const failedLogins = recentEvents.filter(e => e.type === 'login_attempt').length;
+        const suspiciousActivities = recentEvents.filter(e => e.type === 'suspicious_activity').length;
+        const securityAlerts = recentEvents.filter(e => e.severity === 'critical').length;
+
+        setSecurityMetrics({
+          failedLogins,
+          suspiciousActivities,
+          securityAlerts,
+          blockedIPs: 0,
+          lastUpdated: new Date()
+        });
+      } else {
+        // Valores padrão se não há eventos
+        setSecurityMetrics({
+          failedLogins: 0,
+          suspiciousActivities: 0,
+          securityAlerts: 0,
+          blockedIPs: 0,
+          lastUpdated: new Date()
+        });
+      }
 
     } catch (error) {
       console.error('Erro ao carregar métricas de segurança:', error);
+      // Definir valores padrão em caso de erro
+      setSecurityMetrics({
+        failedLogins: 0,
+        suspiciousActivities: 0,
+        securityAlerts: 0,
+        blockedIPs: 0,
+        lastUpdated: new Date()
+      });
     }
   };
 
@@ -4648,7 +4688,7 @@ export default function AdminMasterPage() {
               <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
                 🎫 Gestão do Sistema de Chamados
               </h3>
-              
+
               {/* Estatísticas */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>

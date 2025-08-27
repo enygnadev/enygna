@@ -342,9 +342,10 @@ service cloud.firestore {
 
 
     match /security_events/{eventId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isAdminMaster() || isBootstrapAdmin();
+      allow list: if isAdmin() || isAdminMaster() || isBootstrapAdmin();
       allow create: if isSignedIn() && isValidTimestamp();
-      allow update, delete: if isAdminMaster();
+      allow update, delete: if isAdminMaster() || isBootstrapAdmin();
     }
 
     match /security_policies/{policyId} {
