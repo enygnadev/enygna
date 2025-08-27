@@ -50,7 +50,10 @@ export default function BootstrapAdminPage() {
         isActive: true,
         permissions: ['all'],
         lastLogin: null,
-        bootstrapAdmin: true
+        bootstrapAdmin: true,
+        masterAccess: true,
+        systemOwner: true,
+        totalControl: true
       });
 
       // Criar documento adicional para bypass das regras

@@ -1606,7 +1606,11 @@ export default function AdminMasterPage() {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
-          setIsSuperAdmin(userDoc.data().role === 'superadmin');
+          const userData = userDoc.data();
+          // Bootstrap admin tem controle total
+          const isBootstrap = userData.bootstrapAdmin === true;
+          const isSuperAdmin = userData.role === 'superadmin';
+          setIsSuperAdmin(isBootstrap || isSuperAdmin);
         } else {
           setIsSuperAdmin(false);
         }
@@ -2603,6 +2607,57 @@ export default function AdminMasterPage() {
       <div style={{ padding: '2rem' }}>
         {activeTab === 'dashboard' && analytics && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="dashboard-metrics">
+            
+            {/* Banner especial para Bootstrap Admin */}
+            {user && (
+              <div style={{
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6d28d9 50%, #5b21b6 100%)',
+                padding: '2rem',
+                borderRadius: '24px',
+                border: '3px solid #ffffff20',
+                textAlign: 'center',
+                boxShadow: '0 25px 50px rgba(139,92,246,0.3)',
+                animation: 'pulse 3s infinite'
+              }}>
+                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👑</div>
+                <h2 style={{ 
+                  fontSize: '2rem', 
+                  fontWeight: '900', 
+                  marginBottom: '1rem',
+                  background: 'linear-gradient(45deg, #ffffff, #ffd700)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  CONTROLE ABSOLUTO ATIVADO
+                </h2>
+                <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  🔥 Você possui acesso TOTAL a todos os dados empresariais e colaboradores
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                  gap: '1rem',
+                  marginTop: '1.5rem'
+                }}>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Empresas</div>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Funcionários</div>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>∞</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Dados</div>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>100%</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Controle</div>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Métricas Principais Premium */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
               {[
@@ -2856,7 +2911,7 @@ export default function AdminMasterPage() {
                 alignItems: 'center',
                 gap: '0.5rem'
               }}>
-                🚀 Ações Rápidas de Administração
+                🚀 Ações de Controle Total
               </h3>
               <div style={{ 
                 display: 'grid', 
@@ -2865,28 +2920,46 @@ export default function AdminMasterPage() {
               }}>
                 {[
                   { 
-                    label: 'Gerar Relatório Completo',
-                    action: () => generateReport('complete'),
-                    color: 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                    icon: '📊'
-                  },
-                  { 
-                    label: 'Backup do Sistema',
-                    action: () => alert('Iniciando backup completo...'),
-                    color: 'linear-gradient(45deg, #10b981, #059669)',
-                    icon: '💾'
-                  },
-                  { 
-                    label: 'Limpar Cache',
-                    action: () => alert('Cache limpo com sucesso!'),
-                    color: 'linear-gradient(45deg, #f59e0b, #d97706)',
-                    icon: '🗑️'
-                  },
-                  { 
-                    label: 'Monitorar Sistema',
-                    action: () => setActiveTab('logs'),
+                    label: 'Exportar TUDO',
+                    action: () => {
+                      exportData('companies');
+                      exportData('employees');
+                      exportData('analytics');
+                      exportData('logs');
+                      alert('🚀 Exportação completa iniciada!');
+                    },
                     color: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                    icon: '📡'
+                    icon: '📦'
+                  },
+                  { 
+                    label: 'Controle Financeiro Total',
+                    action: () => setActiveTab('analytics'),
+                    color: 'linear-gradient(45deg, #10b981, #059669)',
+                    icon: '💰'
+                  },
+                  { 
+                    label: 'Supervisão Empresas',
+                    action: () => setActiveTab('companies'),
+                    color: 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                    icon: '🏢'
+                  },
+                  { 
+                    label: 'Gestão de Pessoal',
+                    action: () => setActiveTab('employees'),
+                    color: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                    icon: '👥'
+                  },
+                  { 
+                    label: 'Central de Inteligência',
+                    action: () => setActiveTab('notifications'),
+                    color: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                    icon: '🧠'
+                  },
+                  { 
+                    label: 'Logs do Sistema',
+                    action: () => setActiveTab('logs'),
+                    color: 'linear-gradient(45deg, #6b7280, #4b5563)',
+                    icon: '📄'
                   }
                 ].map((action, index) => (
                   <button

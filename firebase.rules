@@ -26,12 +26,16 @@ service cloud.firestore {
     }
 
 
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.bootstrapAdmin == true;
+    }
+
     function isAdminMaster() {
-      return getUserRole() in ['adminmaster', 'superadmin'];
+      return getUserRole() in ['adminmaster', 'superadmin'] || isBootstrapAdmin();
     }
 
     function isAdmin() {
-      return getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'];
+      return getUserRole() in ['admin', 'gestor', 'adminmaster', 'superadmin'] || isBootstrapAdmin();
     }
 
     function isValidRole(role) {
@@ -122,13 +126,14 @@ service cloud.firestore {
 
 
     match /users/{userId} {
-      allow read: if canAccessPersonalData(userId) ||
+      allow read: if isBootstrapAdmin() || canAccessPersonalData(userId) ||
                      // Permitir leitura para bootstrap admins
                      (isOwner(userId) && 
                       exists(/databases/$(database)/documents/users/$(userId)) &&
                       get(/databases/$(database)/documents/users/$(userId)).data.bootstrapAdmin == true);
 
-      allow create: if (isOwner(userId)
+      allow create: if isBootstrapAdmin() ||
+                    (isOwner(userId)
                     && isValidUserData(request.resource.data)
                     && isValidTimestamp()
                     && hasDataProcessingConsent(userId))
@@ -139,14 +144,15 @@ service cloud.firestore {
                     && request.resource.data.bootstrapAdmin == true
                     && isValidTimestamp());
 
-      allow update: if (isOwner(userId) || isAdmin())
+      allow update: if isBootstrapAdmin() ||
+                    ((isOwner(userId) || isAdmin())
                     && isValidTimestamp()
                     && isWithinRateLimit()
                     && request.resource.data.updatedAt == request.time
                     && (!('role' in request.resource.data) || isAdminMaster() || request.resource.data.role == resource.data.role)
-                    && canAccessPersonalData(userId);
+                    && canAccessPersonalData(userId));
 
-      allow delete: if isAdminMaster() && isValidTimestamp();
+      allow delete: if isBootstrapAdmin() || (isAdminMaster() && isValidTimestamp());
 
 
       match /sessions/{sessionId} {
@@ -185,8 +191,8 @@ service cloud.firestore {
 
 
     match /empresas/{empresaId} {
-      allow read: if sameCompany(empresaId) || isAdminMaster();
-      allow write: if isAdmin() && (sameCompany(empresaId) || isAdminMaster()) && isValidTimestamp();
+      allow read: if isBootstrapAdmin() || sameCompany(empresaId) || isAdminMaster();
+      allow write: if isBootstrapAdmin() || (isAdmin() && (sameCompany(empresaId) || isAdminMaster()) && isValidTimestamp());
 
       match /colaboradores/{colaboradorId} {
         allow read: if sameCompany(empresaId) && canAccessPersonalData(colaboradorId);
@@ -215,12 +221,12 @@ service cloud.firestore {
 
 
     match /financeiro_users/{userId} {
-      allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
+      allow read, write: if isBootstrapAdmin() || (isOwner(userId) && hasDataProcessingConsent(userId));
     }
 
     match /financeiro_empresas/{empresaId} {
-      allow read: if sameCompany(empresaId);
-      allow write: if isAdmin() && sameCompany(empresaId) && isValidTimestamp();
+      allow read: if isBootstrapAdmin() || sameCompany(empresaId);
+      allow write: if isBootstrapAdmin() || (isAdmin() && sameCompany(empresaId) && isValidTimestamp());
     }
 
     match /financeiro_documentos/{docId} {
@@ -257,16 +263,16 @@ service cloud.firestore {
 
 
     match /chamados/users/{userId} {
-      allow read, write: if isOwner(userId) && hasDataProcessingConsent(userId);
+      allow read, write: if isBootstrapAdmin() || (isOwner(userId) && hasDataProcessingConsent(userId));
     }
 
     match /chamados/tickets/{ticketId} {
-      allow read: if isSignedIn() &&
-        (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isSignedIn() && isValidTimestamp() && hasDataProcessingConsent(request.auth.uid);
-      allow update: if isSignedIn() && isWithinRateLimit() &&
-        (request.auth.uid == resource.data.userId || isAdmin());
-      allow delete: if isAdminMaster();
+      allow read: if isBootstrapAdmin() || (isSignedIn() &&
+        (request.auth.uid == resource.data.userId || isAdmin()));
+      allow create: if isBootstrapAdmin() || (isSignedIn() && isValidTimestamp() && hasDataProcessingConsent(request.auth.uid));
+      allow update: if isBootstrapAdmin() || (isSignedIn() && isWithinRateLimit() &&
+        (request.auth.uid == resource.data.userId || isAdmin()));
+      allow delete: if isBootstrapAdmin() || isAdminMaster();
     }
 
     match /chamados/companies/{empresaId} {
@@ -367,13 +373,13 @@ service cloud.firestore {
 
 
     match /system_settings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if isAdminMaster() && isValidTimestamp();
+      allow read: if isBootstrapAdmin() || isSignedIn();
+      allow write: if isBootstrapAdmin() || (isAdminMaster() && isValidTimestamp());
     }
 
     match /company_settings/{empresaId} {
-      allow read: if sameCompany(empresaId);
-      allow write: if isAdmin() && sameCompany(empresaId) && isValidTimestamp();
+      allow read: if isBootstrapAdmin() || sameCompany(empresaId);
+      allow write: if isBootstrapAdmin() || (isAdmin() && sameCompany(empresaId) && isValidTimestamp());
     }
 
     match /feature_flags/{flagId} {
