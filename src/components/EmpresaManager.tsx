@@ -517,20 +517,24 @@ export default function EmpresaManager({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.9)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 9999,
+          backdropFilter: 'blur(10px)',
+          padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
           <div style={{
             background: '#1a1a1a',
-            padding: '2rem',
-            borderRadius: '16px',
-            width: '90%',
-            maxWidth: '600px',
+            padding: 'clamp(1rem, 4vw, 2rem)',
+            borderRadius: 'clamp(12px, 3vw, 16px)',
+            width: 'min(95vw, 600px)',
             maxHeight: '90vh',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            position: 'relative',
+            zIndex: 10000,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>➕ Nova Empresa</h3>
 
@@ -545,11 +549,12 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
               </div>
@@ -564,16 +569,21 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>
                     CNPJ
@@ -584,11 +594,12 @@ export default function EmpresaManager({
                     onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
                     style={{
                       width: '100%',
-                      padding: '0.75rem',
+                      padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                       background: 'rgba(255,255,255,0.1)',
                       border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: '8px',
-                      color: 'white'
+                      borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                      color: 'white',
+                      fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                     }}
                   />
                 </div>
@@ -603,11 +614,12 @@ export default function EmpresaManager({
                     onChange={(e) => setFormData({...formData, telefone: e.target.value})}
                     style={{
                       width: '100%',
-                      padding: '0.75rem',
+                      padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                       background: 'rgba(255,255,255,0.1)',
                       border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: '8px',
-                      color: 'white'
+                      borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                      color: 'white',
+                      fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                     }}
                   />
                 </div>
@@ -622,11 +634,12 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, plano: e.target.value as any})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 >
                   <option value="basico">Básico</option>
@@ -641,13 +654,13 @@ export default function EmpresaManager({
                 </label>
                 <div style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                  gap: '0.75rem',
-                  maxHeight: '200px',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', 
+                  gap: 'clamp(0.5rem, 1.5vw, 0.75rem)',
+                  maxHeight: 'clamp(150px, 25vh, 200px)',
                   overflowY: 'auto',
-                  padding: '0.5rem',
+                  padding: 'clamp(0.25rem, 1vw, 0.5rem)',
                   background: 'rgba(255,255,255,0.05)',
-                  borderRadius: '8px',
+                  borderRadius: 'clamp(6px, 1.5vw, 8px)',
                   border: '1px solid rgba(255,255,255,0.2)'
                 }}>
                   {sistemasDisponiveis.map(sistema => (
@@ -705,7 +718,11 @@ export default function EmpresaManager({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
@@ -781,20 +798,24 @@ export default function EmpresaManager({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.9)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 9999,
+          backdropFilter: 'blur(10px)',
+          padding: 'clamp(0.5rem, 2vw, 1rem)'
         }}>
           <div style={{
             background: '#1a1a1a',
-            padding: '2rem',
-            borderRadius: '16px',
-            width: '90%',
-            maxWidth: '600px',
+            padding: 'clamp(1rem, 4vw, 2rem)',
+            borderRadius: 'clamp(12px, 3vw, 16px)',
+            width: 'min(95vw, 600px)',
             maxHeight: '90vh',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            position: 'relative',
+            zIndex: 10000,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
           }}>
             <h3 style={{ margin: '0 0 1.5rem 0' }}>✏️ Editar Empresa</h3>
 
@@ -810,11 +831,12 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
               </div>
@@ -829,16 +851,21 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>
                     CNPJ
@@ -849,11 +876,12 @@ export default function EmpresaManager({
                     onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
                     style={{
                       width: '100%',
-                      padding: '0.75rem',
+                      padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                       background: 'rgba(255,255,255,0.1)',
                       border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: '8px',
-                      color: 'white'
+                      borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                      color: 'white',
+                      fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                     }}
                   />
                 </div>
@@ -868,11 +896,12 @@ export default function EmpresaManager({
                     onChange={(e) => setFormData({...formData, telefone: e.target.value})}
                     style={{
                       width: '100%',
-                      padding: '0.75rem',
+                      padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                       background: 'rgba(255,255,255,0.1)',
                       border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: '8px',
-                      color: 'white'
+                      borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                      color: 'white',
+                      fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                     }}
                   />
                 </div>
@@ -887,11 +916,12 @@ export default function EmpresaManager({
                   onChange={(e) => setFormData({...formData, plano: e.target.value as any})}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    color: 'white'
+                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+                    color: 'white',
+                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                   }}
                 >
                   <option value="basico">Básico</option>
@@ -906,13 +936,13 @@ export default function EmpresaManager({
                 </label>
                 <div style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                  gap: '0.75rem',
-                  maxHeight: '200px',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', 
+                  gap: 'clamp(0.5rem, 1.5vw, 0.75rem)',
+                  maxHeight: 'clamp(150px, 25vh, 200px)',
                   overflowY: 'auto',
-                  padding: '0.5rem',
+                  padding: 'clamp(0.25rem, 1vw, 0.5rem)',
                   background: 'rgba(255,255,255,0.05)',
-                  borderRadius: '8px',
+                  borderRadius: 'clamp(6px, 1.5vw, 8px)',
                   border: '1px solid rgba(255,255,255,0.2)'
                 }}>
                   {sistemasDisponiveis.map(sistema => (
@@ -952,7 +982,11 @@ export default function EmpresaManager({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                gap: 'clamp(0.5rem, 2vw, 1rem)' 
+              }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"

@@ -58,21 +58,25 @@ export default function EmpresaSistemasModal({
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0,0,0,0.8)',
+      background: 'rgba(0,0,0,0.9)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000
+      zIndex: 9999,
+      backdropFilter: 'blur(10px)',
+      padding: 'clamp(0.5rem, 2vw, 1rem)'
     }}>
       <div style={{
         background: '#1a1a1a',
-        padding: '2rem',
-        borderRadius: '16px',
-        width: '90%',
-        maxWidth: '800px',
+        padding: 'clamp(1rem, 4vw, 2rem)',
+        borderRadius: 'clamp(12px, 3vw, 16px)',
+        width: 'min(95vw, 800px)',
         maxHeight: '90vh',
         overflowY: 'auto',
-        color: 'white'
+        color: 'white',
+        position: 'relative',
+        zIndex: 10000,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
       }}>
         <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
           🎯 Sistemas Ativos - {empresa.nome}
@@ -80,9 +84,9 @@ export default function EmpresaSistemasModal({
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1rem',
-          marginBottom: '2rem'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: 'clamp(0.75rem, 2vw, 1rem)',
+          marginBottom: 'clamp(1rem, 3vw, 2rem)'
         }}>
           {sistemasDisponiveis.map(sistema => {
             const isActive = selectedSistemas.includes(sistema.id);

@@ -498,6 +498,51 @@ html, body {
   100% { background-position: 200% 0; }
 }
 
+/* === MODAL AND COMPONENT Z-INDEX MANAGEMENT === */
+.modal-overlay {
+  z-index: 9999 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+.modal-content {
+  z-index: 10000 !important;
+  position: relative !important;
+}
+
+.empresa-manager {
+  z-index: 100 !important;
+  position: relative !important;
+}
+
+/* === RESPONSIVE MODAL IMPROVEMENTS === */
+@media (max-width: 768px) {
+  .modal-content {
+    margin: 0.5rem !important;
+    width: calc(100vw - 1rem) !important;
+    max-width: none !important;
+  }
+  
+  .sistema-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+  
+  .empresa-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .empresa-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    margin-top: 0.5rem !important;
+  }
+}
+
 /* === PRODUCTION PERFORMANCE OPTIMIZATIONS === */
 @media (max-width: 480px) {
   html {
