@@ -1,0 +1,100 @@
+Code Diagnostics
+'deleteDoc' is declared but its value is never read.
+(typescript)
+Ln 19, Col 3
+'startAfter' is declared but its value is never read.
+(typescript)
+Ln 23, Col 3
+'subMonths' is declared but its value is never read.
+(typescript)
+Ln 27, Col 44
+'addMonths' is declared but its value is never read.
+(typescript)
+Ln 27, Col 55
+'startOfDay' is declared but its value is never read.
+(typescript)
+Ln 27, Col 66
+'endOfDay' is declared but its value is never read.
+(typescript)
+Ln 27, Col 78
+'notificationService' is declared but its value is never read.
+(typescript)
+Ln 31, Col 1
+'backupService' is declared but its value is never read.
+(typescript)
+Ln 32, Col 1
+'cacheService' is declared but its value is never read.
+(typescript)
+Ln 33, Col 1
+'advancedAnalytics' is declared but its value is never read.
+(typescript)
+Ln 35, Col 1
+'SuperAdminCreateForm' is declared but its value is never read.
+(typescript)
+Ln 276, Col 10
+'auditTrail' is declared but its value is never read.
+(typescript)
+Ln 630, Col 10
+'setSelectedPeriod' is declared but its value is never read.
+(typescript)
+Ln 638, Col 26
+'selectedItems' is declared but its value is never read.
+(typescript)
+Ln 644, Col 10
+'setSelectedItems' is declared but its value is never read.
+(typescript)
+Ln 644, Col 25
+'showCompanyModal' is declared but its value is never read.
+(typescript)
+Ln 647, Col 10
+'showEmployeeModal' is declared but its value is never read.
+(typescript)
+Ln 648, Col 10
+'showNotificationCenter' is declared but its value is never read.
+(typescript)
+Ln 649, Col 10
+'showSettingsModal' is declared but its value is never read.
+(typescript)
+Ln 650, Col 10
+'setShowSettingsModal' is declared but its value is never read.
+(typescript)
+Ln 650, Col 29
+'showReportsModal' is declared but its value is never read.
+(typescript)
+Ln 651, Col 10
+'setShowReportsModal' is declared but its value is never read.
+(typescript)
+Ln 651, Col 28
+'showLogsModal' is declared but its value is never read.
+(typescript)
+Ln 652, Col 10
+'setShowLogsModal' is declared but its value is never read.
+(typescript)
+Ln 652, Col 25
+'selectedCompany' is declared but its value is never read.
+(typescript)
+Ln 653, Col 10
+'selectedEmployee' is declared but its value is never read.
+(typescript)
+Ln 654, Col 10
+')' expected.
+(typescript)
+Ln 2236, Col 13
+Cannot find name 'div'.
+(typescript)
+Ln 2408, Col 11
+Expected corresponding closing tag for JSX fragment.
+(typescript)
+Ln 2408, Col 11
+Unreachable code detected.
+(typescript)
+Ln 2408, Col 11
+Expression expected.
+(typescript)
+Ln 2409, Col 7
+Expression expected.
+(typescript)
+Ln 2409, Col 9
+Expression expected.
+(typescript)
+Ln 2410, Col 5
