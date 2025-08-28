@@ -1415,8 +1415,8 @@ export default function FrotaPage() {
         /* Container principal */
         .container {
           background: linear-gradient(135deg,
-            rgba(102, 126, 234, 0.05) 0%, /* Azul suave */
-            rgba(118, 75, 162, 0.05) 100%); /* Roxo suave */
+            #1a1a2e 0%, /* Azul escuro */
+            #16213e 100%); /* Azul marinho escuro */
           min-height: 100vh;
           position: relative;
           overflow-x: hidden;
@@ -1441,13 +1441,13 @@ export default function FrotaPage() {
         .fleet-header {
           position: relative;
           z-index: 2;
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 20px;
           padding: 2rem;
           margin-bottom: 2rem;
-          box-shadow: var(--frota-shadow);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
         .fleet-title {
@@ -1462,7 +1462,7 @@ export default function FrotaPage() {
         }
 
         .fleet-subtitle {
-          color: var(--color-text-secondary);
+          color: #475569;
           font-size: 1.1rem;
           opacity: 0.8;
         }
@@ -1557,15 +1557,16 @@ export default function FrotaPage() {
         }
 
         .stat-card {
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 20px;
           padding: 2rem;
           position: relative;
           overflow: hidden;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         .stat-card::before {
@@ -1597,7 +1598,7 @@ export default function FrotaPage() {
         }
 
         .stat-title {
-          color: var(--color-text-secondary);
+          color: #475569;
           font-size: 0.9rem;
           font-weight: 600;
           text-transform: uppercase;
@@ -1631,21 +1632,21 @@ export default function FrotaPage() {
         .tabs {
           display: flex;
           overflow-x: auto;
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 16px;
           padding: 0.5rem;
           margin-bottom: 2rem;
           gap: 0.25rem;
-          box-shadow: var(--frota-shadow);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         .tab {
           padding: 0.875rem 1.5rem;
           background: transparent;
           border: none;
-          color: var(--color-text-secondary);
+          color: #475569;
           font-weight: 600;
           font-size: 0.95rem;
           cursor: pointer;
@@ -1693,25 +1694,25 @@ export default function FrotaPage() {
 
         /* Área de conteúdo */
         .content-area {
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 20px;
           padding: 2rem;
-          box-shadow: var(--frota-shadow);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
           position: relative;
           z-index: 1;
         }
 
         /* Filtros e busca */
         .filters-container {
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 16px;
           padding: 1.5rem;
           margin-bottom: 2rem;
-          box-shadow: var(--frota-shadow);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         .filters-grid {
@@ -1726,9 +1727,9 @@ export default function FrotaPage() {
           padding: 0.875rem 1rem;
           border: 2px solid rgba(102, 126, 234, 0.2); /* Borda azul suave */
           border-radius: 12px;
-          background: rgba(255, 255, 255, 0.8);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(10px);
-          color: var(--color-text-primary);
+          color: #0f172a;
           font-size: 0.95rem;
           transition: all 0.3s ease;
         }
@@ -1742,12 +1743,12 @@ export default function FrotaPage() {
 
         /* Tabela moderna */
         .table-container {
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 16px;
           overflow: hidden;
-          box-shadow: var(--frota-shadow);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         .table-header {
@@ -1826,14 +1827,14 @@ export default function FrotaPage() {
         .modal-content {
           background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 20px;
           padding: 2rem;
           width: 90%;
           max-width: 600px;
           max-height: 90vh;
           overflow-y: auto;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
           animation: modal-slide-up 0.3s ease;
         }
 
@@ -1938,7 +1939,7 @@ export default function FrotaPage() {
         }
 
         .loading-text {
-          color: var(--color-text-secondary);
+          color: #475569;
           font-size: 1.1rem;
           font-weight: 500;
         }
@@ -1947,7 +1948,7 @@ export default function FrotaPage() {
         .empty-state {
           text-align: center;
           padding: 4rem 2rem;
-          color: var(--color-text-secondary);
+          color: #475569;
         }
 
         .empty-icon {
@@ -1960,7 +1961,7 @@ export default function FrotaPage() {
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
-          color: var(--color-text-primary);
+          color: #0f172a;
         }
 
         .empty-description {
