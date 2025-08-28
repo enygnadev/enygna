@@ -671,6 +671,7 @@ export default function AdminMasterPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [error, setError] = useState('');
 
   // Estados de modais
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -1893,6 +1894,105 @@ export default function AdminMasterPage() {
     // }
   }, [user, isSuperAdmin]); // Dependências mantidas, mas o efeito primário está no hook de autenticação.
 
+  // Função para login de admin
+  const handleAdminLogin = async () => {
+    if (!loginEmail || !loginPassword) {
+      setLoginError('Email e senha são obrigatórios.');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      // O onAuthStateChanged irá lidar com o redirecionamento
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      if (error.code === 'auth/user-not-found') {
+        setLoginError('Usuário não encontrado.');
+      } else if (error.code === 'auth/wrong-password') {
+        setLoginError('Senha incorreta.');
+      } else if (error.code === 'auth/invalid-email') {
+        setLoginError('Email inválido.');
+      } else {
+        setLoginError('Erro no login. Tente novamente.');
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Função para criar admin
+  const handleCreateAdmin = async () => {
+    if (!createAdminEmail || !createAdminPassword) {
+      setCreateAdminError('Email e senha são obrigatórios.');
+      return;
+    }
+
+    if (createAdminPassword.length < 6) {
+      setCreateAdminError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setCreateAdminLoading(true);
+    setCreateAdminError('');
+    setCreateAdminSuccess('');
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, createAdminEmail, createAdminPassword);
+      const newUser = userCredential.user;
+
+      await updateProfile(newUser, {
+        displayName: createAdminEmail.split('@')[0]
+      });
+
+      await setDoc(doc(db, 'users', newUser.uid), {
+        uid: newUser.uid,
+        email: createAdminEmail,
+        displayName: createAdminEmail.split('@')[0],
+        role: 'superadmin',
+        createdAt: serverTimestamp(),
+        createdBy: user?.uid,
+        isActive: true,
+        permissions: ['all'],
+        lastLogin: null
+      });
+
+      await addDoc(collection(db, 'admin_actions'), {
+        adminId: user?.uid,
+        action: 'admin_created',
+        targetEmail: createAdminEmail,
+        targetUid: newUser.uid,
+        timestamp: serverTimestamp(),
+        severity: 'critical'
+      });
+
+      setCreateAdminSuccess(`✅ Administrador criado com sucesso!\n📧 Email: ${createAdminEmail}\n🔑 UID: ${newUser.uid}`);
+      setCreateAdminEmail('');
+      setCreateAdminPassword('');
+
+      await signOut(auth);
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Erro ao criar admin:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setCreateAdminError('❌ Este email já está em uso.');
+      } else if (error.code === 'auth/invalid-email') {
+        setCreateAdminError('❌ Email inválido.');
+      } else if (error.code === 'auth/weak-password') {
+        setCreateAdminError('❌ Senha muito fraca.');
+      } else {
+        setCreateAdminError(`❌ Erro: ${error.message}`);
+      }
+    } finally {
+      setCreateAdminLoading(false);
+    }
+  };
+
   // Função para buscar usuário
   const searchUser = async () => {
     if (!selectedUserEmail) return;
@@ -1961,56 +2061,103 @@ export default function AdminMasterPage() {
           animation: 'float 8s ease-in-out infinite reverse'
         }}></div>
 
-        <div style={{
-          width: '120px',
-          height: '120px',
-          border: '8px solid rgba(255,255,255,0.1)',
-          borderTop: '8px solid #ffffff',
-          borderRadius: '50%',
-          animation: 'luxurySpin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite',
-          filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.3))'
-        }}></div>
-
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          background: 'rgba(255,255,255,0.05)',
-          borderRadius: '32px',
-          backdropFilter: 'blur(30px)',
-          border: '2px solid rgba(255,255,255,0.1)',
-          maxWidth: '500px'
-        }}>
-          <h2 style={{
-            fontSize: '2.5rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-          }}>
-            👑 Inicializando Painel Master
-          </h2>
-          <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500' }}>
-            Preparando controle administrativo supremo...
-          </p>
+        {error ? (
+          // Mostrar mensagem de erro quando acesso negado
           <div style={{
-            marginTop: '2rem',
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '0.5rem'
+            textAlign: 'center',
+            padding: '3rem',
+            background: 'rgba(239,68,68,0.1)',
+            borderRadius: '32px',
+            backdropFilter: 'blur(30px)',
+            border: '2px solid rgba(239,68,68,0.3)',
+            maxWidth: '600px'
           }}>
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} style={{
-                width: '12px',
-                height: '12px',
-                background: 'rgba(255,255,255,0.7)',
-                borderRadius: '50%',
-                animation: `pulse 2s infinite ${i * 0.2}s`
-              }}></div>
-            ))}
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
+            <h2 style={{
+              fontSize: '2rem',
+              fontWeight: '800',
+              marginBottom: '1rem',
+              color: '#fca5a5'
+            }}>
+              ACESSO NEGADO
+            </h2>
+            <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500', marginBottom: '2rem' }}>
+              {error}
+            </p>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#fca5a5',
+                  borderRadius: '50%',
+                  animation: `pulse 1.5s infinite ${i * 0.3}s`
+                }}></div>
+              ))}
+            </div>
+            <p style={{ fontSize: '0.9rem', opacity: 0.7, marginTop: '1rem' }}>
+              Redirecionando automaticamente...
+            </p>
           </div>
-        </div>
+        ) : (
+          // Loading normal
+          <>
+            <div style={{
+              width: '120px',
+              height: '120px',
+              border: '8px solid rgba(255,255,255,0.1)',
+              borderTop: '8px solid #ffffff',
+              borderRadius: '50%',
+              animation: 'luxurySpin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite',
+              filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.3))'
+            }}></div>
+
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '32px',
+              backdropFilter: 'blur(30px)',
+              border: '2px solid rgba(255,255,255,0.1)',
+              maxWidth: '500px'
+            }}>
+              <h2 style={{
+                fontSize: '2.5rem',
+                fontWeight: '800',
+                marginBottom: '1rem',
+                background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+              }}>
+                👑 Inicializando Painel Master
+              </h2>
+              <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500' }}>
+                Preparando controle administrativo supremo...
+              </p>
+              <div style={{
+                marginTop: '2rem',
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}>
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} style={{
+                    width: '12px',
+                    height: '12px',
+                    background: 'rgba(255,255,255,0.7)',
+                    borderRadius: '50%',
+                    animation: `pulse 2s infinite ${i * 0.2}s`
+                  }}></div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <style jsx>{`
           @keyframes luxurySpin {
