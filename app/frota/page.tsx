@@ -1401,9 +1401,11 @@ export default function FrotaPage() {
         /* Variáveis CSS personalizadas para o tema de frota */
         :global(:root) {
           --frota-primary: #667eea; /* Azul suave */
-          --frota-primary-dark: #5164a8; /* Azul mais escuro */
+          --frota-primary-dark: #1a1a2e; /* Azul escuro profundo */
           --frota-secondary: #764ba2; /* Roxo suave */
-          --frota-accent: #f59e0b; /* Amarelo/Ocre */
+          --frota-accent: #e0a000; /* Ocre/Dourado */
+          --frota-gold: #d4af37; /* Dourado clássico */
+          --frota-platinum: #d8d8d8; /* Platina/Prateado */
           --frota-danger: #ef4444; /* Vermelho */
           --frota-warning: #f59e0b; /* Amarelo/Ocre */
           --frota-success: #10b981; /* Verde */
@@ -1414,12 +1416,14 @@ export default function FrotaPage() {
 
         /* Container principal */
         .container {
-          background: linear-gradient(135deg,
-            #1a1a2e 0%, /* Azul escuro */
-            #16213e 100%); /* Azul marinho escuro */
+          background: linear-gradient(145deg,
+            #0a0e1a 0%, /* Quase preto */
+            #1a202c 50%, /* Cinza escuro */
+            #2d3748 100%); /* Cinza médio */
           min-height: 100vh;
           position: relative;
           overflow-x: hidden;
+          color: #e2e8f0; /* Texto claro para contraste */
         }
 
         .container::before {
@@ -1430,9 +1434,9 @@ export default function FrotaPage() {
           right: 0;
           bottom: 0;
           background:
-            radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 50%), /* Azul suave */
-            radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%), /* Roxo suave */
-            radial-gradient(circle at 40% 60%, rgba(245, 158, 11, 0.05) 0%, transparent 50%); /* Âmbar suave */
+            radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.15) 0%, transparent 50%), /* Azul suave */
+            radial-gradient(circle at 80% 80%, rgba(201, 176, 55, 0.1) 0%, transparent 50%), /* Dourado suave */
+            radial-gradient(circle at 40% 60%, rgba(211, 211, 211, 0.05) 0%, transparent 50%); /* Prata suave */
           pointer-events: none;
           z-index: 0;
         }
@@ -1441,30 +1445,35 @@ export default function FrotaPage() {
         .fleet-header {
           position: relative;
           z-index: 2;
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 20px;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.90) 0%, 
+            rgba(44, 56, 126, 0.85) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 24px;
           padding: 2rem;
           margin-bottom: 2rem;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
         }
 
         .fleet-title {
-          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          background: linear-gradient(135deg, var(--frota-gold), var(--frota-platinum));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
-          font-size: 2.5rem;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          margin-bottom: 0.5rem;
+          font-size: 2.75rem;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+          margin-bottom: 0.75rem;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .fleet-subtitle {
-          color: #475569;
-          font-size: 1.1rem;
-          opacity: 0.8;
+          color: #a0aec0; /* Cinza claro */
+          font-size: 1.15rem;
+          opacity: 0.9;
         }
 
         /* Botões melhorados */
@@ -1476,10 +1485,10 @@ export default function FrotaPage() {
         }
 
         .button {
-          padding: 0.875rem 1.75rem;
-          border-radius: 12px;
-          font-weight: 600;
-          font-size: 0.95rem;
+          padding: 0.95rem 2rem;
+          border-radius: 16px;
+          font-weight: 700;
+          font-size: 1rem;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           border: none;
@@ -1490,6 +1499,8 @@ export default function FrotaPage() {
           text-decoration: none;
           position: relative;
           overflow: hidden;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
         }
 
         .button::before {
@@ -1508,44 +1519,46 @@ export default function FrotaPage() {
         }
 
         .button-primary {
-          background: linear-gradient(135deg, var(--frota-primary), var(--frota-primary-dark));
-          color: white;
-          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); /* Sombra com base no azul suave */
+          background: linear-gradient(135deg, var(--frota-gold) 0%, var(--frota-platinum) 50%, var(--frota-gold) 100%);
+          color: var(--frota-primary-dark);
+          box-shadow: 0 6px 20px rgba(211, 176, 55, 0.3); /* Sombra dourada */
         }
 
         .button-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); /* Sombra com base no azul suave */
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 10px 30px rgba(211, 176, 55, 0.4);
         }
 
         .button-secondary {
-          background: linear-gradient(135deg, var(--frota-secondary), #48bf53); /* Verde como secundário */
+          background: linear-gradient(135deg, var(--frota-primary) 0%, var(--frota-secondary) 100%);
           color: white;
-          box-shadow: 0 4px 15px rgba(72, 191, 83, 0.3); /* Sombra com base no verde */
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3); /* Sombra azul suave */
         }
 
         .button-secondary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(72, 191, 83, 0.4); /* Sombra com base no verde */
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
         }
 
         .button-outline {
-          background: rgba(255, 255, 255, 0.1);
-          color: var(--frota-primary); /* Usa a cor primária para contorno */
-          border: 2px solid var(--frota-primary);
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--frota-platinum); /* Texto prateado */
+          border: 2px solid rgba(211, 176, 55, 0.5); /* Borda dourada */
           backdrop-filter: blur(10px);
         }
 
         .button-outline:hover {
-          background: var(--frota-primary);
-          color: white;
-          transform: translateY(-2px);
+          background: rgba(211, 176, 55, 0.2);
+          color: var(--frota-gold);
+          border-color: var(--frota-gold);
+          transform: translateY(-3px) scale(1.02);
         }
 
         .button:disabled {
-          opacity: 0.5;
+          opacity: 0.6;
           cursor: not-allowed;
           transform: none !important;
+          box-shadow: none !important;
         }
 
         /* Cards de estatísticas modernos */
@@ -1557,16 +1570,20 @@ export default function FrotaPage() {
         }
 
         .stat-card {
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 20px;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.90) 0%, 
+            rgba(44, 56, 126, 0.85) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 24px;
           padding: 2rem;
           position: relative;
           overflow: hidden;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
         }
 
         .stat-card::before {
@@ -1575,15 +1592,17 @@ export default function FrotaPage() {
           top: 0;
           left: 0;
           right: 0;
-          height: 4px;
-          background: linear-gradient(90deg, var(--frota-primary), var(--frota-secondary));
+          height: 5px;
+          background: linear-gradient(90deg, var(--frota-gold), var(--frota-platinum));
           transform: scaleX(0);
           transition: transform 0.3s ease;
         }
 
         .stat-card:hover {
-          transform: translateY(-5px);
-          box-shadow: var(--frota-shadow-hover);
+          transform: translateY(-5px) scale(1.01);
+          box-shadow: 
+            0 12px 40px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(211, 176, 55, 0.2) inset;
         }
 
         .stat-card:hover::before {
@@ -1591,38 +1610,39 @@ export default function FrotaPage() {
         }
 
         .stat-icon {
-          font-size: 3rem;
+          font-size: 3.5rem;
           margin-bottom: 1rem;
           display: block;
-          opacity: 0.8;
+          opacity: 0.85;
         }
 
         .stat-title {
-          color: #475569;
-          font-size: 0.9rem;
+          color: #a0aec0; /* Cinza claro */
+          font-size: 0.95rem;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.75rem;
         }
 
         .stat-value {
-          font-size: 2.5rem;
-          font-weight: 800;
-          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          font-size: 3rem;
+          font-weight: 900;
+          background: linear-gradient(135deg, var(--frota-gold), var(--frota-platinum));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
           line-height: 1;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .stat-change {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
-          margin-top: 0.5rem;
-          font-size: 0.85rem;
-          font-weight: 600;
+          gap: 0.5rem;
+          margin-top: 0.75rem;
+          font-size: 0.9rem;
+          font-weight: 700;
         }
 
         .stat-change.positive { color: var(--frota-success); }
@@ -1632,32 +1652,37 @@ export default function FrotaPage() {
         .tabs {
           display: flex;
           overflow-x: auto;
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 16px;
-          padding: 0.5rem;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.95) 0%, 
+            rgba(44, 56, 126, 0.90) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 20px;
+          padding: 0.75rem;
           margin-bottom: 2rem;
-          gap: 0.25rem;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          gap: 0.5rem;
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
         }
 
         .tab {
-          padding: 0.875rem 1.5rem;
+          padding: 1rem 1.75rem;
           background: transparent;
           border: none;
-          color: #475569;
-          font-weight: 600;
-          font-size: 0.95rem;
+          color: #a0aec0; /* Cinza claro */
+          font-weight: 700;
+          font-size: 1rem;
           cursor: pointer;
           border-radius: 12px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.4s ease;
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
           white-space: nowrap;
           position: relative;
           overflow: hidden;
+          text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
         }
 
         .tab::before {
@@ -1667,9 +1692,13 @@ export default function FrotaPage() {
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(135deg, #667eea, #764ba2); /* Azul para Roxo */
+          background: linear-gradient(135deg, 
+            var(--frota-accent) 0%, 
+            var(--frota-gold) 50%, 
+            var(--frota-platinum) 100%);
           opacity: 0;
-          transition: opacity 0.3s ease;
+          transition: all 0.4s ease;
+          border-radius: 12px;
         }
 
         .tab-active::before {
@@ -1677,42 +1706,51 @@ export default function FrotaPage() {
         }
 
         .tab-active {
-          color: white;
-          transform: translateY(-1px);
+          color: var(--frota-primary-dark);
+          font-weight: 800;
+          transform: translateY(-2px);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .tab:hover:not(:disabled):not(.tab-active) {
-          background: rgba(102, 126, 234, 0.1); /* Fundo azul suave semi-transparente */
-          color: #667eea; /* Texto azul suave */
-          transform: translateY(-1px);
-        }
-
-        .tab:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+          background: linear-gradient(135deg, 
+            rgba(201, 176, 55, 0.15) 0%, 
+            rgba(26, 35, 126, 0.2) 100%);
+          color: var(--frota-gold);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(201, 176, 55, 0.2);
         }
 
         /* Área de conteúdo */
         .content-area {
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 20px;
-          padding: 2rem;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.95) 0%, 
+            rgba(44, 56, 126, 0.90) 50%, 
+            rgba(13, 20, 86, 0.95) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 24px;
+          padding: 2.5rem;
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
           position: relative;
           z-index: 1;
         }
 
         /* Filtros e busca */
         .filters-container {
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 16px;
-          padding: 1.5rem;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.90) 0%, 
+            rgba(44, 56, 126, 0.85) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.25);
+          border-radius: 20px;
+          padding: 2rem;
           margin-bottom: 2rem;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
         }
 
         .filters-grid {
@@ -1724,88 +1762,100 @@ export default function FrotaPage() {
         /* Inputs melhorados */
         .input, .select {
           width: 100%;
-          padding: 0.875rem 1rem;
-          border: 2px solid rgba(102, 126, 234, 0.2); /* Borda azul suave */
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          color: #0f172a;
-          font-size: 0.95rem;
+          padding: 1rem 1.25rem;
+          border: 2px solid rgba(211, 176, 55, 0.2); /* Borda dourada suave */
+          border-radius: 16px;
+          background: rgba(10, 14, 26, 0.8); /* Fundo escuro semi-transparente */
+          color: #e2e8f0;
+          font-size: 1rem;
+          font-weight: 500;
           transition: all 0.3s ease;
         }
 
         .input:focus, .select:focus {
           outline: none;
-          border-color: var(--frota-primary); /* Borda primária ao focar */
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); /* Sombra azul suave */
+          border-color: var(--frota-gold); /* Borda dourada */
+          box-shadow: 0 0 0 4px rgba(211, 176, 55, 0.2); /* Sombra dourada */
           transform: translateY(-1px);
         }
 
         /* Tabela moderna */
         .table-container {
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 16px;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.95) 0%, 
+            rgba(44, 56, 126, 0.90) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 20px;
           overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
         }
 
         .table-header {
-          background: linear-gradient(135deg, #667eea, #764ba2); /* Azul suave para Roxo */
-          color: white;
+          background: linear-gradient(135deg, 
+            var(--frota-primary) 0%, 
+            var(--frota-secondary) 50%, 
+            var(--frota-primary-dark) 100%);
+          color: var(--frota-gold);
+          font-weight: 700;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+          border-bottom: 2px solid rgba(201, 176, 55, 0.3);
         }
 
         .table-row {
           transition: all 0.2s ease;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .table-row:hover {
-          background: rgba(102, 126, 234, 0.05); /* Fundo azul suave semi-transparente */
+          background: linear-gradient(90deg, 
+            rgba(211, 176, 55, 0.1) 0%, 
+            rgba(26, 35, 126, 0.2) 100%);
           transform: translateX(5px);
         }
 
         .table-cell {
-          padding: 1rem;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          padding: 1.25rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         /* Status badges */
         .status-badge {
-          padding: 0.375rem 0.875rem;
-          border-radius: 20px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          text-transform: uppercase;
+          padding: 0.5rem 1rem;
+          border-radius: 24px;
+          font-size: 0.85rem;
+          font-weight: 700;
           letter-spacing: 0.025em;
           display: inline-flex;
           align-items: center;
           gap: 0.25rem;
+          border: 2px solid transparent;
         }
 
         .status-ativo {
-          background: rgba(16, 185, 129, 0.1); /* Verde */
+          background: rgba(16, 185, 129, 0.15); /* Verde */
           color: #059669;
-          border: 1px solid rgba(16, 185, 129, 0.2);
+          border-color: rgba(16, 185, 129, 0.3);
         }
 
         .status-manutencao {
-          background: rgba(245, 158, 11, 0.1); /* Amarelo/Ocre */
+          background: rgba(245, 158, 11, 0.15); /* Amarelo/Ocre */
           color: #d97706;
-          border: 1px solid rgba(245, 158, 11, 0.2);
+          border-color: rgba(245, 158, 11, 0.3);
         }
 
         .status-inativo {
-          background: rgba(239, 68, 68, 0.1); /* Vermelho */
+          background: rgba(239, 68, 68, 0.15); /* Vermelho */
           color: #dc2626;
-          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-color: rgba(239, 68, 68, 0.3);
         }
 
         .status-em_viagem {
-          background: rgba(59, 130, 246, 0.1); /* Azul */
+          background: rgba(59, 130, 246, 0.15); /* Azul */
           color: #2563eb;
-          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-color: rgba(59, 130, 246, 0.3);
         }
 
         /* Modais melhorados */
@@ -1815,8 +1865,8 @@ export default function FrotaPage() {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(15px);
           display: flex;
           justify-content: center;
           align-items: center;
@@ -1825,16 +1875,20 @@ export default function FrotaPage() {
         }
 
         .modal-content {
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 20px;
-          padding: 2rem;
+          background: linear-gradient(145deg, 
+            rgba(26, 35, 126, 0.95) 0%, 
+            rgba(44, 56, 126, 0.90) 100%);
+          backdrop-filter: blur(25px);
+          border: 2px solid rgba(201, 176, 55, 0.3);
+          border-radius: 24px;
+          padding: 2.5rem;
           width: 90%;
           max-width: 600px;
           max-height: 90vh;
           overflow-y: auto;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+          box-shadow: 
+            0 15px 50px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(201, 176, 55, 0.1) inset;
           animation: modal-slide-up 0.3s ease;
         }
 
@@ -1842,38 +1896,41 @@ export default function FrotaPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid rgba(102, 126, 234, 0.1); /* Borda azul suave */
-          padding-bottom: 1rem;
-          margin-bottom: 1.5rem;
+          border-bottom: 2px solid rgba(201, 176, 55, 0.2); /* Borda dourada suave */
+          padding-bottom: 1.5rem;
+          margin-bottom: 2rem;
         }
 
         .modal-title {
-          font-size: 1.5rem;
-          font-weight: 700;
-          background: linear-gradient(135deg, var(--frota-primary), var(--frota-secondary));
+          font-size: 1.75rem;
+          font-weight: 800;
+          background: linear-gradient(135deg, var(--frota-gold), var(--frota-platinum));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .modal-close-button {
-          width: 40px;
-          height: 40px;
+          width: 45px;
+          height: 45px;
           border-radius: 50%;
           background: rgba(239, 68, 68, 0.1); /* Vermelho suave */
-          color: #dc2626; /* Vermelho */
+          color: var(--frota-danger);
           border: none;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.25rem;
+          font-size: 1.5rem;
           transition: all 0.2s ease;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .modal-close-button:hover {
-          background: rgba(239, 68, 68, 0.2);
+          background: rgba(239, 68, 68, 0.25);
           transform: scale(1.1);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
 
         .modal-body {
@@ -1885,9 +1942,9 @@ export default function FrotaPage() {
           display: flex;
           justify-content: flex-end;
           gap: 1rem;
-          border-top: 2px solid rgba(102, 126, 234, 0.1); /* Borda azul suave */
+          border-top: 2px solid rgba(201, 176, 55, 0.2); /* Borda dourada suave */
           padding-top: 1.5rem;
-          margin-top: 1.5rem;
+          margin-top: 2rem;
         }
 
         /* Snackbar melhorado */
@@ -1895,8 +1952,8 @@ export default function FrotaPage() {
           position: fixed;
           bottom: 2rem;
           right: 2rem;
-          padding: 1rem 1.5rem;
-          border-radius: 12px;
+          padding: 1.25rem 1.75rem;
+          border-radius: 16px;
           color: white;
           font-weight: 600;
           z-index: 60;
@@ -1912,10 +1969,12 @@ export default function FrotaPage() {
 
         .snackbar-success {
           background: linear-gradient(135deg, var(--frota-success), #059669); /* Verde */
+          border-color: rgba(16, 185, 129, 0.4);
         }
 
         .snackbar-error {
           background: linear-gradient(135deg, var(--frota-danger), #dc2626); /* Vermelho */
+          border-color: rgba(239, 68, 68, 0.4);
         }
 
         /* Loading melhorado */
@@ -1929,43 +1988,43 @@ export default function FrotaPage() {
         }
 
         .spinner {
-          width: 50px;
-          height: 50px;
-          border: 4px solid rgba(102, 126, 234, 0.1); /* Borda azul suave */
-          border-left: 4px solid var(--frota-primary); /* Borda primária */
+          width: 60px;
+          height: 60px;
+          border: 5px solid rgba(211, 176, 55, 0.1); /* Borda dourada suave */
+          border-left: 5px solid var(--frota-gold); /* Borda dourada */
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin-bottom: 1rem;
         }
 
         .loading-text {
-          color: #475569;
-          font-size: 1.1rem;
-          font-weight: 500;
+          color: #a0aec0; /* Cinza claro */
+          font-size: 1.2rem;
+          font-weight: 600;
         }
 
         /* Seção vazia melhorada */
         .empty-state {
           text-align: center;
           padding: 4rem 2rem;
-          color: #475569;
+          color: #a0aec0; /* Cinza claro */
         }
 
         .empty-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-          opacity: 0.5;
+          font-size: 4.5rem;
+          margin-bottom: 1.5rem;
+          opacity: 0.6;
         }
 
         .empty-title {
-          font-size: 1.5rem;
-          font-weight: 700;
-          margin-bottom: 0.5rem;
-          color: #0f172a;
+          font-size: 1.75rem;
+          font-weight: 800;
+          margin-bottom: 0.75rem;
+          color: #e2e8f0;
         }
 
         .empty-description {
-          font-size: 1rem;
+          font-size: 1.1rem;
           opacity: 0.8;
           max-width: 400px;
           margin: 0 auto;
@@ -2032,26 +2091,41 @@ export default function FrotaPage() {
           }
 
           .fleet-title {
-            font-size: 2rem;
+            font-size: 2.2rem;
           }
 
           .action-buttons {
             justify-content: center;
             width: 100%;
+            gap: 0.75rem;
+          }
+
+          .button {
+            padding: 0.8rem 1.5rem;
+            font-size: 0.9rem;
           }
 
           .tabs {
-            padding: 0.25rem;
+            padding: 0.5rem;
+            gap: 0.25rem;
           }
 
           .tab {
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 1.25rem;
             font-size: 0.9rem;
           }
 
           .stats-grid {
             grid-template-columns: 1fr;
             gap: 1rem;
+          }
+
+          .stat-card {
+            padding: 1.5rem;
+          }
+
+          .stat-value {
+            font-size: 2rem;
           }
 
           .filters-grid {
@@ -2064,11 +2138,21 @@ export default function FrotaPage() {
             margin: 1rem;
           }
 
+          .modal-title {
+            font-size: 1.3rem;
+          }
+
+          .modal-footer {
+            justify-content: center;
+            flex-direction: column;
+          }
+
           .snackbar {
             bottom: 1rem;
             right: 1rem;
             left: 1rem;
             max-width: none;
+            text-align: center;
           }
         }
 
@@ -2077,13 +2161,14 @@ export default function FrotaPage() {
         .tab:focus,
         .input:focus,
         .select:focus {
-          outline: 2px solid var(--frota-primary);
-          outline-offset: 2px;
+          outline: 3px solid var(--frota-gold);
+          outline-offset: 3px;
+          box-shadow: 0 0 0 4px rgba(211, 176, 55, 0.3);
         }
 
         /* Animação de entrada para elementos */
         .fade-in {
-          animation: fade-in 0.6s ease-out;
+          animation: fade-in 0.6s ease-out forwards;
         }
 
         @keyframes fade-in {
@@ -2099,16 +2184,20 @@ export default function FrotaPage() {
 
         /* Efeito de glassmorphism para cards */
         .glass-card {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(25px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 0 0 1px rgba(201, 176, 55, 0.05) inset;
         }
 
         /* Hover effects para interatividade */
         .interactive:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+          transform: translateY(-3px) scale(1.01);
+          box-shadow: 
+            0 10px 40px rgba(0, 0, 0, 0.2),
+            0 0 0 1px rgba(201, 176, 55, 0.15) inset;
         }
 
         .interactive {
