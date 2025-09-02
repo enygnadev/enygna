@@ -217,6 +217,9 @@ export default function EmpresaManager({
       await createSystemSpecificData(empresaId);
       console.log('Configurações específicas criadas');
 
+      // Salvar o usuário admin atual antes de criar novo usuário
+      const currentUser = auth.currentUser;
+      
       // Criar usuário no Firebase Authentication
       try {
         const userCredential = await createUserWithEmailAndPassword(
@@ -231,6 +234,16 @@ export default function EmpresaManager({
           userId: userCredential.user.uid,
           userCreated: true
         });
+
+        // Fazer logout do usuário recém-criado e manter o admin logado
+        await auth.signOut();
+        
+        // Se havia um usuário admin logado antes, restaurar a sessão
+        if (currentUser) {
+          console.log('Mantendo admin logado após criação da empresa');
+          // Não é necessário fazer nada adicional aqui pois o onAuthStateChanged
+          // do admin/page.tsx irá detectar a mudança e manter o estado correto
+        }
 
       } catch (authError: any) {
         console.error('Erro ao criar usuário:', authError);
@@ -250,11 +263,11 @@ export default function EmpresaManager({
       setShowCreateModal(false);
       resetForm();
 
-      // Recarregar empresas
+      // Recarregar empresas sem fazer reload da página
       await loadEmpresas();
 
       // Mostrar sucesso
-      alert('✅ Empresa criada com sucesso! A empresa já está disponível no sistema.');
+      alert('✅ Empresa criada com sucesso! A empresa já está disponível no sistema. O admin permanece logado.');
     } catch (error: any) {
       console.error('Erro ao criar empresa:', error);
 

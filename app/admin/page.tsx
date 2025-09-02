@@ -354,13 +354,9 @@ function SuperAdminCreateForm() {
       setCreatePassword('');
       setCreateName('');
 
-      // Fazer logout do usuário recém-criado para não interferir na sessão atual
-      await signOut(auth);
-
-      // Relogar o admin atual (você)
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Fazer logout apenas do usuário recém-criado, mantendo admin logado
+      // Não fazer reload da página para manter o admin no painel
+      console.log('Super Admin criado com sucesso, mantendo sessão do admin atual');
 
     } catch (error: any) {
       console.error('Erro ao criar super admin:', error);
@@ -719,28 +715,44 @@ export default function AdminMasterPage() {
           const empresaSnapshot = await getDocs(empresaQuery);
 
           if (!empresaSnapshot.empty) {
-            // É uma empresa, bloquear acesso ao admin
-            setTimeout(() => {
-              const empresaData = empresaSnapshot.docs[0].data();
-              const sistemasAtivos = empresaData.sistemasAtivos || [];
+            // Verificar se é um admin tentando criar empresa
+            const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+            let isAdminUser = false;
+            
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              isAdminUser = userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin;
+            } else if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
+              isAdminUser = true;
+            }
 
-              // Redirecionar para o primeiro sistema ativo da empresa
-              if (sistemasAtivos.includes('frota')) {
-                window.location.href = '/frota';
-              } else if (sistemasAtivos.includes('chamados')) {
-                window.location.href = '/chamados';
-              } else if (sistemasAtivos.includes('financeiro')) {
-                window.location.href = '/financeiro';
-              } else if (sistemasAtivos.includes('documentos')) {
-                window.location.href = '/documentos';
-              } else if (sistemasAtivos.includes('ponto')) {
-                window.location.href = '/empresa/dashboard';
-              } else {
-                window.location.href = '/sistemas';
-              }
-            }, 1000);
-            setLoading(false);
-            return;
+            // Se for admin, permitir acesso ao painel admin
+            if (isAdminUser) {
+              console.log('Admin detectado, mantendo acesso ao painel');
+            } else {
+              // É uma empresa, bloquear acesso ao admin
+              setTimeout(() => {
+                const empresaData = empresaSnapshot.docs[0].data();
+                const sistemasAtivos = empresaData.sistemasAtivos || [];
+
+                // Redirecionar para o primeiro sistema ativo da empresa
+                if (sistemasAtivos.includes('frota')) {
+                  window.location.href = '/frota';
+                } else if (sistemasAtivos.includes('chamados')) {
+                  window.location.href = '/chamados';
+                } else if (sistemasAtivos.includes('financeiro')) {
+                  window.location.href = '/financeiro';
+                } else if (sistemasAtivos.includes('documentos')) {
+                  window.location.href = '/documentos';
+                } else if (sistemasAtivos.includes('ponto')) {
+                  window.location.href = '/empresa/dashboard';
+                } else {
+                  window.location.href = '/sistemas';
+                }
+              }, 1000);
+              setLoading(false);
+              return;
+            }
           }
 
           // 2. Verificar se é um admin/superadmin (usuário do sistema)
@@ -2076,10 +2088,9 @@ export default function AdminMasterPage() {
       setCreateAdminEmail('');
       setCreateAdminPassword('');
 
-      await signOut(auth);
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Não fazer signOut do admin atual quando criando empresa
+      // O admin deve permanecer logado no painel
+      console.log('Admin criado com sucesso, mantendo sessão atual');
 
     } catch (error: any) {
       console.error('Erro ao criar admin:', error);
