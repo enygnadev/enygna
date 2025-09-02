@@ -3239,10 +3239,10 @@ Data: ${currentDate}`,
                         })
                       };
 
-                      return categorizeFields(selectedTemplate.fields);
+                      return categories;
                     };
 
-                    const categorizedFields = categorizeFields();
+                    const categorizedFields = categorizeFields(selectedTemplate?.fields || []);
 
                     const renderField = (field: any) => (
                       <div key={field.name} style={{ marginBottom: '1rem' }}>
