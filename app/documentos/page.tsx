@@ -3092,23 +3092,157 @@ Data: ${currentDate}`,
                 <div>
                   <h4>📝 Preencher Campos</h4>
                   
-                  {/* Renderizar campos organizados por seções */}
+                  {/* Renderizar campos organizados por seções individuais */}
                   {(() => {
-                    // Organizar campos por categorias
-                    const outorganteFields = selectedTemplate.fields.filter(f => 
-                      f.name.toLowerCase().includes('outorgante')
-                    );
-                    const procuradorFields = selectedTemplate.fields.filter(f => 
-                      f.name.toLowerCase().includes('procurador')
-                    );
-                    const contratoFields = selectedTemplate.fields.filter(f => 
-                      f.name.toLowerCase().includes('contrat')
-                    );
-                    const generalFields = selectedTemplate.fields.filter(f => 
-                      !f.name.toLowerCase().includes('outorgante') && 
-                      !f.name.toLowerCase().includes('procurador') &&
-                      !f.name.toLowerCase().includes('contrat')
-                    );
+                    // Organizar campos por categorias específicas e inteligentes
+                    const categorizeFields = (fields: any[]) => {
+                      const categories = {
+                        // Pessoas Físicas
+                        outorgante: fields.filter(f => f.name.toLowerCase().includes('outorgante')),
+                        procurador: fields.filter(f => f.name.toLowerCase().includes('procurador')),
+                        
+                        // Pessoas/Empresas - Contrato
+                        contratante: fields.filter(f => f.name.toLowerCase().includes('contratante')),
+                        contratado: fields.filter(f => f.name.toLowerCase().includes('contratado')),
+                        
+                        // Pessoas - Vendas/Compras
+                        vendedor: fields.filter(f => f.name.toLowerCase().includes('vendedor')),
+                        comprador: fields.filter(f => f.name.toLowerCase().includes('comprador')),
+                        
+                        // Pessoas - Locação
+                        locador: fields.filter(f => f.name.toLowerCase().includes('locador')),
+                        locatario: fields.filter(f => f.name.toLowerCase().includes('locatario') || f.name.toLowerCase().includes('locatário')),
+                        
+                        // Pessoas - Trabalho
+                        empregador: fields.filter(f => f.name.toLowerCase().includes('empregador')),
+                        empregado: fields.filter(f => f.name.toLowerCase().includes('empregado')),
+                        
+                        // Pessoas - Estágio
+                        empresa: fields.filter(f => f.name.toLowerCase().includes('empresa') && !f.name.toLowerCase().includes('empregador')),
+                        estagiario: fields.filter(f => f.name.toLowerCase().includes('estagiario') || f.name.toLowerCase().includes('estagiário')),
+                        
+                        // Pessoas - Geral
+                        declarante: fields.filter(f => f.name.toLowerCase().includes('declarante')),
+                        residente: fields.filter(f => f.name.toLowerCase().includes('residente')),
+                        paciente: fields.filter(f => f.name.toLowerCase().includes('paciente')),
+                        medico: fields.filter(f => f.name.toLowerCase().includes('medico') || f.name.toLowerCase().includes('médico')),
+                        funcionario: fields.filter(f => f.name.toLowerCase().includes('funcionario') || f.name.toLowerCase().includes('funcionário')),
+                        
+                        // Relacionamentos
+                        companheiro1: fields.filter(f => f.name.toLowerCase().includes('companheiro1')),
+                        companheiro2: fields.filter(f => f.name.toLowerCase().includes('companheiro2')),
+                        testemunha: fields.filter(f => f.name.toLowerCase().includes('testemunha')),
+                        
+                        // Seguros
+                        segurado: fields.filter(f => f.name.toLowerCase().includes('segurado')),
+                        seguradora: fields.filter(f => f.name.toLowerCase().includes('seguradora')),
+                        
+                        // Veículos
+                        veiculo: fields.filter(f => f.name.toLowerCase().includes('veiculo') || f.name.toLowerCase().includes('veículo')),
+                        
+                        // Imóveis/Obras
+                        imovel: fields.filter(f => f.name.toLowerCase().includes('imovel') || f.name.toLowerCase().includes('imóvel') || f.name.toLowerCase().includes('obra')),
+                        
+                        // Objetos/Serviços
+                        objeto: fields.filter(f => 
+                          f.name.toLowerCase().includes('objeto') ||
+                          f.name.toLowerCase().includes('servico') ||
+                          f.name.toLowerCase().includes('serviço') ||
+                          f.name.toLowerCase().includes('bem')
+                        ),
+                        
+                        // Valores/Financeiro
+                        financeiro: fields.filter(f => 
+                          f.name.toLowerCase().includes('valor') ||
+                          f.name.toLowerCase().includes('preco') ||
+                          f.name.toLowerCase().includes('preço') ||
+                          f.name.toLowerCase().includes('salario') ||
+                          f.name.toLowerCase().includes('salário') ||
+                          f.name.toLowerCase().includes('renda') ||
+                          f.name.toLowerCase().includes('pagamento') ||
+                          f.name.toLowerCase().includes('capital')
+                        ),
+                        
+                        // Datas/Prazos
+                        temporal: fields.filter(f => 
+                          f.name.toLowerCase().includes('data') ||
+                          f.name.toLowerCase().includes('prazo') ||
+                          f.name.toLowerCase().includes('inicio') ||
+                          f.name.toLowerCase().includes('início') ||
+                          f.name.toLowerCase().includes('fim') ||
+                          f.name.toLowerCase().includes('nascimento') ||
+                          f.name.toLowerCase().includes('validade')
+                        ),
+                        
+                        // Localização
+                        localizacao: fields.filter(f => 
+                          f.name.toLowerCase().includes('cidade') ||
+                          f.name.toLowerCase().includes('local') ||
+                          f.name.toLowerCase().includes('endereco_')
+                        ),
+                        
+                        // Outros
+                        outros: fields.filter(f => {
+                          const fieldName = f.name.toLowerCase();
+                          return !fieldName.includes('outorgante') &&
+                                 !fieldName.includes('procurador') &&
+                                 !fieldName.includes('contratante') &&
+                                 !fieldName.includes('contratado') &&
+                                 !fieldName.includes('vendedor') &&
+                                 !fieldName.includes('comprador') &&
+                                 !fieldName.includes('locador') &&
+                                 !fieldName.includes('locatario') &&
+                                 !fieldName.includes('locatário') &&
+                                 !fieldName.includes('empregador') &&
+                                 !fieldName.includes('empregado') &&
+                                 !fieldName.includes('empresa') &&
+                                 !fieldName.includes('estagiario') &&
+                                 !fieldName.includes('estagiário') &&
+                                 !fieldName.includes('declarante') &&
+                                 !fieldName.includes('residente') &&
+                                 !fieldName.includes('paciente') &&
+                                 !fieldName.includes('medico') &&
+                                 !fieldName.includes('médico') &&
+                                 !fieldName.includes('funcionario') &&
+                                 !fieldName.includes('funcionário') &&
+                                 !fieldName.includes('companheiro') &&
+                                 !fieldName.includes('testemunha') &&
+                                 !fieldName.includes('segurado') &&
+                                 !fieldName.includes('seguradora') &&
+                                 !fieldName.includes('veiculo') &&
+                                 !fieldName.includes('veículo') &&
+                                 !fieldName.includes('imovel') &&
+                                 !fieldName.includes('imóvel') &&
+                                 !fieldName.includes('obra') &&
+                                 !fieldName.includes('objeto') &&
+                                 !fieldName.includes('servico') &&
+                                 !fieldName.includes('serviço') &&
+                                 !fieldName.includes('bem') &&
+                                 !fieldName.includes('valor') &&
+                                 !fieldName.includes('preco') &&
+                                 !fieldName.includes('preço') &&
+                                 !fieldName.includes('salario') &&
+                                 !fieldName.includes('salário') &&
+                                 !fieldName.includes('renda') &&
+                                 !fieldName.includes('pagamento') &&
+                                 !fieldName.includes('capital') &&
+                                 !fieldName.includes('data') &&
+                                 !fieldName.includes('prazo') &&
+                                 !fieldName.includes('inicio') &&
+                                 !fieldName.includes('início') &&
+                                 !fieldName.includes('fim') &&
+                                 !fieldName.includes('nascimento') &&
+                                 !fieldName.includes('validade') &&
+                                 !fieldName.includes('cidade') &&
+                                 !fieldName.includes('local') &&
+                                 !fieldName.includes('endereco_');
+                        })
+                      };
+
+                      return categorizeFields(selectedTemplate.fields);
+                    };
+
+                    const categorizedFields = categorizeFields();
 
                     const renderField = (field: any) => (
                       <div key={field.name} style={{ marginBottom: '1rem' }}>
@@ -3261,10 +3395,7 @@ Data: ${currentDate}`,
                                   field.name.toLowerCase().includes('cpf') ||
                                   field.name.toLowerCase().includes('cnpj') ||
                                   field.name.toLowerCase().includes('telefone') ||
-                                  field.name.toLowerCase().includes('fone') ||
-                                  field.name.toLowerCase().includes('outorgante') ||
-                                  field.name.toLowerCase().includes('procurador') ||
-                                  field.name.toLowerCase().includes('contrat')
+                                  field.name.toLowerCase().includes('fone')
                                 ) ? '2.5rem' : undefined
                               }}
                             />
@@ -3272,10 +3403,7 @@ Data: ${currentDate}`,
                             {/* Ícone indicativo de auto-preenchimento */}
                             {(field.name.toLowerCase().includes('cep') ||
                               field.name.toLowerCase().includes('cpf') ||
-                              field.name.toLowerCase().includes('cnpj') ||
-                              field.name.toLowerCase().includes('outorgante') ||
-                              field.name.toLowerCase().includes('procurador') ||
-                              field.name.toLowerCase().includes('contrat')) && (
+                              field.name.toLowerCase().includes('cnpj')) && (
                               <div style={{
                                 position: 'absolute',
                                 right: '0.5rem',
@@ -3289,30 +3417,6 @@ Data: ${currentDate}`,
                                 🔍
                               </div>
                             )}
-
-                            {/* Número da casa para CEP */}
-                            {field.name.toLowerCase().includes('endereco') && !field.name.toLowerCase().includes('cep') && formData[field.name] && formData[field.name].includes('[NÚMERO]') && (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <label style={{ fontSize: '0.85rem', color: 'var(--color-textSecondary)', marginBottom: '0.25rem', display: 'block' }}>
-                                  🏠 Número da casa/estabelecimento
-                                </label>
-                                <input
-                                  type="text"
-                                  className="input"
-                                  placeholder="Ex: 123, 45A, S/N"
-                                  value={formData[field.name + '_numero'] || ''}
-                                  onChange={(e) => {
-                                    const numero = e.target.value;
-                                    setFormData(prev => ({ 
-                                      ...prev, 
-                                      [field.name + '_numero']: numero,
-                                      [field.name]: prev[field.name].replace('[NÚMERO]', numero || '[NÚMERO]')
-                                    }));
-                                  }}
-                                  style={{ fontSize: '0.9rem' }}
-                                />
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -3321,8 +3425,7 @@ Data: ${currentDate}`,
                           field.name.toLowerCase().includes('cpf') ||
                           field.name.toLowerCase().includes('cnpj') ||
                           field.name.toLowerCase().includes('telefone') ||
-                          field.name.toLowerCase().includes('fone') ||
-                          field.name.toLowerCase().includes('endereco')) && (
+                          field.name.toLowerCase().includes('fone')) && (
                           <div style={{
                             fontSize: '0.75rem',
                             color: 'var(--color-textSecondary)',
@@ -3341,21 +3444,25 @@ Data: ${currentDate}`,
                               '🔍 CNPJ com preenchimento automático (Ex: 12.345.678/0001-90)'}
                             {(field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && 
                               '📞 Telefone com formatação automática (Ex: (11) 99999-9999)'}
-                            {(field.name.toLowerCase().includes('endereco') && !field.name.toLowerCase().includes('cep')) && 
-                              '🏠 Endereço completo (Use CEP em outros campos para preenchimento automático)'}
                           </div>
                         )}
                       </div>
                     );
 
-                    const renderSection = (title: string, fields: any[], icon: string) => {
+                    const renderSection = (title: string, fields: any[], icon: string, sectionKey: string) => {
                       if (fields.length === 0) return null;
                       
                       // Organizar campos da seção em ordem lógica
+                      const fieldOrder = [
+                        'cpf', 'cnpj', 'nome', 'razao_social', 'nome_fantasia', 
+                        'nacionalidade', 'estado_civil', 'profissao', 'cargo', 'rg', 
+                        'cep', 'endereco', 'numero', 'bairro', 'cidade', 'uf', 
+                        'telefone', 'email', 'nascimento', 'genero'
+                      ];
+                      
                       const orderedFields = [...fields].sort((a, b) => {
-                        const order = ['cpf', 'cnpj', 'nome', 'nacionalidade', 'estado_civil', 'profissao', 'rg', 'cep', 'endereco', 'telefone'];
-                        const aOrder = order.findIndex(o => a.name.toLowerCase().includes(o));
-                        const bOrder = order.findIndex(o => b.name.toLowerCase().includes(o));
+                        const aOrder = fieldOrder.findIndex(o => a.name.toLowerCase().includes(o));
+                        const bOrder = fieldOrder.findIndex(o => b.name.toLowerCase().includes(o));
                         
                         if (aOrder === -1 && bOrder === -1) return 0;
                         if (aOrder === -1) return 1;
@@ -3363,119 +3470,73 @@ Data: ${currentDate}`,
                         return aOrder - bOrder;
                       });
 
-                      // Função para renderizar campo CEP específico para a seção
-                      const renderCepField = (sectionPrefix: string, sectionTitle: string) => (
-                        <div key={`${sectionPrefix}_cep`} style={{ marginBottom: '1rem' }}>
-                          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                            🗺️ CEP para {sectionTitle} <span style={{ color: 'red' }}>*</span>
-                          </label>
-                          <div style={{ position: 'relative' }}>
-                            <input
-                              type="text"
-                              className="input"
-                              value={formData[`${sectionPrefix}_cep`] || ''}
-                              onChange={(e) => {
-                                const maskedValue = formatCEP(e.target.value);
-                                const newFormData = { ...formData, [`${sectionPrefix}_cep`]: maskedValue };
-                                setFormData(newFormData);
-                              }}
-                              onBlur={(e) => {
-                                const value = e.target.value;
-                                if (value && validateCEP(value).valid) {
-                                  preencherCepEspecifico(value, sectionPrefix);
-                                } else if (value && !validateCEP(value).valid) {
-                                  alert(`❌ CEP inválido: ${validateCEP(value).message}`);
-                                  e.target.style.borderColor = '#ef4444';
-                                }
-                              }}
-                              placeholder="Digite o CEP (ex: 01234-567)"
-                              style={{ paddingRight: '2.5rem' }}
-                            />
-                            <div style={{
-                              position: 'absolute',
-                              right: '0.5rem',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              fontSize: '1rem',
-                              color: 'var(--color-primary)',
-                              cursor: 'help'
-                            }}
-                            title="CEP específico para preenchimento automático desta seção">
-                              🔍
-                            </div>
-                          </div>
-                          <div style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--color-textSecondary)',
-                            marginTop: '0.25rem',
-                            fontStyle: 'italic',
-                            background: 'var(--color-surface)',
-                            padding: '0.5rem',
-                            borderRadius: '0.25rem',
-                            border: '1px solid var(--color-border)'
-                          }}>
-                            🔍 CEP específico para preencher automaticamente o endereço d{sectionTitle.toLowerCase().includes('outorgante') ? 'o' : 'a'} {sectionTitle.toLowerCase()}
-                          </div>
-                        </div>
-                      );
-
-                      // Função para renderizar campo de número da casa específico
-                      const renderNumeroField = (sectionPrefix: string, sectionTitle: string) => {
-                        const enderecoField = orderedFields.find(f => f.name.includes('endereco'));
-                        if (!enderecoField) return null;
-
-                        return (
-                          <div key={`${sectionPrefix}_numero`} style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                              🏠 Número da Casa/Estabelecimento d{sectionTitle.toLowerCase().includes('outorgante') ? 'o' : 'a'} {sectionTitle}
-                            </label>
-                            <input
-                              type="text"
-                              className="input"
-                              value={formData[`${sectionPrefix}_numero`] || ''}
-                              onChange={(e) => {
-                                const numero = e.target.value;
-                                const newFormData = { 
-                                  ...formData, 
-                                  [`${sectionPrefix}_numero`]: numero
-                                };
-                                
-                                // Atualizar o endereço completo se já existe endereço base
-                                if (formData[`${sectionPrefix}_endereco_base`]) {
-                                  newFormData[enderecoField.name] = numero ? 
-                                    `${formData[`${sectionPrefix}_endereco_base`]}, ${numero}` :
-                                    formData[`${sectionPrefix}_endereco_base`];
-                                }
-                                
-                                setFormData(newFormData);
-                              }}
-                              placeholder="Ex: 123, 45A, S/N, Lote 10"
-                            />
-                            <div style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--color-textSecondary)',
-                              marginTop: '0.25rem',
-                              fontStyle: 'italic'
-                            }}>
-                              💡 Número, apartamento, lote ou "S/N" para sem número
-                            </div>
-                          </div>
-                        );
-                      };
-
                       return (
                         <div key={title} style={{
                           marginBottom: '2rem',
                           padding: '1.5rem',
                           background: 'var(--color-surface)',
                           borderRadius: 'var(--radius)',
-                          border: '1px solid var(--color-border)'
+                          border: '1px solid var(--color-border)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1.5rem',
+                            paddingBottom: '1rem',
+                            borderBottom: '2px solid var(--color-primary)'
+                          }}>
+                            <h5 style={{
+                              margin: '0',
+                              fontSize: '1.2rem',
+                              fontWeight: '700',
+                              color: 'var(--color-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              {icon} {title}
+                            </h5>
+                            <div style={{
+                              fontSize: '0.8rem',
+                              color: 'var(--color-textSecondary)',
+                              background: 'var(--color-background)',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '0.25rem',
+                              border: '1px solid var(--color-border)'
+                            }}>
+                              {orderedFields.length} campos
+                            </div>
+                          </div>
+                          
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                            gap: '1rem' 
+                          }}>
+                            {orderedFields.map(renderField)}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    const renderObjectSection = (title: string, fields: any[], icon: string) => {
+                      if (fields.length === 0) return null;
+                      
+                      return (
+                        <div key={title} style={{
+                          marginBottom: '2rem',
+                          padding: '1.5rem',
+                          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--color-border)',
+                          color: 'white'
                         }}>
                           <h5 style={{
                             margin: '0 0 1.5rem 0',
-                            fontSize: '1.1rem',
+                            fontSize: '1.2rem',
                             fontWeight: '700',
-                            color: 'var(--color-primary)',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.5rem'
@@ -3483,49 +3544,106 @@ Data: ${currentDate}`,
                             {icon} {title}
                           </h5>
                           
-                          {/* Para campos de pessoa (outorgante/procurador) */}
-                          {(title.includes('Outorgante') || title.includes('Procurador')) && (
-                            <div style={{ marginBottom: '1.5rem' }}>
-                              {/* CPF/CNPJ primeiro */}
-                              {orderedFields.filter(f => 
-                                f.name.toLowerCase().includes('cpf') || f.name.toLowerCase().includes('cnpj')
-                              ).map(renderField)}
-                              
-                              {/* Campos básicos (nome, nacionalidade, etc.) */}
-                              {orderedFields.filter(f => 
-                                !f.name.toLowerCase().includes('cpf') && 
-                                !f.name.toLowerCase().includes('cnpj') &&
-                                !f.name.toLowerCase().includes('endereco')
-                              ).map(renderField)}
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                            gap: '1rem' 
+                          }}>
+                            {fields.map(field => (
+                              <div key={field.name} style={{ marginBottom: '1rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'white' }}>
+                                  {field.label} {field.required && <span style={{ color: '#ffc107' }}>*</span>}
+                                </label>
 
-                              {/* CEP específico da seção */}
-                              {title.includes('Outorgante') && renderCepField('outorgante', 'Outorgante')}
-                              {title.includes('Procurador') && renderCepField('procurador', 'Procurador')}
-
-                              {/* Campo de número específico */}
-                              {title.includes('Outorgante') && renderNumeroField('outorgante', 'Outorgante')}
-                              {title.includes('Procurador') && renderNumeroField('procurador', 'Procurador')}
-                              
-                              {/* Campo de endereço por último */}
-                              {orderedFields.filter(f => 
-                                f.name.toLowerCase().includes('endereco')
-                              ).map(renderField)}
-                            </div>
-                          )}
-
-                          {/* Para outras seções, ordem normal */}
-                          {!(title.includes('Outorgante') || title.includes('Procurador')) && (
-                            <div>
-                              {orderedFields.map(renderField)}
-                            </div>
-                          )}
+                                {field.type === 'textarea' ? (
+                                  <textarea
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                    placeholder={field.placeholder}
+                                    rows={4}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  />
+                                ) : field.type === 'select' ? (
+                                  <select
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {field.options?.map(option => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type={field.type}
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => {
+                                      const maskedValue = applyMask(e.target.value, field.name);
+                                      setFormData(prev => ({ ...prev, [field.name]: maskedValue }));
+                                    }}
+                                    placeholder={field.placeholder}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       );
                     };
 
+                    // Mapeamento de seções com seus respectivos ícones e títulos
+                    const sectionConfig = {
+                      outorgante: { title: 'Dados do Outorgante', icon: '👤', color: '#3b82f6' },
+                      procurador: { title: 'Dados do Procurador', icon: '🤝', color: '#8b5cf6' },
+                      contratante: { title: 'Dados do Contratante', icon: '🏢', color: '#06b6d4' },
+                      contratado: { title: 'Dados do Contratado', icon: '👥', color: '#10b981' },
+                      vendedor: { title: 'Dados do Vendedor', icon: '💰', color: '#f59e0b' },
+                      comprador: { title: 'Dados do Comprador', icon: '🛒', color: '#ef4444' },
+                      locador: { title: 'Dados do Locador (Proprietário)', icon: '🏠', color: '#84cc16' },
+                      locatario: { title: 'Dados do Locatário (Inquilino)', icon: '🗝️', color: '#a855f7' },
+                      empregador: { title: 'Dados do Empregador (Empresa)', icon: '🏭', color: '#0ea5e9' },
+                      empregado: { title: 'Dados do Empregado', icon: '👨‍💼', color: '#14b8a6' },
+                      empresa: { title: 'Dados da Empresa/Instituição', icon: '🏢', color: '#6366f1' },
+                      estagiario: { title: 'Dados do Estagiário', icon: '🎓', color: '#f97316' },
+                      declarante: { title: 'Dados do Declarante', icon: '📝', color: '#8b5cf6' },
+                      residente: { title: 'Dados do Residente', icon: '🏘️', color: '#06b6d4' },
+                      paciente: { title: 'Dados do Paciente', icon: '🩺', color: '#10b981' },
+                      medico: { title: 'Dados do Médico', icon: '👨‍⚕️', color: '#0ea5e9' },
+                      funcionario: { title: 'Dados do Funcionário', icon: '👨‍💼', color: '#14b8a6' },
+                      companheiro1: { title: 'Dados do Companheiro 1', icon: '💑', color: '#ec4899' },
+                      companheiro2: { title: 'Dados do Companheiro 2', icon: '💏', color: '#be185d' },
+                      testemunha: { title: 'Dados das Testemunhas', icon: '👥', color: '#6b7280' },
+                      segurado: { title: 'Dados do Segurado', icon: '🛡️', color: '#059669' },
+                      seguradora: { title: 'Dados da Seguradora', icon: '🏦', color: '#0369a1' },
+                      veiculo: { title: 'Dados do Veículo', icon: '🚗', color: '#dc2626' },
+                      imovel: { title: 'Dados do Imóvel/Obra', icon: '🏗️', color: '#ca8a04' },
+                      objeto: { title: 'Objeto/Serviços', icon: '📋', color: '#7c3aed' },
+                      financeiro: { title: 'Informações Financeiras', icon: '💰', color: '#059669' },
+                      temporal: { title: 'Datas e Prazos', icon: '📅', color: '#dc2626' },
+                      localizacao: { title: 'Localização', icon: '📍', color: '#ea580c' },
+                      outros: { title: 'Outras Informações', icon: '📄', color: '#6b7280' }
+                    };
+
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                        {/* Campo CEP para preenchimento automático de endereço (se não existir campo CEP específico) */}
+                        {/* Campo CEP para preenchimento automático global (se não existir campo CEP específico) */}
                         {!selectedTemplate.fields.some(f => f.name.toLowerCase().includes('cep')) && 
                          selectedTemplate.fields.some(f => f.name.toLowerCase().includes('endereco')) && (
                           <div style={{
@@ -3534,17 +3652,18 @@ Data: ${currentDate}`,
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             borderRadius: 'var(--radius)',
                             border: '1px solid var(--color-border)',
-                            color: 'white'
+                            color: 'white',
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
                           }}>
                             <h5 style={{
                               margin: '0 0 1rem 0',
-                              fontSize: '1.1rem',
+                              fontSize: '1.2rem',
                               fontWeight: '700',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem'
                             }}>
-                              🗺️ CEP para Preenchimento Automático
+                              🗺️ CEP para Preenchimento Automático Global
                             </h5>
                             <div style={{ position: 'relative' }}>
                               <input
@@ -3563,9 +3682,10 @@ Data: ${currentDate}`,
                                   }
                                 }}
                                 style={{
-                                  background: 'rgba(255,255,255,0.9)',
+                                  background: 'rgba(255,255,255,0.95)',
                                   color: 'black',
-                                  border: '1px solid rgba(255,255,255,0.3)'
+                                  border: '1px solid rgba(255,255,255,0.3)',
+                                  paddingRight: '2.5rem'
                                 }}
                               />
                               <div style={{
@@ -3583,21 +3703,28 @@ Data: ${currentDate}`,
                               fontSize: '0.85rem',
                               marginTop: '0.5rem',
                               opacity: 0.9,
-                              fontStyle: 'italic'
+                              fontStyle: 'italic',
+                              background: 'rgba(255,255,255,0.1)',
+                              padding: '0.5rem',
+                              borderRadius: '0.25rem'
                             }}>
                               💡 Este CEP será usado para preencher automaticamente os campos de endereço de todas as pessoas do documento
                             </div>
                           </div>
                         )}
 
-                        {/* Seções organizadas */}
-                        {renderSection('👤 Dados do Outorgante', outorganteFields, '👤')}
-                        {renderSection('🤝 Dados do Procurador', procuradorFields, '🤝')}
-                        {renderSection('🏢 Dados do Contratante', contratoFields.filter(f => f.name.includes('contratante')), '🏢')}
-                        {renderSection('👥 Dados do Contratado', contratoFields.filter(f => f.name.includes('contratado')), '👥')}
-                        
-                        {/* Campos gerais */}
-                        {generalFields.length > 0 && renderSection('📋 Informações Gerais', generalFields, '📋')}
+                        {/* Renderizar seções organizadas */}
+                        {Object.entries(categorizedFields).map(([sectionKey, sectionFields]) => {
+                          const config = sectionConfig[sectionKey as keyof typeof sectionConfig];
+                          if (!config || sectionFields.length === 0) return null;
+
+                          // Seções especiais com estilo diferenciado
+                          if (sectionKey === 'objeto' || sectionKey === 'financeiro' || sectionKey === 'temporal') {
+                            return renderObjectSection(config.title, sectionFields, config.icon);
+                          }
+
+                          return renderSection(config.title, sectionFields, config.icon, sectionKey);
+                        })}
                       </div>
                     );
                   })()}
