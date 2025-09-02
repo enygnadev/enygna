@@ -58,13 +58,19 @@ export async function GET(request: NextRequest) {
         nome: data.data.nome,
         genero: data.data.genero,
         nascimento: data.data.data_nascimento,
-        cpf: data.data.cpf
+        cpf: data.data.cpf,
+        validFormat: true,
+        dadosCompletos: true
       });
     } else {
       return Response.json({
         success: true,
         validFormat: true,
         nome: null,
+        genero: null,
+        nascimento: null,
+        cpf: cpf,
+        dadosCompletos: false,
         message: 'CPF válido, mas sem dados disponíveis'
       });
     }

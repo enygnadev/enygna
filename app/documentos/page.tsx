@@ -1963,9 +1963,27 @@ Data: ${currentDate}`,
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div>
                   <h4>📝 Preencher Campos</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {selectedTemplate.fields.map(field => (
-                      <div key={field.name}>
+                  
+                  {/* Renderizar campos organizados por seções */}
+                  {(() => {
+                    // Organizar campos por categorias
+                    const outorganteFields = selectedTemplate.fields.filter(f => 
+                      f.name.toLowerCase().includes('outorgante')
+                    );
+                    const procuradorFields = selectedTemplate.fields.filter(f => 
+                      f.name.toLowerCase().includes('procurador')
+                    );
+                    const contratoFields = selectedTemplate.fields.filter(f => 
+                      f.name.toLowerCase().includes('contrat')
+                    );
+                    const generalFields = selectedTemplate.fields.filter(f => 
+                      !f.name.toLowerCase().includes('outorgante') && 
+                      !f.name.toLowerCase().includes('procurador') &&
+                      !f.name.toLowerCase().includes('contrat')
+                    );
+
+                    const renderField = (field: any) => (
+                      <div key={field.name} style={{ marginBottom: '1rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                           {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
                         </label>
@@ -2200,8 +2218,146 @@ Data: ${currentDate}`,
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    );
+
+                    const renderSection = (title: string, fields: any[], icon: string) => {
+                      if (fields.length === 0) return null;
+                      
+                      // Organizar campos da seção em ordem lógica
+                      const orderedFields = [...fields].sort((a, b) => {
+                        const order = ['cpf', 'cnpj', 'nome', 'nacionalidade', 'estado_civil', 'profissao', 'rg', 'cep', 'endereco', 'telefone'];
+                        const aOrder = order.findIndex(o => a.name.toLowerCase().includes(o));
+                        const bOrder = order.findIndex(o => b.name.toLowerCase().includes(o));
+                        
+                        if (aOrder === -1 && bOrder === -1) return 0;
+                        if (aOrder === -1) return 1;
+                        if (bOrder === -1) return -1;
+                        return aOrder - bOrder;
+                      });
+
+                      return (
+                        <div key={title} style={{
+                          marginBottom: '2rem',
+                          padding: '1.5rem',
+                          background: 'var(--color-surface)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--color-border)'
+                        }}>
+                          <h5 style={{
+                            margin: '0 0 1.5rem 0',
+                            fontSize: '1.1rem',
+                            fontWeight: '700',
+                            color: 'var(--color-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}>
+                            {icon} {title}
+                          </h5>
+                          
+                          {/* Para campos de pessoa (outorgante/procurador), primeiro mostrar CPF/CNPJ */}
+                          {(title.includes('Outorgante') || title.includes('Procurador')) && (
+                            <div style={{ marginBottom: '1.5rem' }}>
+                              {/* CPF/CNPJ primeiro */}
+                              {orderedFields.filter(f => 
+                                f.name.toLowerCase().includes('cpf') || f.name.toLowerCase().includes('cnpj')
+                              ).map(renderField)}
+                              
+                              {/* Depois os outros campos */}
+                              {orderedFields.filter(f => 
+                                !f.name.toLowerCase().includes('cpf') && !f.name.toLowerCase().includes('cnpj')
+                              ).map(renderField)}
+                            </div>
+                          )}
+
+                          {/* Para outras seções, ordem normal */}
+                          {!(title.includes('Outorgante') || title.includes('Procurador')) && (
+                            <div>
+                              {orderedFields.map(renderField)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                        {/* Campo CEP para preenchimento automático de endereço (se não existir campo CEP específico) */}
+                        {!selectedTemplate.fields.some(f => f.name.toLowerCase().includes('cep')) && 
+                         selectedTemplate.fields.some(f => f.name.toLowerCase().includes('endereco')) && (
+                          <div style={{
+                            marginBottom: '2rem',
+                            padding: '1.5rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            borderRadius: 'var(--radius)',
+                            border: '1px solid var(--color-border)',
+                            color: 'white'
+                          }}>
+                            <h5 style={{
+                              margin: '0 0 1rem 0',
+                              fontSize: '1.1rem',
+                              fontWeight: '700',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              🗺️ CEP para Preenchimento Automático
+                            </h5>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="Digite o CEP para preencher endereços automaticamente"
+                                value={formData['__cep_helper'] || ''}
+                                onChange={(e) => {
+                                  const maskedValue = formatCEP(e.target.value);
+                                  setFormData(prev => ({ ...prev, '__cep_helper': maskedValue }));
+                                }}
+                                onBlur={(e) => {
+                                  const value = e.target.value;
+                                  if (value && validateCEP(value).valid) {
+                                    preencherPorCEP(value, '__cep_helper');
+                                  }
+                                }}
+                                style={{
+                                  background: 'rgba(255,255,255,0.9)',
+                                  color: 'black',
+                                  border: '1px solid rgba(255,255,255,0.3)'
+                                }}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                right: '0.5rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '1rem',
+                                color: '#667eea'
+                              }}>
+                                🔍
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: '0.85rem',
+                              marginTop: '0.5rem',
+                              opacity: 0.9,
+                              fontStyle: 'italic'
+                            }}>
+                              💡 Este CEP será usado para preencher automaticamente os campos de endereço de todas as pessoas do documento
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Seções organizadas */}
+                        {renderSection('👤 Dados do Outorgante', outorganteFields, '👤')}
+                        {renderSection('🤝 Dados do Procurador', procuradorFields, '🤝')}
+                        {renderSection('🏢 Dados do Contratante', contratoFields.filter(f => f.name.includes('contratante')), '🏢')}
+                        {renderSection('👥 Dados do Contratado', contratoFields.filter(f => f.name.includes('contratado')), '👥')}
+                        
+                        {/* Campos gerais */}
+                        {generalFields.length > 0 && renderSection('📋 Informações Gerais', generalFields, '📋')}
+                      </div>
+                    );
+                  })()}
 
                   <button
                     className="button button-primary"
