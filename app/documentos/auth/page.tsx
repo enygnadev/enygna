@@ -29,7 +29,7 @@ export default function DocumentosAuthPage() {
         try {
           const userDocRef = doc(db, 'documentos_users', user.uid);
           const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
+          if (userDoc.exists() && userDoc.data()?.isActive) {
             router.push('/documentos');
           }
         } catch (error) {
@@ -55,14 +55,17 @@ export default function DocumentosAuthPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Verificar primeiro se é admin master
-      const adminCollection = collection(db, 'bootstrap_admins');
-      const adminQuery = query(adminCollection, where('email', '==', email));
-      const adminSnapshot = await getDocs(adminQuery);
-
-      if (!adminSnapshot.empty) {
-        // É admin master - redirecionar para admin
-        router.push('/admin');
+      // Verificar se já existe no documentos_users
+      const existingUserRef = doc(db, 'documentos_users', user.uid);
+      const existingUserDoc = await getDoc(existingUserRef);
+      
+      if (existingUserDoc.exists() && existingUserDoc.data()?.isActive) {
+        // Usuário já existe e está ativo - atualizar último login e redirecionar
+        await setDoc(existingUserRef, {
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+        
+        router.push('/documentos');
         return;
       }
 
@@ -87,43 +90,6 @@ export default function DocumentosAuthPage() {
           nome: empresaData.nome,
           role: 'empresa',
           empresaId: empresaDoc.id,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-
-        router.push('/documentos');
-        return;
-      }
-
-      // Verificar se é colaborador em alguma empresa
-      let colaboradorEmpresaId = null;
-      const todasEmpresas = await getDocs(collection(db, 'empresas'));
-      
-      for (const empresaDoc of todasEmpresas.docs) {
-        const empresaData = empresaDoc.data();
-        const sistemasAtivos = empresaData.sistemasAtivos || [];
-        
-        if (sistemasAtivos.includes('documentos')) {
-          const colaboradoresRef = collection(db, 'empresas', empresaDoc.id, 'colaboradores');
-          const colaboradorQuery = query(colaboradoresRef, where('email', '==', email));
-          const colaboradorSnapshot = await getDocs(colaboradorQuery);
-          
-          if (!colaboradorSnapshot.empty) {
-            colaboradorEmpresaId = empresaDoc.id;
-            break;
-          }
-        }
-      }
-
-      if (colaboradorEmpresaId) {
-        // É colaborador - criar/atualizar no documentos_users e redirecionar
-        await setDoc(doc(db, 'documentos_users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          nome: nome || email.split('@')[0],
-          role: 'colaborador',
-          empresaId: colaboradorEmpresaId,
           isActive: true,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
