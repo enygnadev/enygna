@@ -833,8 +833,8 @@ Data: ${currentDate}`,
         return {
           nome: data.nome,
           cpf: formatCpfCnpj(cpf),
-          nascimento: data.nascimento || '',
-          genero: data.genero || ''
+          nascimento: data.nascimento || null,
+          genero: data.genero || null
         };
       }
 
@@ -843,6 +843,8 @@ Data: ${currentDate}`,
         return {
           nome: null,
           cpf: formatCpfCnpj(cpf),
+          nascimento: null,
+          genero: null,
           message: data.message || 'CPF válido, mas sem dados disponíveis'
         };
       }
@@ -1173,28 +1175,107 @@ Data: ${currentDate}`,
         const novoFormData = { ...formData };
 
         if (dadosCPF.nome) {
+          // Detectar seção baseada no campo atual
+          const isOutorgante = fieldName.toLowerCase().includes('outorgante');
+          const isProcurador = fieldName.toLowerCase().includes('procurador');
+          const isContratante = fieldName.toLowerCase().includes('contratante');
+          const isContratado = fieldName.toLowerCase().includes('contratado');
+
           // Mapear campos do CPF quando há dados
           const mapeamento: Record<string, string> = {
             'nome_completo': dadosCPF.nome,
-            'outorgante_nome': dadosCPF.nome,
-            'procurador_nome': dadosCPF.nome,
-            'contratante_nome': dadosCPF.nome,
-            'contratado_nome': dadosCPF.nome,
-            'cpf': formatCpfCnpj(cpf),
-            'outorgante_cpf': formatCpfCnpj(cpf),
-            'procurador_cpf': formatCpfCnpj(cpf),
-            'contratante_cnpj_cpf': formatCpfCnpj(cpf),
-            'contratado_cnpj_cpf': formatCpfCnpj(cpf)
+            'nome': dadosCPF.nome,
+            'cpf': formatCpfCnpj(cpf)
           };
 
-          // Preencher campos relacionados
+          // Preencher campos específicos da seção
+          if (isOutorgante) {
+            mapeamento['outorgante_nome'] = dadosCPF.nome;
+            mapeamento['outorgante_cpf'] = formatCpfCnpj(cpf);
+            
+            // Adicionar campos específicos de gênero e nascimento se disponíveis
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['outorgante_genero'] = generoTexto;
+              mapeamento['genero'] = generoTexto;
+            }
+            
+            if (dadosCPF.nascimento) {
+              // Converter YYYY-MM-DD para DD/MM/YYYY
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['outorgante_nascimento'] = nascimentoFormatado;
+              mapeamento['data_nascimento'] = nascimentoFormatado;
+              mapeamento['nascimento'] = nascimentoFormatado;
+            }
+          } else if (isProcurador) {
+            mapeamento['procurador_nome'] = dadosCPF.nome;
+            mapeamento['procurador_cpf'] = formatCpfCnpj(cpf);
+            
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['procurador_genero'] = generoTexto;
+            }
+            
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['procurador_nascimento'] = nascimentoFormatado;
+            }
+          } else if (isContratante) {
+            mapeamento['contratante_nome'] = dadosCPF.nome;
+            mapeamento['contratante_cnpj_cpf'] = formatCpfCnpj(cpf);
+            
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['contratante_genero'] = generoTexto;
+            }
+            
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['contratante_nascimento'] = nascimentoFormatado;
+            }
+          } else if (isContratado) {
+            mapeamento['contratado_nome'] = dadosCPF.nome;
+            mapeamento['contratado_cnpj_cpf'] = formatCpfCnpj(cpf);
+            
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['contratado_genero'] = generoTexto;
+            }
+            
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['contratado_nascimento'] = nascimentoFormatado;
+            }
+          }
+
+          // Preencher campos relacionados que existem no template
           Object.keys(mapeamento).forEach(campo => {
             if (selectedTemplate?.fields.some(field => field.name === campo)) {
               novoFormData[campo] = mapeamento[campo];
             }
           });
 
-          loadingAlert.innerHTML = '✅ Dados encontrados!';
+          // Mensagem de sucesso com detalhes dos dados encontrados
+          let detalhes = ['Nome: ' + dadosCPF.nome];
+          if (dadosCPF.genero) {
+            const generoTexto = dadosCPF.genero === 'M' ? 'Masculino' : 
+                              dadosCPF.genero === 'F' ? 'Feminino' : 'Não informado';
+            detalhes.push('Gênero: ' + generoTexto);
+          }
+          if (dadosCPF.nascimento) {
+            const dataNascimento = new Date(dadosCPF.nascimento);
+            detalhes.push('Nascimento: ' + dataNascimento.toLocaleDateString('pt-BR'));
+          }
+
+          loadingAlert.innerHTML = '✅ Dados encontrados!<br><small>' + detalhes.join(' • ') + '</small>';
           loadingAlert.style.background = '#10b981';
         } else {
           // CPF válido mas sem dados - apenas formatar
@@ -1205,7 +1286,7 @@ Data: ${currentDate}`,
         }
 
         setFormData(novoFormData);
-        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+        setTimeout(() => document.body.removeChild(loadingAlert), 4000);
         
       } else {
         loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual necessário';
