@@ -792,6 +792,228 @@ Data: ${currentDate}`,
     await generateDocumentWithAI(currentInput);
   };
 
+  // Função para buscar CEP
+  const buscarCEP = async (cep: string) => {
+    if (!cep || cep.length < 8) return null;
+
+    try {
+      const cepLimpo = cep.replace(/\D/g, '');
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        throw new Error('CEP não encontrado');
+      }
+
+      return {
+        logradouro: data.logradouro,
+        bairro: data.bairro,
+        cidade: data.localidade,
+        uf: data.uf,
+        cep: data.cep
+      };
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      return null;
+    }
+  };
+
+  // Função para buscar dados do CPF
+  const buscarDadosCPF = async (cpf: string) => {
+    if (!cpf || cpf.length < 11) return null;
+
+    try {
+      const cpfLimpo = cpf.replace(/\D/g, '');
+      const response = await fetch(`https://api.cpfcnpj.com.br/${cpfLimpo}`, {
+        headers: {
+          'Authorization': process.env.NEXT_PUBLIC_APICPF_TOKEN || '4dc05e713c386e3b4c0b64471c01bd3976e'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('CPF não encontrado ou inválido');
+      }
+
+      const data = await response.json();
+
+      return {
+        nome: data.name || '',
+        cpf: formatCPF(cpf),
+        nascimento: data.birth_date || '',
+        status: data.status || ''
+      };
+    } catch (error) {
+      console.error('Erro ao buscar dados do CPF:', error);
+      return null;
+    }
+  };
+
+  // Função para buscar dados do CNPJ
+  const buscarDadosCNPJ = async (cnpj: string) => {
+    if (!cnpj || cnpj.length < 14) return null;
+
+    try {
+      const cnpjLimpo = cnpj.replace(/\D/g, '');
+      const response = await fetch(`https://api.cnpja.com/office/${cnpjLimpo}`, {
+        headers: {
+          'Authorization': process.env.NEXT_PUBLIC_CNPJA_API_TOKEN || 'e9434f01-8043-41b1-912d-626ed39fe63e-5cbe48a8-731e-48b9-819f-3f99abb33a5c'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado ou inválido');
+      }
+
+      const data = await response.json();
+
+      return {
+        razao_social: data.company?.name || '',
+        nome_fantasia: data.alias || '',
+        cnpj: formatCNPJ(cnpj),
+        situacao: data.status?.text || '',
+        endereco: `${data.address?.street || ''}, ${data.address?.number || ''}`,
+        bairro: data.address?.district || '',
+        cidade: data.address?.city || '',
+        uf: data.address?.state || '',
+        cep: data.address?.zip || '',
+        telefone: data.phone || '',
+        email: data.email || '',
+        atividade_principal: data.mainActivity?.text || ''
+      };
+    } catch (error) {
+      console.error('Erro ao buscar dados do CNPJ:', error);
+      return null;
+    }
+  };
+
+  // Funções de formatação
+  const formatCPF = (cpf: string) => {
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  };
+
+  const formatCNPJ = (cnpj: string) => {
+    const cnpjLimpo = cnpj.replace(/\D/g, '');
+    return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  };
+
+  const formatCEP = (cep: string) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    return cepLimpo.replace(/(\d{5})(\d{3})/, '$1-$2');
+  };
+
+  // Função para preencher automaticamente baseado no CEP
+  const preencherPorCEP = async (cep: string, fieldName: string) => {
+    const dadosCEP = await buscarCEP(cep);
+    if (dadosCEP) {
+      const novoFormData = { ...formData };
+      
+      // Mapear campos do CEP para os campos do formulário
+      const mapeamento: Record<string, string> = {
+        'endereco': dadosCEP.logradouro,
+        'bairro': dadosCEP.bairro,
+        'cidade': dadosCEP.cidade,
+        'uf': dadosCEP.uf,
+        'cep': formatCEP(cep),
+        // Para campos que contenham essas palavras
+        'outorgante_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+        'procurador_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+        'contratante_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+        'contratado_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`
+      };
+
+      // Preencher campos relacionados ao endereço
+      Object.keys(mapeamento).forEach(campo => {
+        if (selectedTemplate?.fields.some(field => field.name === campo)) {
+          novoFormData[campo] = mapeamento[campo];
+        }
+      });
+
+      // Para o campo atual, adicionar o número se necessário
+      if (fieldName.includes('endereco')) {
+        novoFormData[fieldName] = `${dadosCEP.logradouro}, [NÚMERO]`;
+      }
+
+      setFormData(novoFormData);
+      alert('✅ Endereço preenchido automaticamente!');
+    } else {
+      alert('❌ CEP não encontrado. Preencha manualmente.');
+    }
+  };
+
+  // Função para preencher automaticamente baseado no CPF
+  const preencherPorCPF = async (cpf: string, fieldName: string) => {
+    const dadosCPF = await buscarDadosCPF(cpf);
+    if (dadosCPF) {
+      const novoFormData = { ...formData };
+      
+      // Mapear campos do CPF
+      const mapeamento: Record<string, string> = {
+        'nome_completo': dadosCPF.nome,
+        'outorgante_nome': dadosCPF.nome,
+        'procurador_nome': dadosCPF.nome,
+        'contratante_nome': dadosCPF.nome,
+        'contratado_nome': dadosCPF.nome,
+        'cpf': dadosCPF.cpf,
+        'outorgante_cpf': dadosCPF.cpf,
+        'procurador_cpf': dadosCPF.cpf,
+        'contratante_cnpj_cpf': dadosCPF.cpf,
+        'contratado_cnpj_cpf': dadosCPF.cpf
+      };
+
+      // Preencher campos relacionados
+      Object.keys(mapeamento).forEach(campo => {
+        if (selectedTemplate?.fields.some(field => field.name === campo)) {
+          novoFormData[campo] = mapeamento[campo];
+        }
+      });
+
+      setFormData(novoFormData);
+      alert('✅ Dados do CPF preenchidos automaticamente!');
+    } else {
+      alert('❌ CPF não encontrado ou inválido. Preencha manualmente.');
+    }
+  };
+
+  // Função para preencher automaticamente baseado no CNPJ
+  const preencherPorCNPJ = async (cnpj: string, fieldName: string) => {
+    const dadosCNPJ = await buscarDadosCNPJ(cnpj);
+    if (dadosCNPJ) {
+      const novoFormData = { ...formData };
+      
+      // Mapear campos do CNPJ
+      const mapeamento: Record<string, string> = {
+        'nome_completo': dadosCNPJ.razao_social,
+        'razao_social': dadosCNPJ.razao_social,
+        'nome_fantasia': dadosCNPJ.nome_fantasia,
+        'contratante_nome': dadosCNPJ.razao_social,
+        'contratado_nome': dadosCNPJ.razao_social,
+        'empresa': dadosCNPJ.razao_social,
+        'cnpj': dadosCNPJ.cnpj,
+        'contratante_cnpj_cpf': dadosCNPJ.cnpj,
+        'contratado_cnpj_cpf': dadosCNPJ.cnpj,
+        'endereco': dadosCNPJ.endereco,
+        'contratante_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+        'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+        'cidade': dadosCNPJ.cidade,
+        'telefone': dadosCNPJ.telefone,
+        'email': dadosCNPJ.email
+      };
+
+      // Preencher campos relacionados
+      Object.keys(mapeamento).forEach(campo => {
+        if (selectedTemplate?.fields.some(field => field.name === campo)) {
+          novoFormData[campo] = mapeamento[campo];
+        }
+      });
+
+      setFormData(novoFormData);
+      alert('✅ Dados da empresa preenchidos automaticamente!');
+    } else {
+      alert('❌ CNPJ não encontrado ou inválido. Preencha manualmente.');
+    }
+  };
+
   const processOCR = async () => {
     if (ocrImages.length === 0) return;
 
@@ -1448,6 +1670,7 @@ Data: ${currentDate}`,
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                           {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
                         </label>
+                        
                         {field.type === 'textarea' ? (
                           <textarea
                             className="input"
@@ -1468,13 +1691,98 @@ Data: ${currentDate}`,
                             ))}
                           </select>
                         ) : (
-                          <input
-                            type={field.type}
-                            className="input"
-                            value={formData[field.name] || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                            placeholder={field.placeholder}
-                          />
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={field.type}
+                              className="input"
+                              value={formData[field.name] || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              onBlur={(e) => {
+                                const value = e.target.value;
+                                // Auto-fill por CEP
+                                if (field.name.toLowerCase().includes('cep') && value.length >= 8) {
+                                  preencherPorCEP(value, field.name);
+                                }
+                                // Auto-fill por CPF
+                                else if ((field.name.toLowerCase().includes('cpf') || field.name.toLowerCase().includes('outorgante') || field.name.toLowerCase().includes('procurador')) && value.replace(/\D/g, '').length === 11) {
+                                  preencherPorCPF(value, field.name);
+                                }
+                                // Auto-fill por CNPJ
+                                else if ((field.name.toLowerCase().includes('cnpj') || (field.name.toLowerCase().includes('contrat') && value.replace(/\D/g, '').length === 14)) && value.replace(/\D/g, '').length === 14) {
+                                  preencherPorCNPJ(value, field.name);
+                                }
+                              }}
+                              placeholder={field.placeholder}
+                              style={{
+                                paddingRight: (
+                                  field.name.toLowerCase().includes('cep') ||
+                                  field.name.toLowerCase().includes('cpf') ||
+                                  field.name.toLowerCase().includes('cnpj') ||
+                                  field.name.toLowerCase().includes('outorgante') ||
+                                  field.name.toLowerCase().includes('procurador') ||
+                                  field.name.toLowerCase().includes('contrat')
+                                ) ? '2.5rem' : undefined
+                              }}
+                            />
+                            
+                            {/* Ícone indicativo de auto-preenchimento */}
+                            {(field.name.toLowerCase().includes('cep') ||
+                              field.name.toLowerCase().includes('cpf') ||
+                              field.name.toLowerCase().includes('cnpj') ||
+                              field.name.toLowerCase().includes('outorgante') ||
+                              field.name.toLowerCase().includes('procurador') ||
+                              field.name.toLowerCase().includes('contrat')) && (
+                              <div style={{
+                                position: 'absolute',
+                                right: '0.5rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '1rem',
+                                color: 'var(--color-primary)',
+                                cursor: 'help'
+                              }}
+                              title="Campo com preenchimento automático">
+                                🔍
+                              </div>
+                            )}
+                            
+                            {/* Número da casa para CEP */}
+                            {field.name.toLowerCase().includes('cep') && formData[field.name] && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <input
+                                  type="text"
+                                  className="input"
+                                  placeholder="Número da casa/estabelecimento"
+                                  value={formData[field.name + '_numero'] || ''}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.name + '_numero']: e.target.value }))}
+                                  style={{ fontSize: '0.9rem' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Dicas de preenchimento automático */}
+                        {(field.name.toLowerCase().includes('cep') ||
+                          field.name.toLowerCase().includes('cpf') ||
+                          field.name.toLowerCase().includes('cnpj') ||
+                          field.name.toLowerCase().includes('outorgante') ||
+                          field.name.toLowerCase().includes('procurador') ||
+                          field.name.toLowerCase().includes('contrat')) && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-textSecondary)',
+                            marginTop: '0.25rem',
+                            fontStyle: 'italic'
+                          }}>
+                            {field.name.toLowerCase().includes('cep') && '🔍 Digite o CEP para preenchimento automático do endereço'}
+                            {(field.name.toLowerCase().includes('cpf') || 
+                              (field.name.toLowerCase().includes('outorgante') || field.name.toLowerCase().includes('procurador')) && !field.name.toLowerCase().includes('cnpj')) && 
+                              '🔍 Digite o CPF para preenchimento automático dos dados'}
+                            {(field.name.toLowerCase().includes('cnpj') || 
+                              (field.name.toLowerCase().includes('contrat') && !field.name.toLowerCase().includes('cpf'))) && 
+                              '🔍 Digite o CNPJ para preenchimento automático da empresa'}
+                          </div>
                         )}
                       </div>
                     ))}
