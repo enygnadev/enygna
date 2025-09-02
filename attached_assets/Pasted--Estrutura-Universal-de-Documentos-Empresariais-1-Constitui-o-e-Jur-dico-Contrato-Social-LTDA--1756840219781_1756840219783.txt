@@ -1,0 +1,302 @@
+📂 Estrutura Universal de Documentos Empresariais
+1. Constituição e Jurídico
+
+Contrato Social (LTDA, S.A., EIRELI, MEI)
+
+Estatuto Social (associações, ONGs, S/A)
+
+Alterações Contratuais / Consolidações
+
+Certificado de Registro na Junta Comercial
+
+CNPJ (Cartão do Cadastro Nacional de Pessoa Jurídica)
+
+Inscrição Estadual
+
+Inscrição Municipal
+
+Alvará de Funcionamento
+
+Licença Ambiental / Sanitária / Bombeiros
+
+Contrato de Prestação de Serviços Jurídicos
+
+Acordo de Sócios / Quotistas
+
+Termo de Confidencialidade (NDA – Non Disclosure Agreement)
+
+Contrato de Parceria / Joint Venture
+
+Contratos de Fornecedores e Clientes
+
+Acordos de Distribuição / Representação Comercial
+
+2. Contábil e Fiscal
+
+Procuração Eletrônica e-CAC (Receita Federal)
+
+Declarações de Imposto de Renda (IRPJ e IRPF de sócios)
+
+Livro Diário e Livro Razão
+
+Balancete Mensal / DRE
+
+Certidões Negativas (Federal, Estadual, Municipal, INSS, FGTS)
+
+Declaração de Débitos e Créditos Tributários Federais (DCTF)
+
+ECF (Escrituração Contábil Fiscal)
+
+ECD (Escrituração Contábil Digital)
+
+GFIP / SEFIP
+
+RAIS / DIRF
+
+SPED Fiscal e Contribuições
+
+Notas Fiscais Eletrônicas (NF-e, NFS-e, NFC-e)
+
+Guias de Recolhimento (DARF, GPS, GRU, GNRE)
+
+3. Financeiro
+
+Contrato de Abertura de Conta Bancária
+
+Contrato de Empréstimo / Financiamento
+
+Extratos Bancários
+
+Comprovantes de Pagamento / Boletos Quitados
+
+Recibos de Pagamento
+
+Fluxo de Caixa / Demonstrativos
+
+Contratos de Cartão de Crédito Empresarial
+
+Contratos de Investimento / Aporte de Capital
+
+Acordo de Renegociação de Dívidas
+
+Relatórios de Auditoria Financeira
+
+4. Recursos Humanos (RH / DP)
+
+Ficha de Registro de Empregado
+
+Contrato de Trabalho (CLT, PJ, Estágio, Temporário)
+
+Carteira de Trabalho (CTPS) digitalizada
+
+Termo de Rescisão de Contrato
+
+Acordo de Compensação / Banco de Horas
+
+Folha de Pagamento
+
+GPS (Guia da Previdência Social)
+
+FGTS / GRRF
+
+eSocial
+
+ASO (Atestado de Saúde Ocupacional – Admissional, Periódico, Demissional)
+
+PPRA / PCMSO
+
+Ficha de EPI (Equipamentos de Proteção Individual)
+
+Regulamento Interno da Empresa
+
+Termo de Responsabilidade (uso de equipamentos, confidencialidade, home office)
+
+Declaração de Dependentes IRRF
+
+Holerites
+
+Declaração de Vale Transporte e Vale Refeição
+
+5. Comercial / Operacional
+
+Contrato de Compra e Venda
+
+Contrato de Prestação de Serviços
+
+Propostas Comerciais
+
+Ordem de Serviço (OS)
+
+Ficha de Cadastro de Clientes / Fornecedores
+
+Acordo de Exclusividade Comercial
+
+Termos de Garantia e Assistência Técnica
+
+Catálogos / Tabelas de Preço
+
+Pedido de Compra / Venda
+
+Contrato de Distribuição / Franquia
+
+6. Despachante Veicular
+
+ATPV-e (Autorização para Transferência de Propriedade de Veículo)
+
+CRV (Certificado de Registro de Veículo)
+
+CRLV (Certificado de Registro e Licenciamento de Veículo)
+
+DUT (Documento Único de Transferência)
+
+Laudo de Vistoria Cautelar
+
+Requerimento de 2ª via CRV/CRLV
+
+Requerimento de Placas Mercosul
+
+Procuração para Despachante
+
+Declaração de Residência do Proprietário
+
+Comunicação de Venda (Detran)
+
+Requerimento de Baixa de Veículo
+
+Formulário de Troca de Proprietário
+
+7. Construção Civil
+
+ART (Anotação de Responsabilidade Técnica – CREA/CAU)
+
+RRT (Registro de Responsabilidade Técnica – Arquitetos)
+
+Contrato de Prestação de Serviços de Construção
+
+Memorial Descritivo da Obra
+
+Cronograma Físico-Financeiro
+
+Laudos Técnicos (estrutural, ambiental, elétrico, etc.)
+
+Relatórios Fotográficos de Obra
+
+PPRA / PCMSO / LTCAT (Segurança do Trabalho)
+
+Ficha de EPI dos Trabalhadores
+
+Certificados de Treinamento (NRs: NR10, NR35, etc.)
+
+Contratos com Fornecedores de Materiais
+
+Contratos de Terceirização de Serviços
+
+Planilha Orçamentária (BID/OBRAS)
+
+8. E-commerce / Digital
+
+Contrato de Prestação de Serviços de E-commerce
+
+Termos e Condições de Uso
+
+Política de Privacidade (LGPD)
+
+Política de Troca e Devolução
+
+Contrato com Gateway de Pagamento (PagSeguro, PayPal, Stripe, etc.)
+
+Contrato de Parceria com Transportadoras / Correios
+
+Nota Fiscal Eletrônica (NF-e)
+
+Contrato de Influenciadores / Marketing Digital
+
+Contratos de Licenciamento de Software / SaaS
+
+Certificados de Segurança (SSL, PCI-DSS)
+
+9. Seguros
+
+Apólice de Seguro Empresarial
+
+Apólice de Seguro Veicular
+
+Apólice de Responsabilidade Civil
+
+Seguro de Vida em Grupo
+
+Contrato de Corretagem de Seguros
+
+Relatórios de Sinistro
+
+10. Saúde / Clínicas / Educação
+
+Alvará Sanitário / Licença de Funcionamento
+
+Contrato de Prestação de Serviços Médicos / Educacionais
+
+Prontuários Médicos (sigilo)
+
+Ficha de Cadastro de Paciente / Aluno
+
+Contrato de Prestação de Serviços Educacionais
+
+Plano de Curso / Regulamento Interno
+
+Laudos Médicos / Certificados de Saúde
+
+Registros em Conselhos de Classe (CRM, CRO, etc.)
+
+📑 Modelos Universais Mais Usados no Word/PDF
+
+(Os “campeões de download e edição”)
+
+Procuração (simples e pública)
+
+Contrato de Prestação de Serviços
+
+Contrato de Compra e Venda de Veículo
+
+Contrato de Trabalho CLT
+
+Contrato de Estágio
+
+Contrato de Locação (residencial e comercial)
+
+Declaração de Residência
+
+Recibo de Pagamento
+
+Termo de Responsabilidade (uso de veículo, equipamento, confidencialidade)
+
+Contrato Social (LTDA/MEI)
+
+Política de Privacidade / Termos de Uso (LGPD)
+
+Contrato de Parceria Comercial
+
+Acordo de Confidencialidade (NDA)
+
+Declaração de União Estável / Dependência
+
+🎯 Organização Final em Categorias Firestore
+
+Juridico
+
+Fiscal_Contabil
+
+Financeiro
+
+RH
+
+Comercial
+
+Veicular
+
+Construcao
+
+Ecommerce_Digital
+
+Seguros
+
+Saude_Educacao
