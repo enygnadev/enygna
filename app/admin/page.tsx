@@ -706,7 +706,6 @@ export default function AdminMasterPage() {
   const [createEmpresaSuccess, setCreateEmpresaSuccess] = useState('');
   const [empresas, setEmpresas] = useState<Company[]>([]);
 
-
   // Hook para carregar dados iniciais e configurar o listener de autenticação
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -721,7 +720,6 @@ export default function AdminMasterPage() {
 
           if (!empresaSnapshot.empty) {
             // É uma empresa, bloquear acesso ao admin
-            setError('Acesso negado. Empresas não podem acessar o painel administrativo. Você será redirecionado para seu sistema.');
             setTimeout(() => {
               const empresaData = empresaSnapshot.docs[0].data();
               const sistemasAtivos = empresaData.sistemasAtivos || [];
@@ -740,7 +738,7 @@ export default function AdminMasterPage() {
               } else {
                 window.location.href = '/sistemas';
               }
-            }, 3000);
+            }, 1000);
             setLoading(false);
             return;
           }
@@ -781,7 +779,8 @@ export default function AdminMasterPage() {
             await loadAllData();
             initializeIntelligenceCenter(); // Centralizar inicialização
           } else {
-            setError('Acesso negado. Apenas administradores podem acessar esta área.');
+            // Redirecionar para página de login se não for admin
+            router.push('/admin/auth');
           }
 
           // Verifica status do tutorial
@@ -805,21 +804,23 @@ export default function AdminMasterPage() {
           console.error('Erro ao verificar permissões:', error);
           if (error?.code === 'permission-denied') {
             console.warn('Permissão negada ao verificar acesso inicial.');
-            setError('Acesso negado. Você não tem permissão para acessar esta área.');
-            setIsSuperAdmin(false); // Bloqueia o acesso
+            // Redirecionar para página de login em caso de erro de permissão
+            router.push('/admin/auth');
           } else {
-            setError('Erro ao verificar permissões.');
+            router.push('/admin/auth');
           }
         }
       } else {
         setUser(null);
         setIsSuperAdmin(false);
+        // Redirecionar para página de login se não estiver autenticado
+        router.push('/admin/auth');
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
 
   // Função para carregar todos os dados necessários
@@ -4816,7 +4817,7 @@ export default function AdminMasterPage() {
                 </div>
               </div>
 
-              {/* Configurações de Backup */}
+              {/* Configuraurações de Backup */}
               <div style={{
                 padding: '2rem',
                 background: 'rgba(255,255,255,0.05)',
