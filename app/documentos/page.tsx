@@ -1089,14 +1089,32 @@ Data: ${currentDate}`,
       content = content.replace(/{{data_atual}}/g, currentDate);
       htmlContent = htmlContent.replace(/{{data_atual}}/g, `<strong>${currentDate}</strong>`);
 
+      // Criar versão de preview com campos em destaque
+      let previewContent = selectedTemplate.template;
+      
+      // Substituir campos preenchidos
+      selectedTemplate.fields.forEach(field => {
+        const value = formData[field.name] || '';
+        const regex = new RegExp(`{{${field.name}}}`, 'g');
+        if (value) {
+          previewContent = previewContent.replace(regex, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${value}</span>`);
+        } else {
+          previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${field.label} ___</span>`);
+        }
+      });
+
+      // Adicionar data atual
+      const currentDate = new Date().toLocaleDateString('pt-BR');
+      previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+
       // Converter para HTML formatado
       htmlContent = `
-        <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+        <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
           </div>
-          <div style="white-space: pre-line; text-align: justify;">
-            ${htmlContent.replace(/\n/g, '<br><br>')}
+          <div style="text-align: justify; line-height: 1.8;">
+            ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
           </div>
           <div style="margin-top: 50px; display: flex; justify-content: space-between;">
             <div style="text-align: center; width: 200px;">
@@ -1112,6 +1130,17 @@ Data: ${currentDate}`,
           </div>
         </div>
       `;
+
+      // Para o conteúdo final (quando gerar), substituir pelos valores reais
+      let finalContent = selectedTemplate.template;
+      selectedTemplate.fields.forEach(field => {
+        const value = formData[field.name] || '';
+        const regex = new RegExp(`{{${field.name}}}`, 'g');
+        finalContent = finalContent.replace(regex, value);
+      });
+      finalContent = finalContent.replace(/{{data_atual}}/g, currentDate);
+
+      setGeneratedContent(finalContent);
 
       setGeneratedContent(content);
       setGeneratedHtml(htmlContent);
@@ -1655,11 +1684,46 @@ Data: ${currentDate}`,
                 </p>
                 <button
                   className="button button-ghost"
-                  onClick={() => setSelectedTemplate(null)}
+                  onClick={() => {
+                    setSelectedTemplate(null);
+                    setGeneratedHtml('');
+                    setGeneratedContent('');
+                    setFormData({});
+                  }}
                 >
                   🔄 Trocar Template
                 </button>
               </div>
+
+              {/* Inicializar preview do template */}
+              {(() => {
+                if (!generatedHtml && selectedTemplate) {
+                  let previewContent = selectedTemplate.template;
+                  
+                  selectedTemplate.fields.forEach(field => {
+                    const regex = new RegExp(`{{${field.name}}}`, 'g');
+                    previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${field.label} ___</span>`);
+                  });
+
+                  const currentDate = new Date().toLocaleDateString('pt-BR');
+                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+
+                  const initialHtmlContent = `
+                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                      <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                      </div>
+                      <div style="text-align: justify; line-height: 1.8;">
+                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                      </div>
+                    </div>
+                  `;
+                  
+                  // Atualizar o estado uma vez para inicializar o preview
+                  setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
+                }
+                return null;
+              })()}</div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div>
@@ -1696,7 +1760,41 @@ Data: ${currentDate}`,
                               type={field.type}
                               className="input"
                               value={formData[field.name] || ''}
-                              onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              onChange={(e) => {
+                                const newFormData = { ...formData, [field.name]: e.target.value };
+                                setFormData(newFormData);
+                                
+                                // Atualizar preview em tempo real
+                                if (selectedTemplate) {
+                                  let previewContent = selectedTemplate.template;
+                                  
+                                  selectedTemplate.fields.forEach(templateField => {
+                                    const value = newFormData[templateField.name] || '';
+                                    const regex = new RegExp(`{{${templateField.name}}}`, 'g');
+                                    if (value) {
+                                      previewContent = previewContent.replace(regex, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${value}</span>`);
+                                    } else {
+                                      previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${templateField.label} ___</span>`);
+                                    }
+                                  });
+
+                                  const currentDate = new Date().toLocaleDateString('pt-BR');
+                                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+
+                                  const updatedHtmlContent = `
+                                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                                      <div style="text-align: center; margin-bottom: 30px;">
+                                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                                      </div>
+                                      <div style="text-align: justify; line-height: 1.8;">
+                                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                                      </div>
+                                    </div>
+                                  `;
+                                  
+                                  setGeneratedHtml(updatedHtmlContent);
+                                }
+                              }}
                               onBlur={(e) => {
                                 const value = e.target.value;
                                 // Auto-fill por CEP
@@ -1798,30 +1896,40 @@ Data: ${currentDate}`,
                   </button>
                 </div>
 
-                {generatedContent && (
+                {(generatedContent || selectedTemplate) && (
                   <div>
-                    <h4>📄 Documento Gerado</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h4>📄 {generatedContent ? 'Documento Gerado' : 'Preview do Documento'}</h4>
+                      {!generatedContent && (
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
+                          <span style={{ color: '#92400e' }}>⚠️ Campos em amarelo</span> precisam ser preenchidos
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="document-html-preview">
                       <div dangerouslySetInnerHTML={{ __html: generatedHtml }} />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                      <button className="button button-primary" onClick={printDocument}>
-                        🖨️ Imprimir
-                      </button>
-                      <button 
-                        className="button button-outline" 
-                        onClick={() => downloadDocument(generatedContent, selectedTemplate.name)}
-                      >
-                        📄 Download TXT
-                      </button>
-                      <button 
-                        className="button button-outline" 
-                        onClick={() => downloadDocument(generatedContent, selectedTemplate.name, 'html')}
-                      >
-                        🌐 Download HTML
-                      </button>
-                    </div>
+                    {generatedContent && (
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                        <button className="button button-primary" onClick={printDocument}>
+                          🖨️ Imprimir
+                        </button>
+                        <button 
+                          className="button button-outline" 
+                          onClick={() => downloadDocument(generatedContent, selectedTemplate.name)}
+                        >
+                          📄 Download TXT
+                        </button>
+                        <button 
+                          className="button button-outline" 
+                          onClick={() => downloadDocument(generatedContent, selectedTemplate.name, 'html')}
+                        >
+                          🌐 Download HTML
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
