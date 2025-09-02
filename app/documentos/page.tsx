@@ -604,39 +604,82 @@ _____________________          _____________________
         fields: [
           { name: 'vendedor_cpf', label: 'CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
           { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_rg', label: 'RG do Vendedor', type: 'text', required: true, placeholder: '12.345.678-9' },
           { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'vendedor_telefone', label: 'Telefone do Vendedor', type: 'text', required: false, placeholder: '(11) 99999-9999' },
           { name: 'comprador_cpf', label: 'CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
           { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_rg', label: 'RG do Comprador', type: 'text', required: true, placeholder: '98.765.432-1' },
           { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'comprador_telefone', label: 'Telefone do Comprador', type: 'text', required: false, placeholder: '(11) 88888-8888' },
           { name: 'veiculo_marca', label: 'Marca do Veículo', type: 'text', required: true, placeholder: 'Honda' },
-          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
-          { name: 'veiculo_ano', label: 'Ano', type: 'text', required: true, placeholder: '2020' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic EXL' },
+          { name: 'veiculo_ano_fab', label: 'Ano de Fabricação', type: 'text', required: true, placeholder: '2020' },
+          { name: 'veiculo_ano_mod', label: 'Ano do Modelo', type: 'text', required: true, placeholder: '2021' },
+          { name: 'veiculo_cor', label: 'Cor', type: 'text', required: true, placeholder: 'Prata' },
           { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'veiculo_renavam', label: 'RENAVAM', type: 'text', required: true, placeholder: '12345678901' },
           { name: 'veiculo_chassi', label: 'Chassi', type: 'text', required: true, placeholder: '9BWHE21JX24060831' },
+          { name: 'veiculo_km', label: 'Quilometragem', type: 'text', required: false, placeholder: '45.000 km' },
           { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '45.000,00' },
-          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+          { name: 'valor_extenso', label: 'Valor por Extenso', type: 'text', required: true, placeholder: 'quarenta e cinco mil reais' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'select', required: true, options: ['À vista', 'PIX', 'Transferência bancária', 'Dinheiro', 'Financiamento', 'Parcelado'] },
+          { name: 'observacoes', label: 'Observações', type: 'textarea', required: false, placeholder: 'Veículo em perfeito estado, sem vícios ou defeitos...' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' },
+          { name: 'uf', label: 'UF', type: 'text', required: true, placeholder: 'SP' }
         ],
-        template: `CONTRATO DE COMPRA E VENDA DE VEÍCULO
+        template: `CONTRATO PARTICULAR DE COMPRA E VENDA DE VEÍCULO AUTOMOTOR
 
-VENDEDOR: {{vendedor_nome}}, CPF {{vendedor_cpf}}, residente à {{vendedor_endereco}}
+Pelo presente instrumento particular de Contrato de Compra e Venda de Veículo Automotor, de um lado {{vendedor_nome}}, brasileiro(a), portador(a) do CPF nº {{vendedor_cpf}} e RG nº {{vendedor_rg}}, residente e domiciliado(a) à {{vendedor_endereco}}, doravante denominado(a) simplesmente VENDEDOR(A), e de outro lado {{comprador_nome}}, brasileiro(a), portador(a) do CPF nº {{comprador_cpf}} e RG nº {{comprador_rg}}, residente e domiciliado(a) à {{comprador_endereco}}, doravante denominado(a) simplesmente COMPRADOR(A), têm entre si justo e acordado o seguinte:
 
-COMPRADOR: {{comprador_nome}}, CPF {{comprador_cpf}}, residente à {{comprador_endereco}}
+CLÁUSULA PRIMEIRA - DO OBJETO
+O VENDEDOR vende ao COMPRADOR, neste ato, o veículo automotor abaixo descrito:
 
-VEÍCULO:
-- Marca: {{veiculo_marca}}
-- Modelo: {{veiculo_modelo}}
-- Ano: {{veiculo_ano}}
-- Placa: {{veiculo_placa}}
-- Chassi: {{veiculo_chassi}}
+MARCA/MODELO: {{veiculo_marca}} {{veiculo_modelo}}
+ANO DE FABRICAÇÃO: {{veiculo_ano_fab}}
+ANO DO MODELO: {{veiculo_ano_mod}}
+COR: {{veiculo_cor}}
+PLACA: {{veiculo_placa}}
+CHASSI: {{veiculo_chassi}}
+RENAVAM: {{veiculo_renavam}}
+QUILOMETRAGEM ATUAL: {{veiculo_km}}
 
-VALOR: R$ {{valor_venda}}
+CLÁUSULA SEGUNDA - DO PREÇO E FORMA DE PAGAMENTO
+O valor total da venda é de R$ {{valor_venda}} ({{valor_extenso}}), que será pago da seguinte forma: {{forma_pagamento}}.
 
-CONDIÇÕES: Veículo vendido no estado em que se encontra
+CLÁUSULA TERCEIRA - DAS OBRIGAÇÕES DO VENDEDOR
+3.1 - O VENDEDOR declara ser legítimo proprietário do veículo objeto deste contrato;
+3.2 - O VENDEDOR se responsabiliza pela quitação de todos os débitos incidentes sobre o veículo até a data da venda;
+3.3 - O VENDEDOR entregará ao COMPRADOR toda a documentação necessária para transferência do veículo.
 
-{{cidade}}, {{data_atual}}
+CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO COMPRADOR
+4.1 - O COMPRADOR se responsabiliza pelo pagamento integral do valor acordado;
+4.2 - O COMPRADOR se responsabiliza pelos custos de transferência e documentação;
+4.3 - O COMPRADOR assume total responsabilidade sobre o veículo a partir da assinatura deste contrato.
 
-_____________________          _____________________
-     VENDEDOR                    COMPRADOR`,
+CLÁUSULA QUINTA - DAS DISPOSIÇÕES GERAIS
+5.1 - O veículo é vendido no estado em que se encontra;
+5.2 - O VENDEDOR não se responsabiliza por defeitos ocultos ou vícios;
+5.3 - {{observacoes}}
+
+CLÁUSULA SEXTA - DO FORO
+Fica eleito o foro da comarca de {{cidade}}-{{uf}} para dirimir quaisquer questões oriundas do presente contrato.
+
+E por estarem assim justos e contratados, firmam o presente instrumento em duas vias de igual teor, na presença das testemunhas abaixo.
+
+{{cidade}}-{{uf}}, {{data_atual}}
+
+_________________________________        _________________________________
+{{vendedor_nome}}                         {{comprador_nome}}
+VENDEDOR(A)                               COMPRADOR(A)
+CPF: {{vendedor_cpf}}                     CPF: {{comprador_cpf}}
+
+
+TESTEMUNHAS:
+
+_________________________________        _________________________________
+Nome:                                     Nome:
+CPF:                                      CPF:`,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
@@ -2374,28 +2417,163 @@ Data: ${currentDate}`,
       previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
 
       // Converter para HTML formatado
-      htmlContent = `
-        <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
-          </div>
-          <div style="text-align: justify; line-height: 1.8;">
-            ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
-          </div>
-          <div style="margin-top: 50px; display: flex; justify-content: space-between;">
-            <div style="text-align: center; width: 200px;">
-              <div style="border-top: 1px solid black; padding-top: 5px;">
-                <small>Assinatura</small>
+      if (selectedTemplate.id === 'contrato-compra-venda-veiculo') {
+        // Formatação específica para contrato de veículo
+        htmlContent = `
+          <div style="font-family: 'Times New Roman', serif; font-size: 12px; line-height: 1.6; max-width: 210mm; margin: 0 auto; padding: 20mm; background: white; color: black; min-height: 297mm; box-sizing: border-box;">
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+              <h1 style="font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px;">CONTRATO PARTICULAR DE COMPRA E VENDA</h1>
+              <h2 style="font-size: 14px; font-weight: bold; margin: 5px 0 0 0; text-transform: uppercase;">DE VEÍCULO AUTOMOTOR</h2>
+            </div>
+
+            <div style="text-align: justify; line-height: 1.8; margin-bottom: 25px;">
+              <p style="margin-bottom: 15px; text-indent: 30px;">Pelo presente instrumento particular de Contrato de Compra e Venda de Veículo Automotor, de um lado <strong>${formData.vendedor_nome || '_________________'}</strong>, brasileiro(a), portador(a) do CPF nº <strong>${formData.vendedor_cpf || '_______________'}</strong> e RG nº <strong>${formData.vendedor_rg || '_______________'}</strong>, residente e domiciliado(a) à <strong>${formData.vendedor_endereco || '_________________________________'}</strong>, doravante denominado(a) simplesmente <strong>VENDEDOR(A)</strong>, e de outro lado <strong>${formData.comprador_nome || '_________________'}</strong>, brasileiro(a), portador(a) do CPF nº <strong>${formData.comprador_cpf || '_______________'}</strong> e RG nº <strong>${formData.comprador_rg || '_______________'}</strong>, residente e domiciliado(a) à <strong>${formData.comprador_endereco || '_________________________________'}</strong>, doravante denominado(a) simplesmente <strong>COMPRADOR(A)</strong>, têm entre si justo e acordado o seguinte:</p>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
+              <p style="margin-bottom: 15px; text-align: justify; text-indent: 20px;">O VENDEDOR vende ao COMPRADOR, neste ato, o veículo automotor abaixo descrito:</p>
+              
+              <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 2px solid #333;">
+                <tr style="background-color: #f5f5f5;">
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold; width: 25%;">MARCA/MODELO:</td>
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">${formData.veiculo_marca || '____________'} ${formData.veiculo_modelo || '____________'}</td>
+                </tr>
+                <tr>
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">ANO FABRICAÇÃO:</td>
+                  <td style="border: 1px solid #333; padding: 8px;">${formData.veiculo_ano_fab || '______'}</td>
+                </tr>
+                <tr style="background-color: #f5f5f5;">
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">ANO MODELO:</td>
+                  <td style="border: 1px solid #333; padding: 8px;">${formData.veiculo_ano_mod || '______'}</td>
+                </tr>
+                <tr>
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">COR:</td>
+                  <td style="border: 1px solid #333; padding: 8px;">${formData.veiculo_cor || '____________'}</td>
+                </tr>
+                <tr style="background-color: #f5f5f5;">
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">PLACA:</td>
+                  <td style="border: 1px solid #333; padding: 8px; font-family: monospace; font-size: 14px;">${formData.veiculo_placa || '_______'}</td>
+                </tr>
+                <tr>
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">CHASSI:</td>
+                  <td style="border: 1px solid #333; padding: 8px; font-family: monospace; font-size: 11px;">${formData.veiculo_chassi || '___________________'}</td>
+                </tr>
+                <tr style="background-color: #f5f5f5;">
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">RENAVAM:</td>
+                  <td style="border: 1px solid #333; padding: 8px; font-family: monospace;">${formData.veiculo_renavam || '___________'}</td>
+                </tr>
+                <tr>
+                  <td style="border: 1px solid #333; padding: 8px; font-weight: bold;">QUILOMETRAGEM:</td>
+                  <td style="border: 1px solid #333; padding: 8px;">${formData.veiculo_km || '__________'}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA SEGUNDA - DO PREÇO E FORMA DE PAGAMENTO</h3>
+              <p style="margin-bottom: 15px; text-align: justify; text-indent: 20px;">O valor total da venda é de <strong>R$ ${formData.valor_venda || '__________'}</strong> (<strong>${formData.valor_extenso || '_____________________________'}</strong>), que será pago da seguinte forma: <strong>${formData.forma_pagamento || '__________________'}</strong>.</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA TERCEIRA - DAS OBRIGAÇÕES DO VENDEDOR</h3>
+              <p style="margin: 5px 0; text-align: justify;"><strong>3.1</strong> - O VENDEDOR declara ser legítimo proprietário do veículo objeto deste contrato;</p>
+              <p style="margin: 5px 0; text-align: justify;"><strong>3.2</strong> - O VENDEDOR se responsabiliza pela quitação de todos os débitos incidentes sobre o veículo até a data da venda;</p>
+              <p style="margin: 5px 0; text-align: justify;"><strong>3.3</strong> - O VENDEDOR entregará ao COMPRADOR toda a documentação necessária para transferência do veículo.</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO COMPRADOR</h3>
+              <p style="margin: 5px 0; text-align: justify;"><strong>4.1</strong> - O COMPRADOR se responsabiliza pelo pagamento integral do valor acordado;</p>
+              <p style="margin: 5px 0; text-align: justify;"><strong>4.2</strong> - O COMPRADOR se responsabiliza pelos custos de transferência e documentação;</p>
+              <p style="margin: 5px 0; text-align: justify;"><strong>4.3</strong> - O COMPRADOR assume total responsabilidade sobre o veículo a partir da assinatura deste contrato.</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA QUINTA - DAS DISPOSIÇÕES GERAIS</h3>
+              <p style="margin: 5px 0; text-align: justify;"><strong>5.1</strong> - O veículo é vendido no estado em que se encontra;</p>
+              <p style="margin: 5px 0; text-align: justify;"><strong>5.2</strong> - O VENDEDOR não se responsabiliza por defeitos ocultos ou vícios;</p>
+              ${formData.observacoes ? `<p style="margin: 5px 0; text-align: justify;"><strong>5.3</strong> - ${formData.observacoes}</p>` : ''}
+            </div>
+
+            <div style="margin-bottom: 30px;">
+              <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase;">CLÁUSULA SEXTA - DO FORO</h3>
+              <p style="margin: 5px 0; text-align: justify; text-indent: 20px;">Fica eleito o foro da comarca de <strong>${formData.cidade || '___________'}-${formData.uf || '__'}</strong> para dirimir quaisquer questões oriundas do presente contrato.</p>
+            </div>
+
+            <div style="margin-bottom: 40px;">
+              <p style="text-align: justify; text-indent: 20px;">E por estarem assim justos e contratados, firmam o presente instrumento em duas vias de igual teor, na presença das testemunhas abaixo.</p>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 40px;">
+              <p style="font-weight: bold; margin: 0;"><strong>${formData.cidade || '___________'}-${formData.uf || '__'}</strong>, <strong>${currentDate}</strong></p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 80px;">
+              <div style="text-align: center; width: 45%;">
+                <div style="border-top: 2px solid black; padding-top: 8px; margin-bottom: 5px;">
+                  <strong>${formData.vendedor_nome || '________________________________'}</strong>
+                </div>
+                <div style="font-weight: bold; font-size: 11px;">VENDEDOR(A)</div>
+                <div style="font-size: 10px; margin-top: 3px;">CPF: ${formData.vendedor_cpf || '________________'}</div>
+                ${formData.vendedor_telefone ? `<div style="font-size: 10px;">Tel: ${formData.vendedor_telefone}</div>` : ''}
+              </div>
+              <div style="text-align: center; width: 45%;">
+                <div style="border-top: 2px solid black; padding-top: 8px; margin-bottom: 5px;">
+                  <strong>${formData.comprador_nome || '________________________________'}</strong>
+                </div>
+                <div style="font-weight: bold; font-size: 11px;">COMPRADOR(A)</div>
+                <div style="font-size: 10px; margin-top: 3px;">CPF: ${formData.comprador_cpf || '________________'}</div>
+                ${formData.comprador_telefone ? `<div style="font-size: 10px;">Tel: ${formData.comprador_telefone}</div>` : ''}
               </div>
             </div>
-            <div style="text-align: center; width: 200px;">
-              <div style="border-top: 1px solid black; padding-top: 5px;">
-                <small>Data: ${currentDate}</small>
+
+            <div style="margin-top: 60px;">
+              <h4 style="font-size: 12px; font-weight: bold; margin: 0 0 20px 0; text-align: center; text-transform: uppercase;">TESTEMUNHAS:</h4>
+              <div style="display: flex; justify-content: space-between;">
+                <div style="text-align: center; width: 45%;">
+                  <div style="border-top: 1px solid black; padding-top: 5px; margin-bottom: 3px;">
+                    <strong>________________________________</strong>
+                  </div>
+                  <div style="font-size: 10px;">Nome:</div>
+                  <div style="font-size: 10px; margin-top: 10px;">CPF:</div>
+                </div>
+                <div style="text-align: center; width: 45%;">
+                  <div style="border-top: 1px solid black; padding-top: 5px; margin-bottom: 3px;">
+                    <strong>________________________________</strong>
+                  </div>
+                  <div style="font-size: 10px;">Nome:</div>
+                  <div style="font-size: 10px; margin-top: 10px;">CPF:</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        // Formatação padrão para outros templates
+        htmlContent = `
+          <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+            </div>
+            <div style="text-align: justify; line-height: 1.8;">
+              ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+            </div>
+            <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+              <div style="text-align: center; width: 200px;">
+                <div style="border-top: 1px solid black; padding-top: 5px;">
+                  <small>Assinatura</small>
+                </div>
+              </div>
+              <div style="text-align: center; width: 200px;">
+                <div style="border-top: 1px solid black; padding-top: 5px;">
+                  <small>Data: ${currentDate}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
 
       // Para o conteúdo final (quando gerar), substituir pelos valores reais
       let finalContent = selectedTemplate.template;
@@ -3071,16 +3249,34 @@ Data: ${currentDate}`,
                   const currentDate = new Date().toLocaleDateString('pt-BR');
                   previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
 
-                  const initialHtmlContent = `
-                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
-                      <div style="text-align: center; margin-bottom: 30px;">
-                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                  let initialHtmlContent;
+                  
+                  if (selectedTemplate.id === 'contrato-compra-venda-veiculo') {
+                    // Preview inicial específico para contrato de veículo
+                    initialHtmlContent = `
+                      <div style="font-family: 'Times New Roman', serif; font-size: 12px; line-height: 1.6; max-width: 210mm; margin: 0 auto; padding: 20mm; background: white; color: black; min-height: 297mm; box-sizing: border-box;">
+                        <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+                          <h1 style="font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px;">CONTRATO PARTICULAR DE COMPRA E VENDA</h1>
+                          <h2 style="font-size: 14px; font-weight: bold; margin: 5px 0 0 0; text-transform: uppercase;">DE VEÍCULO AUTOMOTOR</h2>
+                        </div>
+                        <div style="text-align: justify; line-height: 1.8;">
+                          ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                        </div>
                       </div>
-                      <div style="text-align: justify; line-height: 1.8;">
-                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                    `;
+                  } else {
+                    // Preview inicial padrão para outros templates
+                    initialHtmlContent = `
+                      <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                          <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                        </div>
+                        <div style="text-align: justify; line-height: 1.8;">
+                          ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                        </div>
                       </div>
-                    </div>
-                  `;
+                    `;
+                  }
 
                   // Atualizar o estado uma vez para inicializar o preview
                   setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
@@ -3167,16 +3363,34 @@ Data: ${currentDate}`,
                                   const previewCurrentDate = new Date().toLocaleDateString('pt-BR');
                                   previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
 
-                                  const updatedHtmlContent = `
-                                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
-                                      <div style="text-align: center; margin-bottom: 30px;">
-                                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                                  let updatedHtmlContent;
+                                  
+                                  if (selectedTemplate.id === 'contrato-compra-venda-veiculo') {
+                                    // Preview específico para contrato de veículo
+                                    updatedHtmlContent = `
+                                      <div style="font-family: 'Times New Roman', serif; font-size: 12px; line-height: 1.6; max-width: 210mm; margin: 0 auto; padding: 20mm; background: white; color: black; min-height: 297mm; box-sizing: border-box;">
+                                        <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+                                          <h1 style="font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px;">CONTRATO PARTICULAR DE COMPRA E VENDA</h1>
+                                          <h2 style="font-size: 14px; font-weight: bold; margin: 5px 0 0 0; text-transform: uppercase;">DE VEÍCULO AUTOMOTOR</h2>
+                                        </div>
+                                        <div style="text-align: justify; line-height: 1.8;">
+                                          ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                                        </div>
                                       </div>
-                                      <div style="text-align: justify; line-height: 1.8;">
-                                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                                    `;
+                                  } else {
+                                    // Preview padrão para outros templates
+                                    updatedHtmlContent = `
+                                      <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                                        <div style="text-align: center; margin-bottom: 30px;">
+                                          <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                                        </div>
+                                        <div style="text-align: justify; line-height: 1.8;">
+                                          ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                                        </div>
                                       </div>
-                                    </div>
-                                  `;
+                                    `;
+                                  }
 
                                   setGeneratedHtml(updatedHtmlContent);
                                 }
