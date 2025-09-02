@@ -820,17 +820,13 @@ Data: ${currentDate}`,
     }
   };
 
-  // Função para buscar dados do CPF
+  // Função para buscar dados do CPF usando a API existente
   const buscarDadosCPF = async (cpf: string) => {
     if (!cpf || cpf.length < 11) return null;
 
     try {
       const cpfLimpo = cpf.replace(/\D/g, '');
-      const response = await fetch(`https://api.cpfcnpj.com.br/${cpfLimpo}`, {
-        headers: {
-          'Authorization': process.env.NEXT_PUBLIC_APICPF_TOKEN || '4dc05e713c386e3b4c0b64471c01bd3976e'
-        }
-      });
+      const response = await fetch(`/api/cpf?cpf=${cpfLimpo}`);
 
       if (!response.ok) {
         throw new Error('CPF não encontrado ou inválido');
@@ -838,29 +834,29 @@ Data: ${currentDate}`,
 
       const data = await response.json();
 
-      return {
-        nome: data.name || '',
-        cpf: formatCPF(cpf),
-        nascimento: data.birth_date || '',
-        status: data.status || ''
-      };
+      if (data.success && data.nome) {
+        return {
+          nome: data.nome,
+          cpf: formatCpfCnpj(cpf),
+          nascimento: data.nascimento || '',
+          genero: data.genero || ''
+        };
+      }
+
+      return null;
     } catch (error) {
       console.error('Erro ao buscar dados do CPF:', error);
       return null;
     }
   };
 
-  // Função para buscar dados do CNPJ
+  // Função para buscar dados do CNPJ usando a API existente
   const buscarDadosCNPJ = async (cnpj: string) => {
     if (!cnpj || cnpj.length < 14) return null;
 
     try {
       const cnpjLimpo = cnpj.replace(/\D/g, '');
-      const response = await fetch(`https://api.cnpja.com/office/${cnpjLimpo}`, {
-        headers: {
-          'Authorization': process.env.NEXT_PUBLIC_CNPJA_API_TOKEN || 'e9434f01-8043-41b1-912d-626ed39fe63e-5cbe48a8-731e-48b9-819f-3f99abb33a5c'
-        }
-      });
+      const response = await fetch(`/api/cnpj?cnpj=${cnpjLimpo}`);
 
       if (!response.ok) {
         throw new Error('CNPJ não encontrado ou inválido');
@@ -868,44 +864,55 @@ Data: ${currentDate}`,
 
       const data = await response.json();
 
-      return {
-        razao_social: data.company?.name || '',
-        nome_fantasia: data.alias || '',
-        cnpj: formatCNPJ(cnpj),
-        situacao: data.status?.text || '',
-        endereco: `${data.address?.street || ''}, ${data.address?.number || ''}`,
-        bairro: data.address?.district || '',
-        cidade: data.address?.city || '',
-        uf: data.address?.state || '',
-        cep: data.address?.zip || '',
-        telefone: data.phone || '',
-        email: data.email || '',
-        atividade_principal: data.mainActivity?.text || ''
-      };
+      if (data.nome) {
+        return {
+          razao_social: data.nome,
+          nome_fantasia: data.fantasia || '',
+          cnpj: formatCpfCnpj(cnpj),
+          situacao: data.status || '',
+          endereco: data.endereco ? `${data.endereco.street || ''}, ${data.endereco.number || ''}` : '',
+          bairro: data.endereco?.district || '',
+          cidade: data.endereco?.city || '',
+          uf: data.endereco?.state || '',
+          cep: data.endereco?.zip || '',
+          telefone: data.endereco?.phone || '',
+          atividade_principal: data.atividadePrincipal || ''
+        };
+      }
+
+      return null;
     } catch (error) {
       console.error('Erro ao buscar dados do CNPJ:', error);
       return null;
     }
   };
 
-  // Funções de formatação
-  const formatCPF = (cpf: string) => {
-    const cpfLimpo = cpf.replace(/\D/g, '');
-    if (cpfLimpo.length === 0) return '';
-    if (cpfLimpo.length <= 3) return cpfLimpo;
-    if (cpfLimpo.length <= 6) return cpfLimpo.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-    if (cpfLimpo.length <= 9) return cpfLimpo.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-    return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4').substring(0, 14);
+  // Função de formatação unificada para CPF e CNPJ
+  const formatCpfCnpj = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+
+    if (cleaned.length <= 11) {
+      return cleaned
+        .replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, p1, p2, p3, p4) => {
+          return [p1, p2, p3].filter(Boolean).join('.') + (p4 ? `-${p4}` : '');
+        });
+    } else {
+      return cleaned
+        .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, p1, p2, p3, p4, p5) => {
+          return `${p1}.${p2}.${p3}/${p4}-${p5}`;
+        });
+    }
   };
 
-  const formatCNPJ = (cnpj: string) => {
-    const cnpjLimpo = cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length === 0) return '';
-    if (cnpjLimpo.length <= 2) return cnpjLimpo;
-    if (cnpjLimpo.length <= 5) return cnpjLimpo.replace(/(\d{2})(\d{1,3})/, '$1.$2');
-    if (cnpjLimpo.length <= 8) return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
-    if (cnpjLimpo.length <= 12) return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
-    return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5').substring(0, 18);
+  // Função de validação unificada para CPF e CNPJ
+  const isValidCpfCnpj = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      return /^\d{11}$/.test(cleaned);
+    } else if (cleaned.length === 14) {
+      return /^\d{14}$/.test(cleaned);
+    }
+    return false;
   };
 
   const formatCEP = (cep: string) => {
@@ -926,7 +933,7 @@ Data: ${currentDate}`,
     return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 7)}-${telLimpo.substring(7, 11)}`;
   };
 
-  // Funções de validação melhoradas
+  // Funções de validação usando a nova lógica
   const validateCPF = (cpf: string): { valid: boolean; message?: string } => {
     const cpfLimpo = cpf.replace(/\D/g, '');
     
@@ -934,33 +941,8 @@ Data: ${currentDate}`,
       return { valid: false, message: 'CPF deve conter exatamente 11 dígitos' };
     }
     
-    // Verificar se todos os dígitos são iguais
-    if (/^(\d)\1+$/.test(cpfLimpo)) {
-      return { valid: false, message: 'CPF não pode ter todos os dígitos iguais' };
-    }
-    
-    // Validar primeiro dígito verificador
-    let soma = 0;
-    for (let i = 0; i < 9; i++) {
-      soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
-    }
-    let resto = 11 - (soma % 11);
-    let digito1 = resto < 2 ? 0 : resto;
-    
-    if (parseInt(cpfLimpo.charAt(9)) !== digito1) {
-      return { valid: false, message: 'Primeiro dígito verificador do CPF está incorreto' };
-    }
-    
-    // Validar segundo dígito verificador
-    soma = 0;
-    for (let i = 0; i < 10; i++) {
-      soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
-    }
-    resto = 11 - (soma % 11);
-    let digito2 = resto < 2 ? 0 : resto;
-    
-    if (parseInt(cpfLimpo.charAt(10)) !== digito2) {
-      return { valid: false, message: 'Segundo dígito verificador do CPF está incorreto' };
+    if (!isValidCpfCnpj(cpfLimpo)) {
+      return { valid: false, message: 'CPF inválido' };
     }
     
     return { valid: true };
@@ -973,37 +955,8 @@ Data: ${currentDate}`,
       return { valid: false, message: 'CNPJ deve conter exatamente 14 dígitos' };
     }
     
-    // Verificar se todos os dígitos são iguais
-    if (/^(\d)\1+$/.test(cnpjLimpo)) {
-      return { valid: false, message: 'CNPJ não pode ter todos os dígitos iguais' };
-    }
-    
-    // Validar primeiro dígito verificador
-    let soma = 0;
-    let peso = 2;
-    for (let i = 11; i >= 0; i--) {
-      soma += parseInt(cnpjLimpo.charAt(i)) * peso;
-      peso = peso === 9 ? 2 : peso + 1;
-    }
-    let resto = soma % 11;
-    let digito1 = resto < 2 ? 0 : 11 - resto;
-    
-    if (parseInt(cnpjLimpo.charAt(12)) !== digito1) {
-      return { valid: false, message: 'Primeiro dígito verificador do CNPJ está incorreto' };
-    }
-    
-    // Validar segundo dígito verificador
-    soma = 0;
-    peso = 2;
-    for (let i = 12; i >= 0; i--) {
-      soma += parseInt(cnpjLimpo.charAt(i)) * peso;
-      peso = peso === 9 ? 2 : peso + 1;
-    }
-    resto = soma % 11;
-    let digito2 = resto < 2 ? 0 : 11 - resto;
-    
-    if (parseInt(cnpjLimpo.charAt(13)) !== digito2) {
-      return { valid: false, message: 'Segundo dígito verificador do CNPJ está incorreto' };
+    if (!isValidCpfCnpj(cnpjLimpo)) {
+      return { valid: false, message: 'CNPJ inválido' };
     }
     
     return { valid: true };
@@ -1038,10 +991,8 @@ Data: ${currentDate}`,
 
   // Função para aplicar máscara durante a digitação
   const applyMask = (value: string, fieldName: string): string => {
-    if (fieldName.toLowerCase().includes('cpf') && !fieldName.toLowerCase().includes('cnpj')) {
-      return formatCPF(value);
-    } else if (fieldName.toLowerCase().includes('cnpj')) {
-      return formatCNPJ(value);
+    if (fieldName.toLowerCase().includes('cpf') || fieldName.toLowerCase().includes('cnpj')) {
+      return formatCpfCnpj(value);
     } else if (fieldName.toLowerCase().includes('cep')) {
       return formatCEP(value);
     } else if (fieldName.toLowerCase().includes('telefone') || fieldName.toLowerCase().includes('fone')) {
@@ -1156,11 +1107,11 @@ Data: ${currentDate}`,
           'procurador_nome': dadosCPF.nome,
           'contratante_nome': dadosCPF.nome,
           'contratado_nome': dadosCPF.nome,
-          'cpf': formatCPF(cpf),
-          'outorgante_cpf': formatCPF(cpf),
-          'procurador_cpf': formatCPF(cpf),
-          'contratante_cnpj_cpf': formatCPF(cpf),
-          'contratado_cnpj_cpf': formatCPF(cpf)
+          'cpf': formatCpfCnpj(cpf),
+          'outorgante_cpf': formatCpfCnpj(cpf),
+          'procurador_cpf': formatCpfCnpj(cpf),
+          'contratante_cnpj_cpf': formatCpfCnpj(cpf),
+          'contratado_cnpj_cpf': formatCpfCnpj(cpf)
         };
 
         // Preencher campos relacionados
@@ -1183,7 +1134,7 @@ Data: ${currentDate}`,
         
         // Apenas formatar o CPF se não encontrar dados
         const novoFormData = { ...formData };
-        novoFormData[fieldName] = formatCPF(cpf);
+        novoFormData[fieldName] = formatCpfCnpj(cpf);
         setFormData(novoFormData);
       }
     } catch (error) {
@@ -1194,7 +1145,7 @@ Data: ${currentDate}`,
       
       // Formatar o CPF mesmo se der erro na consulta
       const novoFormData = { ...formData };
-      novoFormData[fieldName] = formatCPF(cpf);
+      novoFormData[fieldName] = formatCpfCnpj(cpf);
       setFormData(novoFormData);
     }
   };
@@ -1231,9 +1182,9 @@ Data: ${currentDate}`,
           'contratante_nome': dadosCNPJ.razao_social,
           'contratado_nome': dadosCNPJ.razao_social,
           'empresa': dadosCNPJ.razao_social,
-          'cnpj': formatCNPJ(cnpj),
-          'contratante_cnpj_cpf': formatCNPJ(cnpj),
-          'contratado_cnpj_cpf': formatCNPJ(cnpj),
+          'cnpj': formatCpfCnpj(cnpj),
+          'contratante_cnpj_cpf': formatCpfCnpj(cnpj),
+          'contratado_cnpj_cpf': formatCpfCnpj(cnpj),
           'endereco': dadosCNPJ.endereco,
           'contratante_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
           'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
@@ -1263,7 +1214,7 @@ Data: ${currentDate}`,
         
         // Apenas formatar o CNPJ se não encontrar dados
         const novoFormData = { ...formData };
-        novoFormData[fieldName] = formatCNPJ(cnpj);
+        novoFormData[fieldName] = formatCpfCnpj(cnpj);
         setFormData(novoFormData);
       }
     } catch (error) {
@@ -1274,7 +1225,7 @@ Data: ${currentDate}`,
       
       // Formatar o CNPJ mesmo se der erro na consulta
       const novoFormData = { ...formData };
-      novoFormData[fieldName] = formatCNPJ(cnpj);
+      novoFormData[fieldName] = formatCpfCnpj(cnpj);
       setFormData(novoFormData);
     } finally {
       // Garantir que o loading seja removido
