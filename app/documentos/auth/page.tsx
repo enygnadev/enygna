@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -48,18 +47,45 @@ export default function DocumentosAuthPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 1. Verificar se já existe no documentos_users e está ativo
+      // Verificar se já existe no documentos_users
       const existingUserRef = doc(db, 'documentos_users', user.uid);
       const existingUserDoc = await getDoc(existingUserRef);
-      
+
       if (existingUserDoc.exists() && existingUserDoc.data()?.isActive) {
         // Usuário já existe e está ativo - atualizar último login e redirecionar
         await setDoc(existingUserRef, {
           lastLogin: new Date().toISOString()
         }, { merge: true });
-        
+
         router.push('/documentos');
         return;
+      }
+
+      // Verificar se existe na coleção users principal
+      const mainUserRef = doc(db, 'users', user.uid);
+      const mainUserDoc = await getDoc(mainUserRef);
+
+      if (mainUserDoc.exists()) {
+        const userData = mainUserDoc.data();
+        // Verificar se tem acesso ao sistema de documentos
+        if (userData.permissions?.documentos || userData.sistema === 'documentos' || userData.sistema === 'universal') {
+          // Criar ou atualizar entrada no documentos_users
+          await setDoc(existingUserRef, {
+            uid: user.uid,
+            email: user.email,
+            nome: userData.displayName || user.displayName || email.split('@')[0],
+            role: userData.role || 'colaborador',
+            empresaId: userData.empresaId,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            sistema: 'documentos',
+            permissions: userData.permissions || { documentos: true }
+          }, { merge: true });
+
+          router.push('/documentos');
+          return;
+        }
       }
 
       // 2. Verificar se é empresa com sistema documentos ativo
@@ -74,7 +100,7 @@ export default function DocumentosAuthPage() {
       if (!empresasSnapshot.empty) {
         const empresaDoc = empresasSnapshot.docs[0];
         const empresaData = empresaDoc.data();
-        
+
         // Verificar se a empresa tem o sistema documentos ativo
         if (empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('documentos')) {
           // É empresa com documentos ativo - criar/atualizar perfil
@@ -101,14 +127,14 @@ export default function DocumentosAuthPage() {
 
       for (const empresaDoc of todasEmpresas.docs) {
         const empresaData = empresaDoc.data();
-        
+
         // Verificar se a empresa tem documentos ativo
         if (empresaData.ativo && empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('documentos')) {
           // Verificar se é colaborador nesta empresa
           const colaboradoresRef = collection(db, 'empresas', empresaDoc.id, 'colaboradores');
           const colaboradorQuery = query(colaboradoresRef, where('email', '==', email));
           const colaboradorSnapshot = await getDocs(colaboradorQuery);
-          
+
           if (!colaboradorSnapshot.empty) {
             colaboradorEmpresaId = empresaDoc.id;
             colaboradorData = colaboradorSnapshot.docs[0].data();
@@ -184,6 +210,20 @@ export default function DocumentosAuthPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Criar perfil na coleção 'users'
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: nome,
+        role: 'colaborador',
+        sistema: 'documentos',
+        permissions: {
+          documentos: true
+        },
+        createdAt: new Date().toISOString(),
+        empresaId: null // Empresa será definida posteriormente se necessário
+      });
+
       // Buscar empresas que tenham documentos ativo
       const empresasCollection = collection(db, 'empresas');
       const empresasQuery = query(
@@ -206,7 +246,7 @@ export default function DocumentosAuthPage() {
 
       // Por padrão, registrar como colaborador na primeira empresa encontrada
       const primeiraEmpresa = empresasComDocumentos[0];
-      
+
       // Criar perfil na coleção de documentos
       const userData = {
         uid: user.uid,

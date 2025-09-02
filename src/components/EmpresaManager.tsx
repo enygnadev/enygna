@@ -234,7 +234,7 @@ export default function EmpresaManager({
 
       } catch (authError: any) {
         console.error('Erro ao criar usuário:', authError);
-        
+
         // Se o usuário não foi criado, ainda assim mantemos a empresa
         // mas marcamos que o usuário precisa ser criado manualmente
         await updateDoc(doc(db, collectionName, empresaId), { 
@@ -249,10 +249,10 @@ export default function EmpresaManager({
       // Fechar modal e resetar estados
       setShowCreateModal(false);
       resetForm();
-      
+
       // Recarregar empresas
       await loadEmpresas();
-      
+
       // Mostrar sucesso
       alert('✅ Empresa criada com sucesso! A empresa já está disponível no sistema.');
     } catch (error: any) {
@@ -272,7 +272,7 @@ export default function EmpresaManager({
       }
 
       alert(errorMessage);
-      
+
       // Não fechar o modal em caso de erro para permitir correção
       // setShowCreateModal(false);
     } finally {
