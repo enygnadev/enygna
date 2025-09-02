@@ -134,6 +134,17 @@ export default function FrotaPage() {
 
   const userRole = userPermissions?.role || ''; // Obtém o papel do usuário para controle de permissões
 
+  // Função para logout
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/frota/auth');
+    } catch (error) {
+      console.error('Erro ao deslogar:', error);
+      showSnackbar('Erro ao deslogar', 'error');
+    }
+  };
+
   // Função para gerar análise IA
   const generateAIAnalysis = async () => {
     try {
@@ -912,6 +923,12 @@ export default function FrotaPage() {
               disabled={loading || !hasAccess}
             >
               🤖 Análise IA
+            </button>
+            <button
+              onClick={logout}
+              className="button button-outline interactive"
+            >
+              🚪 Sair
             </button>
           </div>
         </div>
