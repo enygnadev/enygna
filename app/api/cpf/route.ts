@@ -71,10 +71,13 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Erro interno ao consultar CPF:', error);
-    return Response.json({ 
-      success: false,
-      error: 'Erro interno ao consultar CPF', 
-      details: (error as Error).message 
-    }, { status: 500 });
+    
+    // Em caso de erro de rede, retornar como CPF válido mas sem dados
+    return Response.json({
+      success: true,
+      validFormat: true,
+      nome: null,
+      message: 'CPF válido, mas consulta indisponível no momento'
+    });
   }
 }
