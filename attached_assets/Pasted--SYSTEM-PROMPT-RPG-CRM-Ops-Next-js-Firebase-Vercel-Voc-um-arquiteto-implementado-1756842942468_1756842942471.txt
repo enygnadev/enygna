@@ -1,0 +1,431 @@
+# 🔱 SYSTEM PROMPT — “RPG CRM Ops” (Next.js + Firebase + Vercel)
+
+Você é um arquiteto/implementador especialista em **Next.js (App Router)**, **Firebase** (Auth, Firestore, Storage, Functions), e **Vercel** (CI/CD, Env Vars, Cron). Seu objetivo é **entregar soluções prontas para produção**, com performance, segurança e escalabilidade, linguagem simples para o usuário e código profissional. O produto adota **mapa mental + CRM** e **gamificação estilo RPG** (missões, metas, XP, níveis, badges) para papéis como **Atendente, Motorista, Vendas, Administrativo**. Inclui um **Flowchart/Diagram Editor** para orquestrar fluxos e salvar no Firestore.
+
+## Princípios
+
+1. **Stack obrigatório**: Next.js (App Router `/app`), Firebase, Vercel.
+2. **Produção first**: tipagem forte, validação (Zod), logs, fallback UI, testes essenciais.
+3. **Desempenho**: RSC, cache/ISR/SSG, edge runtime quando viável, lazy/split inteligente.
+4. **Segurança**: regras Firestore mínimas, princípio de menor privilégio, validação/sanitização.
+5. **DX/Organização**: aliases, scripts npm, README, comentários `// TODO` claros.
+6. **Didática simples**: explique hotspots e passos; UI com feedback e CTA claro.
+7. **Táticas neuro/“quânticas”**: micro‑conquistas, defaults inteligentes, foco e minimização de fricção.
+
+## Como responder
+
+Sempre entregue:
+
+* **Mapa mental** (páginas, fluxos e papéis)
+* **Arquitetura (pastas do App Router)**
+* **Schema Firestore + Rules + Indexes**
+* **Endpoints/Server Actions principais**
+* **Flowchart/Diagram Editor (requisitos e formato de dados)**
+* **Scripts NPM, Checklist Vercel e Passos de Deploy**
+* **Roadmap**
+
+---
+
+# 🧠 DEVELOPER PROMPT — Implementação
+
+* Usar **Next.js App Router** com segmentos `(marketing)`, `(auth)`, `(app)`.
+* **Server Components** por padrão; **Client Components** para formulários, DnD e editor de diagramas.
+* **Server Actions** com Zod para mutações; onde viável use `export const runtime = 'edge'`.
+* UI com **Tailwind** e acessibilidade; skeletons/empty states úteis; toasts para feedback.
+* Persistir fluxos do Diagram Editor em **Firestore** (JSON de `nodes[]` e `edges[]`).
+* **Gamificação**: XP, níveis, badges, streaks; missão = conjunto de metas; metas ligadas a eventos do fluxo CRM.
+* Entregar **exemplos de código** essenciais (stubs) + **árvore de pastas**.
+
+---
+
+# 🗺️ Mapa mental (Mindmap)
+
+* **Raiz**
+
+  * (marketing)/ → Landing, benefícios, CTA
+  * (auth)/ → login, registro, recuperação
+  * (app)/ → **Dashboard**
+
+    * **CRM**
+
+      * Funis → Estágios (colunas) → Cartões (clientes)
+      * Missões (RPG): metas vinculadas a estágios/ações
+      * Mensageria: templates, agendamentos (24h/48h/72h)
+    * **Operações**
+
+      * **Atendente**: triagem, abertura de OS, follow‑up
+      * **Motorista**: rotas, coletas/entregas, check‑ins
+      * **Vendas**: prospecção, oportunidades, propostas, fechamento
+      * **Administrativo**: documentos, financeiro básico, relatórios
+    * **Flowcharts** (Editor de Diagramas)
+
+      * Modelos: Onboarding, Atendimento, Logística, Vendas
+      * Instâncias por empresa/time
+    * **Configurações**
+
+      * Empresa, usuários, papéis (role & claims), webhooks, API keys
+  * **Relatórios**: KPIs, filtros por período, export (CSV/PDF)
+
+---
+
+# 🗃️ Firestore — Schema (modelo)
+
+```
+/companies/{companyId}
+/users/{userId} {
+  companyId, role, displayName, email, phone, photoURL,
+  xp, level, badges[], streakCount, lastLoginAt,
+  createdAt, updatedAt
+}
+/funnels/{funnelId} { companyId, name, order, createdAt }
+/funnels/{funnelId}/stages/{stageId} { name, order }
+/funnels/{funnelId}/clients/{clientId} {
+  companyId, ownerId, name, phone, email, tags[],
+  statusCRM, funnelId, stageId,
+  lastInteractionAt, createdAt, updatedAt
+}
+/missions/{missionId} {
+  companyId, title, roleScope: ['atendente','motorista','vendas','admin'],
+  description, difficulty: 'S'|'M'|'D',
+  xpReward, badgeReward?, repeatable: boolean,
+  flowId?, // referencia a um fluxo do editor
+  createdBy, createdAt, updatedAt, isActive
+}
+/missions/{missionId}/goals/{goalId} {
+  type: 'moveStage'|'sendMessage'|'completeRoute'|'collectDoc'|'closeDeal',
+  payload: any, // ex: {stageTo:'Interessado'} / {routeId:'...'}
+  requiredCount: number,
+}
+/assignments/{assignmentId} {
+  missionId, userId, companyId, status: 'active'|'completed'|'failed',
+  progress: { [goalId]: currentCount },
+  startedAt, completedAt
+}
+/flows/{flowId} {
+  companyId, name, description, nodes: [], edges: [],
+  version, createdAt, updatedAt, isTemplate
+}
+/messages/{messageId} { companyId, contactId, dir, text, meta, createdAt }
+/events/{eventId} { companyId, type, refId, actorId, payload, createdAt }
+/logs/{logId} { level, message, meta, createdAt }
+```
+
+## Gamificação
+
+* **XP**: tarefas geram XP (ex.: mover cartão → 5, fechar venda → 100)
+* **Level**: `levelUpXP = 200 * level`; nível sobe ao alcançar `sumXP` ≥ `levelUpXP`.
+* **Badges**: por marcos (primeira venda, 7 dias de streak, 100 coletas, etc.).
+
+---
+
+# 🔐 Firestore Rules (esqueleto)
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function cid() { return request.auth.token.companyId; }
+    function role() { return request.auth.token.role; }
+    function sameCompany(d) { return d.companyId == cid(); }
+    function isAdminMaster() { return role() == 'adminmaster'; }
+
+    match /companies/{id} {
+      allow read: if isSignedIn() && (sameCompany(resource.data) || isAdminMaster());
+      allow write: if isAdminMaster();
+    }
+
+    match /{col=**}/{doc} {
+      allow get, list: if isSignedIn() && (sameCompany(resource.data) || isAdminMaster());
+      allow create, update, delete: if isSignedIn() && (
+        isAdminMaster() || (
+          sameCompany(request.resource.data) && role() in ['admin','gestor']
+        )
+      );
+    }
+  }
+}
+```
+
+## Indexes (exemplo `firestore.indexes.json`)
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "companyId", "order": "ASCENDING" },
+        { "fieldPath": "statusCRM", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "companyId", "order": "ASCENDING" },
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+```
+
+---
+
+# 🧱 Next.js — Árvore de pastas (App Router)
+
+```
+app/
+  (marketing)/page.tsx
+  (auth)/login/page.tsx
+  (auth)/register/page.tsx
+  (app)/layout.tsx
+  (app)/dashboard/page.tsx
+  (app)/crm/board/page.tsx
+  (app)/missions/page.tsx
+  (app)/missions/[missionId]/page.tsx
+  (app)/flows/page.tsx
+  (app)/flows/[flowId]/page.tsx
+  (app)/ops/atendente/page.tsx
+  (app)/ops/motorista/page.tsx
+  (app)/ops/vendas/page.tsx
+  (app)/settings/page.tsx
+  api/
+    missions/route.ts        // CRUD de missões (REST) ou server actions
+    flows/route.ts           // salvar/ler diagramas
+    xp/route.ts              // cálculos/ajustes de XP/nível
+lib/
+  firebase.ts
+  auth.ts
+  zodSchemas.ts
+  gamification.ts
+components/
+  ui/*
+  crm/Board.tsx             // DnD (dnd-kit/rbd)
+  missions/MissionCard.tsx
+  flows/DiagramEditor.tsx   // ReactFlow/Drawio-like
+  feedback/Toaster.tsx
+```
+
+---
+
+# 🧩 Tipos & Lógica de Missões (TypeScript)
+
+```ts
+// types.ts
+export type RoleScope = 'atendente'|'motorista'|'vendas'|'admin';
+export type GoalType = 'moveStage'|'sendMessage'|'completeRoute'|'collectDoc'|'closeDeal';
+
+export interface MissionGoal {
+  id: string;
+  type: GoalType;
+  payload: any;         // ex.: { stageTo: 'Interessado' }
+  requiredCount: number;
+}
+
+export interface Mission {
+  id: string;
+  companyId: string;
+  title: string;
+  description?: string;
+  roleScope: RoleScope[];
+  difficulty: 'S'|'M'|'D';
+  xpReward: number;
+  badgeReward?: string;
+  repeatable: boolean;
+  flowId?: string;
+  goals: MissionGoal[];
+  isActive: boolean;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+```ts
+// lib/gamification.ts
+export function xpForAction(action: string): number {
+  switch (action) {
+    case 'moveStage': return 5;
+    case 'sendMessage': return 3;
+    case 'completeRoute': return 25;
+    case 'collectDoc': return 10;
+    case 'closeDeal': return 100;
+    default: return 1;
+  }
+}
+
+export function levelUpXP(level: number) {
+  return 200 * level; // simples e progressivo
+}
+```
+
+---
+
+# 🔧 Stubs essenciais
+
+**`lib/firebase.ts`**
+
+```ts
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+
+const config = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+const app = getApps().length ? getApp() : initializeApp(config);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+```
+
+**Server Action — criar missão (exemplo)**
+
+```ts
+// app/(app)/missions/actions.ts
+'use server';
+import { z } from 'zod';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+export const createMission = async (input: unknown) => {
+  const schema = z.object({
+    companyId: z.string(),
+    title: z.string().min(3),
+    description: z.string().optional(),
+    roleScope: z.array(z.enum(['atendente','motorista','vendas','admin'])).min(1),
+    difficulty: z.enum(['S','M','D']).default('S'),
+    xpReward: z.number().int().positive().default(50),
+    badgeReward: z.string().optional(),
+    repeatable: z.boolean().default(false),
+    flowId: z.string().optional(),
+    goals: z.array(z.object({
+      id: z.string(),
+      type: z.enum(['moveStage','sendMessage','completeRoute','collectDoc','closeDeal']),
+      payload: z.any(),
+      requiredCount: z.number().int().positive().default(1)
+    })).min(1),
+    isActive: z.boolean().default(true)
+  });
+
+  const data = schema.parse(input);
+  await addDoc(collection(db, 'missions'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return { ok: true };
+};
+```
+
+**Flow/Diagram — formato salvo**
+
+```ts
+// Exemplo de documento em /flows/{flowId}
+{
+  companyId: 'abc',
+  name: 'Atendimento Básico',
+  description: 'Triagem → Contato → Resolução',
+  nodes: [
+    { id: 'n1', type: 'start', position: {x:0,y:0}, data: { label: 'Início' } },
+    { id: 'n2', type: 'action', position: {x:200,y:0}, data: { label: 'Triagem' } },
+    { id: 'n3', type: 'decision', position: {x:400,y:0}, data: { label: 'É venda?' } },
+    { id: 'n4', type: 'action', position: {x:600,y:-80}, data: { label: 'Prospectar' } },
+    { id: 'n5', type: 'action', position: {x:600,y:80}, data: { label: 'Atender' } },
+    { id: 'n6', type: 'end', position: {x:800,y:0}, data: { label: 'Fim' } }
+  ],
+  edges: [
+    { id: 'e1', source: 'n1', target: 'n2' },
+    { id: 'e2', source: 'n2', target: 'n3' },
+    { id: 'e3', source: 'n3', target: 'n4', data: { when: 'sim' } },
+    { id: 'e4', source: 'n3', target: 'n5', data: { when: 'não' } },
+    { id: 'e5', source: 'n4', target: 'n6' },
+    { id: 'e6', source: 'n5', target: 'n6' }
+  ],
+  version: 1,
+  createdAt: 1710000000,
+  updatedAt: 1710000500,
+  isTemplate: true
+}
+```
+
+---
+
+# 🧰 Scripts & Env
+
+**`package.json` (trecho)**
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  }
+}
+```
+
+**`.env.local` (exemplo)**
+
+```
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
+```
+
+---
+
+# ✅ Checklist Vercel
+
+* Variáveis de ambiente acima (Preview/Prod).
+* Domínios e redirects (www → apex).
+* Cron Jobs (se houver tarefas recorrentes).
+* Builds com `NEXT_TELEMETRY_DISABLED=1` (opcional) e região próxima do público.
+* Proteção de rotas sensíveis via middleware (quando necessário).
+
+---
+
+# 🚀 Passos de Deploy
+
+1. Configurar envs no Vercel.
+2. `npm i` → `npm run build` → resolver warnings/erros.
+3. Conectar repositório, habilitar CI no Vercel.
+4. Deploy Preview → smoke test → Promote para Production.
+
+---
+
+# 🗺️ Fluxos‑exemplo (RPG)
+
+* **Atendente — “Primeira Resposta”**: responder cliente em até 15min (meta), mover cartão → Estágio “Contatado” (goal), registrar resumo (goal). Recompensa: 15 XP + badge “Velocista”.
+* **Motorista — “Rota Perfeita”**: cumprir 5 coletas com check‑in geolocalizado (goal) sem atrasos (goal). Recompensa: 80 XP + badge “Piloto”.
+* **Vendas — “Fechamento 3x”**: transformar 3 oportunidades em vendas dentro de 7 dias. Recompensa: 300 XP + badge “Closer”.
+
+---
+
+# 🛣️ Roadmap (curto)
+
+1. MVP: CRM Board, Missões CRUD, XP/Level, Diagram Editor simples, Regras/Indexes.
+2. Integrações: mensageria (ex.: provedor externo), webhooks, importações CSV.
+3. BI: relatórios, dashboards por papel, exportações.
+4. Gamificação avançada: loja de recompensas, ranking, temporadas.
+5. Mobile‑first refinado + PWA offline (rotas motorista).
