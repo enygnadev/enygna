@@ -1723,7 +1723,7 @@ Data: ${currentDate}`,
                   setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
                 }
                 return null;
-              })()}</div>
+              })()}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div>
