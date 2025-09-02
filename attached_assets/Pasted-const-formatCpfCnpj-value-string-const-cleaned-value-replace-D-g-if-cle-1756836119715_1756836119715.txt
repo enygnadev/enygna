@@ -1,0 +1,90 @@
+const formatCpfCnpj = (value: string) => {
+  const cleaned = value.replace(/\D/g, '');
+
+  if (cleaned.length <= 11) {
+    return cleaned
+      .replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, p1, p2, p3, p4) => {
+        return [p1, p2, p3].filter(Boolean).join('.') + (p4 ? `-${p4}` : '');
+      });
+  } else {
+    return cleaned
+      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, p1, p2, p3, p4, p5) => {
+        return `${p1}.${p2}.${p3}/${p4}-${p5}`;
+      });
+  }
+};
+
+const isValidCpfCnpj = (value: string) => {
+  const cleaned = value.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return /^\d{11}$/.test(cleaned);
+  } else if (cleaned.length === 14) {
+    return /^\d{14}$/.test(cleaned);
+  }
+  return false;
+};
+
+const useDebounce = (callback: Function, delay: number) => {
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  return (...args: any[]) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+};
+
+const useCpfCnpjSearch = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const search = async (doc: string, target: keyof Item, setNewItem: React.Dispatch<React.SetStateAction<Item>>) => {
+    let tipo = ''; // Define tipo here
+    
+    try {
+      const cleaned = doc.replace(/\D/g, '');
+      if (cleaned.length !== 11 && cleaned.length !== 14) return;
+      
+      setIsLoading(true);
+      tipo = cleaned.length === 14 ? 'cnpj' : 'cpf'; // Set the value
+      
+      console.log(`Iniciando consulta de ${tipo.toUpperCase()}:`, cleaned);
+      
+      const response = await fetch(`/api/${tipo}?${tipo}=${cleaned}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Erro ${response.status} ao buscar ${tipo.toUpperCase()}: ${errorData.error || response.statusText}`
+        );
+      }
+      
+      const data = await response.json();
+      
+      console.log(`Resposta da consulta de ${tipo.toUpperCase()}:`, data);
+      
+      if (data.nome) {
+        setNewItem(prev => ({ ...prev, [target]: data.nome }));
+      } else {
+        console.warn(`Nenhum nome encontrado para ${tipo.toUpperCase()} ${cleaned}`);
+      }
+    } catch (error) {
+      console.error(`Erro na consulta de ${tipo || 'documento'}:`, {
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        document: doc
+      });
+      
+      // Mostra feedback para o usuário (opcional)
+      if (error instanceof Error && error.message.includes('Erro 404')) {
+        alert('Serviço de consulta temporariamente indisponível. Por favor, preencha o nome manualmente.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { search, isLoading };
+};
