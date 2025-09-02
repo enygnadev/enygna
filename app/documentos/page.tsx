@@ -1080,6 +1080,74 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função para preencher CEP específico de uma seção (outorgante/procurador)
+  const preencherCepEspecifico = async (cep: string, sectionPrefix: string) => {
+    const validation = validateCEP(cep);
+    if (!validation.valid) {
+      alert(`❌ ${validation.message}`);
+      return;
+    }
+
+    // Mostrar loading
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = `🔍 Buscando endereço para ${sectionPrefix}...`;
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCEP = await buscarCEP(cep);
+      
+      if (dadosCEP) {
+        const novoFormData = { ...formData };
+
+        // Salvar endereço base para esta seção
+        const enderecoBase = `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`;
+        novoFormData[`${sectionPrefix}_endereco_base`] = enderecoBase;
+
+        // Preencher o campo de endereço específico desta seção
+        const enderecoFieldName = `${sectionPrefix}_endereco`;
+        const numeroAtual = formData[`${sectionPrefix}_numero`] || '';
+        
+        if (selectedTemplate?.fields.some(field => field.name === enderecoFieldName)) {
+          novoFormData[enderecoFieldName] = numeroAtual ? 
+            `${dadosCEP.logradouro}, ${numeroAtual}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}` :
+            `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`;
+        }
+
+        // Salvar dados do CEP para uso posterior
+        novoFormData[`${sectionPrefix}_cep_dados`] = JSON.stringify(dadosCEP);
+
+        setFormData(novoFormData);
+        
+        loadingAlert.innerHTML = `✅ Endereço encontrado para ${sectionPrefix}!`;
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+        
+        // Focar no campo de número específico desta seção
+        setTimeout(() => {
+          const numeroInput = document.querySelector(`input[value="${numeroAtual}"]`) as HTMLInputElement;
+          if (numeroInput && numeroInput.placeholder?.includes('Ex: 123')) {
+            numeroInput.focus();
+          }
+        }, 500);
+        
+      } else {
+        loadingAlert.innerHTML = '❌ CEP não encontrado';
+        loadingAlert.style.background = '#ef4444';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      loadingAlert.innerHTML = '❌ Erro ao buscar CEP';
+      loadingAlert.style.background = '#ef4444';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+    }
+  };
+
   // Função para preencher automaticamente baseado no CPF
   const preencherPorCPF = async (cpf: string, fieldName: string) => {
     const validation = validateCPF(cpf);
@@ -2235,6 +2303,106 @@ Data: ${currentDate}`,
                         return aOrder - bOrder;
                       });
 
+                      // Função para renderizar campo CEP específico para a seção
+                      const renderCepField = (sectionPrefix: string, sectionTitle: string) => (
+                        <div key={`${sectionPrefix}_cep`} style={{ marginBottom: '1rem' }}>
+                          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                            🗺️ CEP para {sectionTitle} <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              className="input"
+                              value={formData[`${sectionPrefix}_cep`] || ''}
+                              onChange={(e) => {
+                                const maskedValue = formatCEP(e.target.value);
+                                const newFormData = { ...formData, [`${sectionPrefix}_cep`]: maskedValue };
+                                setFormData(newFormData);
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value;
+                                if (value && validateCEP(value).valid) {
+                                  preencherCepEspecifico(value, sectionPrefix);
+                                } else if (value && !validateCEP(value).valid) {
+                                  alert(`❌ CEP inválido: ${validateCEP(value).message}`);
+                                  e.target.style.borderColor = '#ef4444';
+                                }
+                              }}
+                              placeholder="Digite o CEP (ex: 01234-567)"
+                              style={{ paddingRight: '2.5rem' }}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              right: '0.5rem',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              fontSize: '1rem',
+                              color: 'var(--color-primary)',
+                              cursor: 'help'
+                            }}
+                            title="CEP específico para preenchimento automático desta seção">
+                              🔍
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-textSecondary)',
+                            marginTop: '0.25rem',
+                            fontStyle: 'italic',
+                            background: 'var(--color-surface)',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            border: '1px solid var(--color-border)'
+                          }}>
+                            🔍 CEP específico para preencher automaticamente o endereço d{sectionTitle.toLowerCase().includes('outorgante') ? 'o' : 'a'} {sectionTitle.toLowerCase()}
+                          </div>
+                        </div>
+                      );
+
+                      // Função para renderizar campo de número da casa específico
+                      const renderNumeroField = (sectionPrefix: string, sectionTitle: string) => {
+                        const enderecoField = orderedFields.find(f => f.name.includes('endereco'));
+                        if (!enderecoField) return null;
+
+                        return (
+                          <div key={`${sectionPrefix}_numero`} style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                              🏠 Número da Casa/Estabelecimento d{sectionTitle.toLowerCase().includes('outorgante') ? 'o' : 'a'} {sectionTitle}
+                            </label>
+                            <input
+                              type="text"
+                              className="input"
+                              value={formData[`${sectionPrefix}_numero`] || ''}
+                              onChange={(e) => {
+                                const numero = e.target.value;
+                                const newFormData = { 
+                                  ...formData, 
+                                  [`${sectionPrefix}_numero`]: numero
+                                };
+                                
+                                // Atualizar o endereço completo se já existe endereço base
+                                if (formData[`${sectionPrefix}_endereco_base`]) {
+                                  newFormData[enderecoField.name] = numero ? 
+                                    `${formData[`${sectionPrefix}_endereco_base`]}, ${numero}` :
+                                    formData[`${sectionPrefix}_endereco_base`];
+                                }
+                                
+                                setFormData(newFormData);
+                              }}
+                              placeholder="Ex: 123, 45A, S/N, Lote 10"
+                            />
+                            <div style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--color-textSecondary)',
+                              marginTop: '0.25rem',
+                              fontStyle: 'italic'
+                            }}>
+                              💡 Número, apartamento, lote ou "S/N" para sem número
+                            </div>
+                          </div>
+                        );
+                      };
+
                       return (
                         <div key={title} style={{
                           marginBottom: '2rem',
@@ -2255,7 +2423,7 @@ Data: ${currentDate}`,
                             {icon} {title}
                           </h5>
                           
-                          {/* Para campos de pessoa (outorgante/procurador), primeiro mostrar CPF/CNPJ */}
+                          {/* Para campos de pessoa (outorgante/procurador) */}
                           {(title.includes('Outorgante') || title.includes('Procurador')) && (
                             <div style={{ marginBottom: '1.5rem' }}>
                               {/* CPF/CNPJ primeiro */}
@@ -2263,9 +2431,24 @@ Data: ${currentDate}`,
                                 f.name.toLowerCase().includes('cpf') || f.name.toLowerCase().includes('cnpj')
                               ).map(renderField)}
                               
-                              {/* Depois os outros campos */}
+                              {/* Campos básicos (nome, nacionalidade, etc.) */}
                               {orderedFields.filter(f => 
-                                !f.name.toLowerCase().includes('cpf') && !f.name.toLowerCase().includes('cnpj')
+                                !f.name.toLowerCase().includes('cpf') && 
+                                !f.name.toLowerCase().includes('cnpj') &&
+                                !f.name.toLowerCase().includes('endereco')
+                              ).map(renderField)}
+
+                              {/* CEP específico da seção */}
+                              {title.includes('Outorgante') && renderCepField('outorgante', 'Outorgante')}
+                              {title.includes('Procurador') && renderCepField('procurador', 'Procurador')}
+
+                              {/* Campo de número específico */}
+                              {title.includes('Outorgante') && renderNumeroField('outorgante', 'Outorgante')}
+                              {title.includes('Procurador') && renderNumeroField('procurador', 'Procurador')}
+                              
+                              {/* Campo de endereço por último */}
+                              {orderedFields.filter(f => 
+                                f.name.toLowerCase().includes('endereco')
                               ).map(renderField)}
                             </div>
                           )}
