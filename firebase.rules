@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,7 +9,7 @@ service cloud.firestore {
         request.auth.token.bootstrapAdmin == true ||
         request.auth.token.role == 'superadmin' ||
         request.auth.token.role == 'adminmaster' ||
-        request.auth.uid in ['BOOTSTRAP_ADMIN_UID'] // Substitua pelo UID real se necessário
+        request.auth.uid in ['BOOTSTRAP_ADMIN_UID']
       );
     }
 
@@ -21,22 +22,28 @@ service cloud.firestore {
       );
     }
 
+    // Função para verificar se é empresa
+    function isEmpresa() {
+      return request.auth != null && request.auth.token.tipo == 'empresa';
+    }
+
     // Função para verificar se o usuário está autenticado
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // === REGRAS PARA SUPER ADMINS ===
+    // === REGRAS ESPECÍFICAS PARA ADMIN MASTER ===
     // Super admins têm acesso total a tudo
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // === COLEÇÕES ADMINISTRATIVAS ===
-    // Usuários - acesso completo para admins
+    // === COLEÇÕES ADMINISTRATIVAS (APENAS SUPER ADMINS) ===
+    // Usuários - controle total para super admins, leitura própria para outros
     match /users/{userId} {
-      allow read, write: if isAdmin();
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if isSuperAdmin();
+      allow read, update: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAdmin();
     }
 
     // Bootstrap admins - apenas para super admins
@@ -44,105 +51,79 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // === COLEÇÕES DE EMPRESAS ===
-    // Permitir criação e leitura para usuários autenticados
-    match /empresas/{empresaId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    match /companies/{companyId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    match /chamados_empresas/{empresaId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    match /financeiro_empresas/{empresaId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    match /documentos_empresas/{empresaId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    match /frota_empresas/{empresaId} {
-      allow read, write, create: if isAuthenticated();
-
-      // Permitir subcoleções
-      match /{subcollection}/{document} {
-        allow read, write, create: if isAuthenticated();
-      }
-    }
-
-    // === COLEÇÕES DE SISTEMA ===
+    // Configurações do sistema - apenas super admins
     match /system_settings/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
     }
 
+    // Logs do sistema - apenas super admins
     match /system_logs/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSuperAdmin();
     }
 
+    // Relatórios do sistema - super admins e admins
     match /system_reports/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
     }
 
+    // Ações administrativas - super admins e admins
     match /admin_actions/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSuperAdmin();
+      allow read, create: if isAdmin();
     }
 
+    // Notificações administrativas
     match /admin_notifications/{document} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
     }
 
-    // === COLEÇÕES DE MONITORAMENTO ===
-    match /security_alerts/{document} {
-      allow read, write: if isAuthenticated();
+    // === COLEÇÕES DE EMPRESAS ===
+    // Empresas - super admins têm controle total, empresas podem ler/editar próprios dados
+    match /empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, update: if isAuthenticated() && 
+        (resource.data.email == request.auth.token.email || request.auth.uid == empresaId);
+      allow create: if isAuthenticated() && request.auth.token.tipo == 'empresa';
+
+      // Subcoleções das empresas
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated() && 
+          (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email);
+      }
     }
 
-    match /system_alerts/{document} {
-      allow read, write: if isAuthenticated();
+    // Companies (alias para empresas)
+    match /companies/{companyId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, update: if isAuthenticated() && 
+        (resource.data.email == request.auth.token.email || request.auth.uid == companyId);
+      allow create: if isAuthenticated();
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
     }
 
-    match /business_alerts/{document} {
-      allow read, write: if isAuthenticated();
+    // === COLEÇÕES ESPECÍFICAS DE SISTEMAS ===
+    // Sistema de Chamados
+    match /chamados_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'chamados' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
     }
 
-    match /security_events/{document} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /audit_logs/{document} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // === COLEÇÕES DE SISTEMA DE CHAMADOS ===
     match /chamados/{document} {
       allow read, write, create: if isAuthenticated();
     }
@@ -151,7 +132,20 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
-    // === COLEÇÕES DE SISTEMA FINANCEIRO ===
+    // Sistema Financeiro
+    match /financeiro_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'financeiro' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
     match /financeiro_users/{document} {
       allow read, write, create: if isAuthenticated();
     }
@@ -160,7 +154,20 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
-    // === COLEÇÕES DE SISTEMA DE FROTA ===
+    // Sistema de Frota
+    match /frota_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'frota' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
     match /frota_users/{document} {
       allow read, write, create: if isAuthenticated();
     }
@@ -169,7 +176,20 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
-    // === COLEÇÕES DE SISTEMA DE DOCUMENTOS ===
+    // Sistema de Documentos
+    match /documentos_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'documentos' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
     match /documentos_users/{document} {
       allow read, write, create: if isAuthenticated();
     }
@@ -178,25 +198,65 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
-    // === COLEÇÕES DE SESSÕES E PONTOS ===
-    match /users/{userId}/sessions/{sessionId} {
-      allow read, write, create: if isAuthenticated();
+    // === COLEÇÕES DE MONITORAMENTO E SEGURANÇA ===
+    match /security_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
     }
 
-    // === COLEÇÕES DE TUTORIAL ===
+    match /system_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /business_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /security_events/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /audit_logs/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    // === COLEÇÕES DE SESSÕES E PONTOS ===
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
+    }
+
+    // === TUTORIAL E CONFIGURAÇÕES PESSOAIS ===
     match /userTutorialStatus/{userId} {
       allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
-    // Permitir leitura e escrita para usuários autenticados
-    match /{collection}/{document} {
-      allow read, write, create: if isAuthenticated();
+    // === REGRAS ESPECIAIS PARA PLANOS E MONITORAMENTO ===
+    match /planos/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
     }
 
-    // === SUBCOLEÇÕES ===
+    match /plano_usage/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
+    // Acesso básico para usuários autenticados, controle total para super admins
+    match /{collection}/{document} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, create: if isAuthenticated();
+    }
+
+    // === SUBCOLEÇÕES GERAIS ===
     match /{path=**}/{subcollection}/{document} {
-      allow read, write, create: if isAuthenticated();
+      allow read, write, create: if isSuperAdmin();
+      allow read, create: if isAuthenticated();
     }
   }
 }

@@ -35,6 +35,7 @@ import { realTimeMonitoring } from '@/lib/realTimeMonitoring';
 import { advancedAnalytics } from '@/lib/advancedAnalytics';
 import EmpresaManager from '@/src/components/EmpresaManager';
 import PlanControlPanel from '@/src/components/PlanControlPanel';
+import { useRouter } from 'next/navigation'; // Importar useRouter
 
 // ==================== INTERFACES ====================
 interface Company {
@@ -625,6 +626,7 @@ function SuperAdminCreateForm() {
 
 // Componente Principal do Painel Admin
 export default function AdminMasterPage() {
+  const router = useRouter(); // Inicializa o router
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -799,9 +801,15 @@ export default function AdminMasterPage() {
             setShowTutorial(true);
           }
 
-        } catch (error) {
-          console.error("Erro ao verificar permissões:", error);
-          setError('Erro ao verificar permissões.');
+        } catch (error: any) {
+          console.error('Erro ao verificar permissões:', error);
+          if (error?.code === 'permission-denied') {
+            console.warn('Permissão negada ao verificar acesso inicial.');
+            setError('Acesso negado. Você não tem permissão para acessar esta área.');
+            setIsSuperAdmin(false); // Bloqueia o acesso
+          } else {
+            setError('Erro ao verificar permissões.');
+          }
         }
       } else {
         setUser(null);
@@ -826,8 +834,21 @@ export default function AdminMasterPage() {
         loadSystemLogs(),
         loadReports()
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
+
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar dados globais.');
+        // Você pode optar por definir estados padrão ou exibir uma mensagem de erro mais específica
+        setError('Permissão negada para carregar dados essenciais.');
+        // Resetar estados de dados para evitar exibir dados incorretos
+        setCompanies([]);
+        setEmployees([]);
+        setAnalytics(null);
+        setNotifications([]);
+      } else {
+        setError('Erro ao carregar dados do sistema');
+      }
     }
   };
 
@@ -962,6 +983,9 @@ export default function AdminMasterPage() {
           plano: 'demo'
         }
       ]);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar empresas.');
+      }
     }
   };
 
@@ -984,8 +1008,11 @@ export default function AdminMasterPage() {
               if (companyDoc.exists()) {
                 companyName = companyDoc.data().name || 'Empresa sem nome';
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error("Error fetching user document:", error);
+              if (error?.code === 'permission-denied') {
+                console.warn('Permissão negada ao buscar dados da empresa do funcionário.');
+              }
             }
           }
 
@@ -1019,8 +1046,11 @@ export default function AdminMasterPage() {
 
               punctualityScore = Math.max(60, 100 - (Math.random() * 40));
               attendanceScore = Math.max(70, 100 - (Math.random() * 30));
-            } catch (error) {
+            } catch (error: any) {
               console.error('Erro ao calcular métricas:', error);
+              if (error?.code === 'permission-denied') {
+                console.warn('Permissão negada ao calcular métricas de funcionário.');
+              }
             }
           }
 
@@ -1054,8 +1084,11 @@ export default function AdminMasterPage() {
       );
 
       setEmployees(employeesData.filter(Boolean) as Employee[]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar funcionários:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar funcionários.');
+      }
     }
   };
 
@@ -1102,8 +1135,11 @@ export default function AdminMasterPage() {
           activityTrend: Array.from({length: 7}, () => Math.floor(Math.random() * 1000))
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao calcular analytics:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao calcular analytics.');
+      }
     }
   };
 
@@ -1164,8 +1200,11 @@ export default function AdminMasterPage() {
       } else {
         setNotifications(notificationsData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar notificações:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar notificações.');
+      }
     }
   };
 
@@ -1204,8 +1243,11 @@ export default function AdminMasterPage() {
       } else {
         setSystemSettings(defaultSettings);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar configurações:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar configurações.');
+      }
     }
   };
 
@@ -1222,8 +1264,11 @@ export default function AdminMasterPage() {
       }));
 
       setSystemLogs(logsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar logs:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar logs.');
+      }
     }
   };
 
@@ -1240,8 +1285,11 @@ export default function AdminMasterPage() {
       }));
 
       setReports(reportsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar relatórios:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar relatórios.');
+      }
     }
   };
 
@@ -1262,8 +1310,11 @@ export default function AdminMasterPage() {
       // Carregar dados de auditoria
       await loadAuditTrail();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao inicializar Central de Inteligência:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao inicializar Central de Inteligência.');
+      }
     }
   };
 
@@ -1334,8 +1385,11 @@ export default function AdminMasterPage() {
         setThreatLevel('low');
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar alertas:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar alertas.');
+      }
     }
   };
 
@@ -1357,8 +1411,11 @@ export default function AdminMasterPage() {
 
         setSystemHealth(healthCheck);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao atualizar métricas:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao atualizar métricas.');
+        }
       }
     }, 30000);
 
@@ -1393,8 +1450,11 @@ export default function AdminMasterPage() {
           });
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao monitorar segurança:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao monitorar segurança.');
+        }
       }
     }, 60000);
 
@@ -1448,7 +1508,7 @@ export default function AdminMasterPage() {
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar métricas de segurança:', error);
       // Definir valores padrão em caso de erro
       setSecurityMetrics({
@@ -1458,6 +1518,9 @@ export default function AdminMasterPage() {
         blockedIPs: 0,
         lastUpdated: new Date()
       });
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar métricas de segurança.');
+      }
     }
   };
 
@@ -1479,8 +1542,11 @@ export default function AdminMasterPage() {
 
       setAuditTrail(auditData);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar trilha de auditoria:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar trilha de auditoria.');
+      }
     }
   };
 
@@ -1497,8 +1563,11 @@ export default function AdminMasterPage() {
       // Remover da lista local
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao resolver alerta:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao resolver alerta.');
+      }
     }
   };
 
@@ -1519,8 +1588,11 @@ export default function AdminMasterPage() {
         targetId: companyId,
         timestamp: serverTimestamp()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao alterar status da empresa:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao alterar status da empresa.');
+      }
     }
   };
 
@@ -1565,9 +1637,12 @@ export default function AdminMasterPage() {
 
       await loadAllData();
       alert('✅ Empresa excluída permanentemente com sucesso.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir empresa:', error);
       alert('❌ Erro ao excluir empresa. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao excluir empresa.');
+      }
     }
   };
 
@@ -1591,9 +1666,12 @@ export default function AdminMasterPage() {
 
       await loadEmployees();
       alert('✅ Usuário promovido a Administrador com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao promover usuário:', error);
       alert('❌ Erro ao promover usuário. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao promover usuário.');
+      }
     }
   };
 
@@ -1618,8 +1696,11 @@ export default function AdminMasterPage() {
 
       await loadEmployees();
       alert('✅ Funcionário suspenso com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao suspender funcionário:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao suspender funcionário.');
+      }
     }
   };
 
@@ -1651,7 +1732,7 @@ export default function AdminMasterPage() {
           reportData.data = {
             totalEmployees: employees.length,
             activeEmployees: employees.filter(e => e.active).length,
-            averageProductivity: employees.reduce((sum, e) => sum + e.metrics.productivity, 0) / employees.length,
+            averageProductivity: employees.length > 0 ? employees.reduce((sum, e) => sum + e.metrics.productivity, 0) / employees.length : 0,
             employees: employees.map(e => ({
               name: e.name,
               company: e.companyName,
@@ -1700,9 +1781,12 @@ export default function AdminMasterPage() {
 
       await loadReports();
       alert(`✅ Relatório de ${reportType} gerado com sucesso!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
       alert('❌ Erro ao gerar relatório. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao gerar relatório.');
+      }
     }
   };
 
@@ -1725,9 +1809,12 @@ export default function AdminMasterPage() {
       });
 
       alert('✅ Configurações atualizadas com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar configurações:', error);
       alert('❌ Erro ao atualizar configurações. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao atualizar configurações.');
+      }
     }
   };
 
@@ -1787,9 +1874,12 @@ export default function AdminMasterPage() {
       URL.revokeObjectURL(url);
 
       alert(`✅ Dados de ${dataType} exportados com sucesso!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao exportar dados:', error);
       alert('❌ Erro ao exportar dados. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao exportar dados.');
+      }
     }
   };
 
@@ -1832,9 +1922,16 @@ export default function AdminMasterPage() {
 
   const handleTutorialComplete = async () => {
     if (user) {
-      await updateDoc(doc(db, 'userTutorialStatus', user.uid), {
-        adminDashboardCompleted: true,
-      });
+      try {
+        await updateDoc(doc(db, 'userTutorialStatus', user.uid), {
+          adminDashboardCompleted: true,
+        });
+      } catch (error: any) {
+        console.error('Erro ao marcar tutorial como completo:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao marcar tutorial como completo.');
+        }
+      }
     }
     setShowTutorial(false);
   };
@@ -1848,8 +1945,11 @@ export default function AdminMasterPage() {
       try {
         await signOut(auth);
         window.location.href = '/';
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao fazer logout:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao fazer logout.');
+        }
       }
     }
   };
@@ -1876,9 +1976,12 @@ export default function AdminMasterPage() {
         }
 
         setIsSuperAdmin(hasAccess);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao verificar acesso super admin:', error);
         setIsSuperAdmin(false);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao verificar acesso super admin.');
+        }
       }
     }
   };
@@ -2014,9 +2117,12 @@ export default function AdminMasterPage() {
       } else {
         alert('Usuário não encontrado.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao buscar usuário:', error);
       alert('Erro ao buscar usuário. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao buscar usuário.');
+      }
     } finally {
       setSearchingUser(false);
     }
