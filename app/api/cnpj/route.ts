@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const token = process.env.NEXT_PUBLIC_CNPJA_API_TOKEN;
 
   if (!token) {
-    return Response.json({ error: 'CNPJA_API_TOKEN não configurada no .env.local' }, { status: 500 });
+    return Response.json({ error: 'NEXT_PUBLIC_CNPJA_API_TOKEN não configurada no .env.local' }, { status: 500 });
   }
 
   try {
@@ -40,6 +40,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Erro ao consultar CNPJ:', error);
-    return Response.json({ error: 'Erro interno na consulta de CNPJ' }, { status: 500 });
+    
+    // Em caso de erro de rede, retornar como CNPJ válido mas sem dados
+    return Response.json({
+      success: true,
+      validFormat: true,
+      nome: null,
+      message: 'CNPJ válido, mas consulta indisponível no momento'
+    });
   }
 }

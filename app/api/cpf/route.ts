@@ -1,4 +1,3 @@
-
 import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       console.error('Erro na consulta da API CPF:', data);
-      
+
       // Se for erro de API key ou autenticação, retornar como CPF válido mas sem dados
       if (response.status === 401 || response.status === 403) {
         return Response.json({
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Erro interno ao consultar CPF:', error);
-    
+
     // Em caso de erro de rede, retornar como CPF válido mas sem dados
     return Response.json({
       success: true,
