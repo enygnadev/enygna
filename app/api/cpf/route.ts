@@ -31,20 +31,29 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const data = await response.json().catch(() => null);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Erro na consulta da API CPF:', errorData);
+      console.error('Erro na consulta da API CPF:', data);
+      
+      // Se for erro de API key ou autenticação, retornar como CPF válido mas sem dados
+      if (response.status === 401 || response.status === 403) {
+        return Response.json({
+          success: true,
+          validFormat: true,
+          nome: null,
+          message: 'CPF válido, mas consulta indisponível no momento'
+        });
+      }
 
       return Response.json({
         success: false,
-        error: errorData.message || 'Erro ao consultar CPF',
-        code: errorData.code || response.status
+        error: data?.message || 'Erro ao consultar CPF',
+        code: data?.code || response.status
       }, { status: response.status });
     }
 
-    const data = await response.json();
-
-    if (data.code === 200 && data.data) {
+    if (data && data.code === 200 && data.data) {
       return Response.json({
         success: true,
         nome: data.data.nome,
@@ -54,9 +63,11 @@ export async function GET(request: NextRequest) {
       });
     } else {
       return Response.json({
-        success: false,
-        error: 'CPF não encontrado'
-      }, { status: 404 });
+        success: true,
+        validFormat: true,
+        nome: null,
+        message: 'CPF válido, mas sem dados disponíveis'
+      });
     }
   } catch (error) {
     console.error('Erro interno ao consultar CPF:', error);

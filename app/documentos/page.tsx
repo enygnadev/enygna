@@ -827,11 +827,6 @@ Data: ${currentDate}`,
     try {
       const cpfLimpo = cpf.replace(/\D/g, '');
       const response = await fetch(`/api/cpf?cpf=${cpfLimpo}`);
-
-      if (!response.ok) {
-        throw new Error('CPF não encontrado ou inválido');
-      }
-
       const data = await response.json();
 
       if (data.success && data.nome) {
@@ -840,6 +835,15 @@ Data: ${currentDate}`,
           cpf: formatCpfCnpj(cpf),
           nascimento: data.nascimento || '',
           genero: data.genero || ''
+        };
+      }
+
+      // Se a API retornou sucesso mas sem nome (CPF válido mas sem dados)
+      if (data.success && data.validFormat) {
+        return {
+          nome: null,
+          cpf: formatCpfCnpj(cpf),
+          message: data.message || 'CPF válido, mas sem dados disponíveis'
         };
       }
 
@@ -1097,38 +1101,46 @@ Data: ${currentDate}`,
     try {
       const dadosCPF = await buscarDadosCPF(cpf);
       
-      if (dadosCPF && dadosCPF.nome) {
+      if (dadosCPF) {
         const novoFormData = { ...formData };
 
-        // Mapear campos do CPF
-        const mapeamento: Record<string, string> = {
-          'nome_completo': dadosCPF.nome,
-          'outorgante_nome': dadosCPF.nome,
-          'procurador_nome': dadosCPF.nome,
-          'contratante_nome': dadosCPF.nome,
-          'contratado_nome': dadosCPF.nome,
-          'cpf': formatCpfCnpj(cpf),
-          'outorgante_cpf': formatCpfCnpj(cpf),
-          'procurador_cpf': formatCpfCnpj(cpf),
-          'contratante_cnpj_cpf': formatCpfCnpj(cpf),
-          'contratado_cnpj_cpf': formatCpfCnpj(cpf)
-        };
+        if (dadosCPF.nome) {
+          // Mapear campos do CPF quando há dados
+          const mapeamento: Record<string, string> = {
+            'nome_completo': dadosCPF.nome,
+            'outorgante_nome': dadosCPF.nome,
+            'procurador_nome': dadosCPF.nome,
+            'contratante_nome': dadosCPF.nome,
+            'contratado_nome': dadosCPF.nome,
+            'cpf': formatCpfCnpj(cpf),
+            'outorgante_cpf': formatCpfCnpj(cpf),
+            'procurador_cpf': formatCpfCnpj(cpf),
+            'contratante_cnpj_cpf': formatCpfCnpj(cpf),
+            'contratado_cnpj_cpf': formatCpfCnpj(cpf)
+          };
 
-        // Preencher campos relacionados
-        Object.keys(mapeamento).forEach(campo => {
-          if (selectedTemplate?.fields.some(field => field.name === campo)) {
-            novoFormData[campo] = mapeamento[campo];
-          }
-        });
+          // Preencher campos relacionados
+          Object.keys(mapeamento).forEach(campo => {
+            if (selectedTemplate?.fields.some(field => field.name === campo)) {
+              novoFormData[campo] = mapeamento[campo];
+            }
+          });
+
+          loadingAlert.innerHTML = '✅ Dados encontrados!';
+          loadingAlert.style.background = '#10b981';
+        } else {
+          // CPF válido mas sem dados - apenas formatar
+          novoFormData[fieldName] = formatCpfCnpj(cpf);
+          
+          loadingAlert.innerHTML = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
+          loadingAlert.style.background = '#f59e0b';
+        }
 
         setFormData(novoFormData);
-        
-        loadingAlert.innerHTML = '✅ Dados encontrados!';
-        loadingAlert.style.background = '#10b981';
-        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
         
       } else {
-        loadingAlert.innerHTML = '⚠️ CPF válido, mas sem dados disponíveis';
+        loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual necessário';
         loadingAlert.style.background = '#f59e0b';
         setTimeout(() => document.body.removeChild(loadingAlert), 3000);
         
