@@ -143,7 +143,7 @@ export default function DocumentosPage() {
                       id: doc.id,
                       ...doc.data()
                     }));
-                    
+
                     // Se não há templates no Firestore, usar templates locais
                     if (templatesData.length === 0) {
                       setTemplates(getLocalTemplates());
@@ -390,7 +390,7 @@ CPF: {{cpf}}`,
         id: doc.id,
         ...doc.data()
       })) as DocumentTemplate[];
-      
+
       if (templatesData.length === 0) {
         setTemplates(getLocalTemplates());
       } else {
@@ -434,7 +434,7 @@ CPF: {{cpf}}`,
     try {
       // Tentar usar IA primeiro, mas com fallback local
       let documentData;
-      
+
       try {
         const response = await fetch('/api/ai/assist', {
           method: 'POST',
@@ -525,10 +525,10 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
   const generateDocumentLocally = (prompt: string) => {
     const currentDate = new Date().toLocaleDateString('pt-BR');
     const currentDateTime = new Date().toLocaleString('pt-BR');
-    
+
     // Detectar tipo de documento baseado no prompt
     const promptLower = prompt.toLowerCase();
-    
+
     if (promptLower.includes('procuração')) {
       return {
         tipo: 'Procuração',
@@ -555,11 +555,11 @@ ________________________`,
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">PROCURAÇÃO</h1>
   </div>
-  
+
   <div style="text-align: justify; margin-bottom: 30px;">
     <p>Eu, <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, para o fim específico de:</p>
   </div>
-  
+
   <div style="margin: 30px 0;">
     <ul style="padding-left: 30px;">
       <li>Representar-me perante repartições públicas, empresas e instituições em geral;</li>
@@ -567,21 +567,21 @@ ________________________`,
       <li>Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.</li>
     </ul>
   </div>
-  
+
   <div style="margin: 30px 0;">
     <p>A presente procuração é válida por <strong>90 (noventa) dias</strong> a contar desta data.</p>
   </div>
-  
+
   <div style="margin-top: 60px;">
     <p>_______________________, _____ de _____________ de _______</p>
   </div>
-  
+
   <div style="margin-top: 80px; text-align: center;">
     <div style="display: inline-block; border-top: 1px solid black; width: 300px; padding-top: 5px;">
       <strong>Assinatura do Outorgante</strong>
     </div>
   </div>
-  
+
   <div style="margin-top: 60px;">
     <p><strong>RECONHECIMENTO DE FIRMA</strong></p>
     <p>________________________</p>
@@ -591,7 +591,7 @@ ________________________`,
         instrucoes: 'Preencha os campos destacados com os dados do outorgante e procurador. Documento válido por 90 dias.'
       };
     }
-    
+
     if (promptLower.includes('contrato')) {
       return {
         tipo: 'Contrato',
@@ -627,27 +627,27 @@ _____________________          _____________________
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>CONTRATANTE:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>CONTRATADO:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>OBJETO:</strong> O presente contrato tem por objeto <u>______________________________</u>.</p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>PRAZO:</strong> O prazo de vigência será de <u>_______</u> meses, iniciando em <u>___/___/______</u>.</p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>VALOR:</strong> O valor total dos serviços será de R$ <u>____________</u>, pago conforme cronograma anexo.</p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>OBRIGAÇÕES DO CONTRATADO:</strong></p>
     <ul>
@@ -656,7 +656,7 @@ _____________________          _____________________
       <li>Entregar o trabalho no prazo estabelecido.</li>
     </ul>
   </div>
-  
+
   <div style="margin-bottom: 40px;">
     <p><strong>OBRIGAÇÕES DO CONTRATANTE:</strong></p>
     <ul>
@@ -665,11 +665,11 @@ _____________________          _____________________
       <li>Dar condições adequadas para trabalho.</li>
     </ul>
   </div>
-  
+
   <div style="margin-top: 60px;">
     <p>________________, ${currentDate}</p>
   </div>
-  
+
   <div style="margin-top: 80px; display: flex; justify-content: space-between;">
     <div style="text-align: center; width: 200px;">
       <div style="border-top: 1px solid black; padding-top: 5px;">
@@ -687,7 +687,7 @@ _____________________          _____________________
         instrucoes: 'Contrato padrão de prestação de serviços. Preencha os dados das partes e especificações do serviço.'
       };
     }
-    
+
     // Documento genérico como fallback
     return {
       tipo: 'Documento Personalizado',
@@ -715,28 +715,28 @@ Data: ${currentDate}`,
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0;">DOCUMENTO</h1>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>Data:</strong> ${currentDate}</p>
   </div>
-  
+
   <div style="margin-bottom: 20px;">
     <p><strong>Assunto:</strong> ${prompt}</p>
   </div>
-  
+
   <div style="margin-bottom: 30px;">
     <p>Prezado(a) Senhor(a),</p>
   </div>
-  
+
   <div style="margin-bottom: 30px; text-align: justify;">
     <p>Por meio deste documento, venho formalizar a seguinte solicitação:</p>
     <p style="margin-left: 20px; font-style: italic;">${prompt}</p>
   </div>
-  
+
   <div style="margin-bottom: 30px;">
     <p>Atenciosamente,</p>
   </div>
-  
+
   <div style="margin-top: 80px;">
     <p>_________________________________</p>
     <p><strong>Nome:</strong> _________________________</p>
@@ -907,7 +907,7 @@ Data: ${currentDate}`,
     const dadosCEP = await buscarCEP(cep);
     if (dadosCEP) {
       const novoFormData = { ...formData };
-      
+
       // Mapear campos do CEP para os campos do formulário
       const mapeamento: Record<string, string> = {
         'endereco': dadosCEP.logradouro,
@@ -946,7 +946,7 @@ Data: ${currentDate}`,
     const dadosCPF = await buscarDadosCPF(cpf);
     if (dadosCPF) {
       const novoFormData = { ...formData };
-      
+
       // Mapear campos do CPF
       const mapeamento: Record<string, string> = {
         'nome_completo': dadosCPF.nome,
@@ -980,7 +980,7 @@ Data: ${currentDate}`,
     const dadosCNPJ = await buscarDadosCNPJ(cnpj);
     if (dadosCNPJ) {
       const novoFormData = { ...formData };
-      
+
       // Mapear campos do CNPJ
       const mapeamento: Record<string, string> = {
         'nome_completo': dadosCNPJ.razao_social,
@@ -997,7 +997,8 @@ Data: ${currentDate}`,
         'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
         'cidade': dadosCNPJ.cidade,
         'telefone': dadosCNPJ.telefone,
-        'email': dadosCNPJ.email
+        'email': dadosCNPJ.email,
+        'atividade_principal': dadosCNPJ.atividade_principal
       };
 
       // Preencher campos relacionados
@@ -1091,7 +1092,7 @@ Data: ${currentDate}`,
 
       // Criar versão de preview com campos em destaque
       let previewContent = selectedTemplate.template;
-      
+
       // Substituir campos preenchidos
       selectedTemplate.fields.forEach(field => {
         const value = formData[field.name] || '';
@@ -1104,8 +1105,8 @@ Data: ${currentDate}`,
       });
 
       // Adicionar data atual
-      const currentDate = new Date().toLocaleDateString('pt-BR');
-      previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+      const previewCurrentDate = new Date().toLocaleDateString('pt-BR');
+      previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
 
       // Converter para HTML formatado
       htmlContent = `
@@ -1699,7 +1700,7 @@ Data: ${currentDate}`,
               {(() => {
                 if (!generatedHtml && selectedTemplate) {
                   let previewContent = selectedTemplate.template;
-                  
+
                   selectedTemplate.fields.forEach(field => {
                     const regex = new RegExp(`{{${field.name}}}`, 'g');
                     previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${field.label} ___</span>`);
@@ -1718,7 +1719,7 @@ Data: ${currentDate}`,
                       </div>
                     </div>
                   `;
-                  
+
                   // Atualizar o estado uma vez para inicializar o preview
                   setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
                 }
@@ -1734,7 +1735,7 @@ Data: ${currentDate}`,
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                           {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
                         </label>
-                        
+
                         {field.type === 'textarea' ? (
                           <textarea
                             className="input"
@@ -1763,11 +1764,11 @@ Data: ${currentDate}`,
                               onChange={(e) => {
                                 const newFormData = { ...formData, [field.name]: e.target.value };
                                 setFormData(newFormData);
-                                
+
                                 // Atualizar preview em tempo real
                                 if (selectedTemplate) {
                                   let previewContent = selectedTemplate.template;
-                                  
+
                                   selectedTemplate.fields.forEach(templateField => {
                                     const value = newFormData[templateField.name] || '';
                                     const regex = new RegExp(`{{${templateField.name}}}`, 'g');
@@ -1778,8 +1779,8 @@ Data: ${currentDate}`,
                                     }
                                   });
 
-                                  const currentDate = new Date().toLocaleDateString('pt-BR');
-                                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+                                  const previewCurrentDate = new Date().toLocaleDateString('pt-BR');
+                                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
 
                                   const updatedHtmlContent = `
                                     <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
@@ -1791,7 +1792,7 @@ Data: ${currentDate}`,
                                       </div>
                                     </div>
                                   `;
-                                  
+
                                   setGeneratedHtml(updatedHtmlContent);
                                 }
                               }}
@@ -1822,7 +1823,7 @@ Data: ${currentDate}`,
                                 ) ? '2.5rem' : undefined
                               }}
                             />
-                            
+
                             {/* Ícone indicativo de auto-preenchimento */}
                             {(field.name.toLowerCase().includes('cep') ||
                               field.name.toLowerCase().includes('cpf') ||
@@ -1843,7 +1844,7 @@ Data: ${currentDate}`,
                                 🔍
                               </div>
                             )}
-                            
+
                             {/* Número da casa para CEP */}
                             {field.name.toLowerCase().includes('cep') && formData[field.name] && (
                               <div style={{ marginTop: '0.5rem' }}>
@@ -1859,7 +1860,7 @@ Data: ${currentDate}`,
                             )}
                           </div>
                         )}
-                        
+
                         {/* Dicas de preenchimento automático */}
                         {(field.name.toLowerCase().includes('cep') ||
                           field.name.toLowerCase().includes('cpf') ||
@@ -1906,7 +1907,7 @@ Data: ${currentDate}`,
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="document-html-preview">
                       <div dangerouslySetInnerHTML={{ __html: generatedHtml }} />
                     </div>
@@ -1920,7 +1921,7 @@ Data: ${currentDate}`,
                           className="button button-outline" 
                           onClick={() => downloadDocument(generatedContent, selectedTemplate.name)}
                         >
-                          📄 Download TXT
+                          📥 Download
                         </button>
                         <button 
                           className="button button-outline" 
@@ -2020,7 +2021,7 @@ Data: ${currentDate}`,
         </div>
       )}
 
-      
+
     </div>
   );
 }
