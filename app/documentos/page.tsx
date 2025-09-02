@@ -253,28 +253,29 @@ O que posso criar para você hoje?`,
     }]);
   };
 
-  // Templates locais como fallback
+  // Templates locais como fallback - Estrutura Universal Completa
   const getLocalTemplates = (): DocumentTemplate[] => {
     return [
+      // ===== JURÍDICO =====
       {
         id: 'procuracao-simples',
         name: 'Procuração Simples',
         type: 'custom',
         description: 'Documento para outorgar poderes a terceiros',
         fields: [
+          { name: 'outorgante_cpf', label: 'CPF/CNPJ do Outorgante', type: 'text', required: true, placeholder: '123.456.789-00' },
           { name: 'outorgante_nome', label: 'Nome do Outorgante', type: 'text', required: true, placeholder: 'João Silva Santos' },
           { name: 'outorgante_nacionalidade', label: 'Nacionalidade', type: 'text', required: true, placeholder: 'brasileiro' },
           { name: 'outorgante_estado_civil', label: 'Estado Civil', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
           { name: 'outorgante_profissao', label: 'Profissão', type: 'text', required: true, placeholder: 'Engenheiro' },
           { name: 'outorgante_rg', label: 'RG', type: 'text', required: true, placeholder: '12.345.678-9' },
-          { name: 'outorgante_cpf', label: 'CPF', type: 'text', required: true, placeholder: '123.456.789-00' },
           { name: 'outorgante_endereco', label: 'Endereço', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'procurador_cpf', label: 'CPF do Procurador', type: 'text', required: true, placeholder: '987.654.321-00' },
           { name: 'procurador_nome', label: 'Nome do Procurador', type: 'text', required: true, placeholder: 'Maria Santos Silva' },
           { name: 'procurador_nacionalidade', label: 'Nacionalidade do Procurador', type: 'text', required: true, placeholder: 'brasileira' },
           { name: 'procurador_estado_civil', label: 'Estado Civil do Procurador', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
           { name: 'procurador_profissao', label: 'Profissão do Procurador', type: 'text', required: true, placeholder: 'Advogada' },
           { name: 'procurador_rg', label: 'RG do Procurador', type: 'text', required: true, placeholder: '98.765.432-1' },
-          { name: 'procurador_cpf', label: 'CPF do Procurador', type: 'text', required: true, placeholder: '987.654.321-00' },
           { name: 'procurador_endereco', label: 'Endereço do Procurador', type: 'text', required: true, placeholder: 'Avenida Central, 456' },
           { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
         ],
@@ -300,23 +301,102 @@ ________________________`,
         updatedAt: Date.now()
       },
       {
+        id: 'procuracao-publica',
+        name: 'Procuração Pública',
+        type: 'custom',
+        description: 'Procuração com poderes amplos para cartório',
+        fields: [
+          { name: 'outorgante_cpf', label: 'CPF/CNPJ do Outorgante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'outorgante_nome', label: 'Nome do Outorgante', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'outorgante_nacionalidade', label: 'Nacionalidade', type: 'text', required: true, placeholder: 'brasileiro' },
+          { name: 'outorgante_estado_civil', label: 'Estado Civil', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
+          { name: 'outorgante_profissao', label: 'Profissão', type: 'text', required: true, placeholder: 'Engenheiro' },
+          { name: 'outorgante_rg', label: 'RG', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'outorgante_endereco', label: 'Endereço', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'procurador_cpf', label: 'CPF do Procurador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'procurador_nome', label: 'Nome do Procurador', type: 'text', required: true, placeholder: 'Maria Santos Silva' },
+          { name: 'procurador_endereco', label: 'Endereço do Procurador', type: 'text', required: true, placeholder: 'Avenida Central, 456' },
+          { name: 'poderes_especificos', label: 'Poderes Específicos', type: 'textarea', required: true, placeholder: 'Descreva os poderes outorgados' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `PROCURAÇÃO PÚBLICA
+
+Saibam quantos este público instrumento de procuração bastante virem que, no ano de {{data_atual}}, nesta cidade de {{cidade}}, perante mim, Tabelião, compareceu {{outorgante_nome}}, {{outorgante_nacionalidade}}, {{outorgante_estado_civil}}, {{outorgante_profissao}}, portador(a) do RG nº {{outorgante_rg}} e CPF nº {{outorgante_cpf}}, residente e domiciliado(a) à {{outorgante_endereco}}, como outorgante, que nomeia e constitui seu bastante procurador {{procurador_nome}}, residente à {{procurador_endereco}}, portador do CPF nº {{procurador_cpf}}, para os seguintes fins:
+
+{{poderes_especificos}}
+
+Esta procuração terá validade por 01 (um) ano a contar desta data, podendo ser revogada a qualquer tempo por declaração expressa do outorgante.
+
+Do que, para constar, lavrei a presente procuração.
+
+{{cidade}}, {{data_atual}}
+
+_________________________________
+Tabelião`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'termo-confidencialidade',
+        name: 'Termo de Confidencialidade (NDA)',
+        type: 'custom',
+        description: 'Acordo de confidencialidade para proteção de informações',
+        fields: [
+          { name: 'parte1_cnpj_cpf', label: 'CNPJ/CPF da Parte 1', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'parte1_nome', label: 'Nome/Razão Social da Parte 1', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'parte1_endereco', label: 'Endereço da Parte 1', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'parte2_cnpj_cpf', label: 'CNPJ/CPF da Parte 2', type: 'text', required: true, placeholder: '98.765.432/0001-10' },
+          { name: 'parte2_nome', label: 'Nome/Razão Social da Parte 2', type: 'text', required: true, placeholder: 'Tech Solutions S.A.' },
+          { name: 'parte2_endereco', label: 'Endereço da Parte 2', type: 'text', required: true, placeholder: 'Av. Tecnologia, 200' },
+          { name: 'objeto_confidencialidade', label: 'Objeto da Confidencialidade', type: 'textarea', required: true, placeholder: 'Descreva as informações confidenciais' },
+          { name: 'prazo_anos', label: 'Prazo de Vigência (anos)', type: 'number', required: true, placeholder: '5' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `TERMO DE CONFIDENCIALIDADE (NDA)
+
+PARTES:
+PARTE 1: {{parte1_nome}}, inscrita no CNPJ/CPF nº {{parte1_cnpj_cpf}}, com sede à {{parte1_endereco}}
+PARTE 2: {{parte2_nome}}, inscrita no CNPJ/CPF nº {{parte2_cnpj_cpf}}, com sede à {{parte2_endereco}}
+
+OBJETO: As partes acordam manter sigilo absoluto sobre: {{objeto_confidencialidade}}
+
+OBRIGAÇÕES:
+1. Não divulgar informações confidenciais a terceiros
+2. Utilizar informações apenas para fins acordados
+3. Devolver ou destruir documentos confidenciais ao término
+
+PRAZO: {{prazo_anos}} anos a partir desta data
+
+PENALIDADES: Multa de R$ 50.000,00 por quebra de confidencialidade
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    {{parte1_nome}}              {{parte2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== COMERCIAL =====
+      {
         id: 'contrato-servicos',
         name: 'Contrato de Prestação de Serviços',
         type: 'contract',
         description: 'Contrato padrão para prestação de serviços',
         fields: [
-          { name: 'contratante_nome', label: 'Nome/Razão Social do Contratante', type: 'text', required: true },
-          { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true },
-          { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true },
-          { name: 'contratante_telefone', label: 'Telefone do Contratante', type: 'text', required: false },
-          { name: 'contratado_nome', label: 'Nome/Razão Social do Contratado', type: 'text', required: true },
-          { name: 'contratado_cnpj_cpf', label: 'CNPJ/CPF do Contratado', type: 'text', required: true },
-          { name: 'contratado_endereco', label: 'Endereço do Contratado', type: 'text', required: true },
-          { name: 'contratado_telefone', label: 'Telefone do Contratado', type: 'text', required: false },
-          { name: 'objeto', label: 'Objeto do Contrato', type: 'textarea', required: true },
-          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true },
+          { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'contratante_nome', label: 'Nome/Razão Social do Contratante', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'contratante_telefone', label: 'Telefone do Contratante', type: 'text', required: false, placeholder: '(11) 99999-9999' },
+          { name: 'contratado_cnpj_cpf', label: 'CNPJ/CPF do Contratado', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'contratado_nome', label: 'Nome/Razão Social do Contratado', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'contratado_endereco', label: 'Endereço do Contratado', type: 'text', required: true, placeholder: 'Rua dos Prestadores, 50' },
+          { name: 'contratado_telefone', label: 'Telefone do Contratado', type: 'text', required: false, placeholder: '(11) 88888-8888' },
+          { name: 'objeto', label: 'Objeto do Contrato', type: 'textarea', required: true, placeholder: 'Prestação de serviços de...' },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '12' },
           { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
-          { name: 'valor_total', label: 'Valor Total (R$)', type: 'text', required: true }
+          { name: 'valor_total', label: 'Valor Total (R$)', type: 'text', required: true, placeholder: '10.000,00' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
         ],
         template: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 
@@ -340,7 +420,7 @@ OBRIGAÇÕES DO CONTRATANTE:
 - Efetuar pagamentos conforme acordado;
 - Dar condições adequadas para trabalho.
 
-{{data_atual}}
+{{cidade}}, {{data_atual}}
 
 _____________________          _____________________
     CONTRATANTE                    CONTRATADO`,
@@ -348,23 +428,238 @@ _____________________          _____________________
         updatedAt: Date.now()
       },
       {
+        id: 'contrato-compra-venda',
+        name: 'Contrato de Compra e Venda',
+        type: 'contract',
+        description: 'Contrato para compra e venda de bens',
+        fields: [
+          { name: 'vendedor_cnpj_cpf', label: 'CNPJ/CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cnpj_cpf', label: 'CNPJ/CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'bem_descricao', label: 'Descrição do Bem', type: 'textarea', required: true, placeholder: 'Veículo marca X, modelo Y...' },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '50.000,00' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'textarea', required: true, placeholder: 'À vista, parcelado...' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE COMPRA E VENDA
+
+VENDEDOR: {{vendedor_nome}}, inscrito no CPF/CNPJ nº {{vendedor_cnpj_cpf}}, residente à {{vendedor_endereco}}
+
+COMPRADOR: {{comprador_nome}}, inscrito no CPF/CNPJ nº {{comprador_cnpj_cpf}}, residente à {{comprador_endereco}}
+
+OBJETO: O vendedor vende ao comprador o seguinte bem: {{bem_descricao}}
+
+PREÇO: O valor total da venda é de R$ {{valor_venda}}.
+
+PAGAMENTO: {{forma_pagamento}}
+
+ENTREGA: O bem será entregue no ato da assinatura deste contrato.
+
+GARANTIAS: O vendedor garante a propriedade do bem e ausência de ônus.
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     VENDEDOR                    COMPRADOR`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'contrato-locacao',
+        name: 'Contrato de Locação',
+        type: 'contract',
+        description: 'Contrato de locação residencial ou comercial',
+        fields: [
+          { name: 'locador_cnpj_cpf', label: 'CNPJ/CPF do Locador', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'locador_nome', label: 'Nome do Locador', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'locador_endereco', label: 'Endereço do Locador', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'locatario_cnpj_cpf', label: 'CNPJ/CPF do Locatário', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'locatario_nome', label: 'Nome do Locatário', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'locatario_endereco', label: 'Endereço do Locatário', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'imovel_endereco', label: 'Endereço do Imóvel', type: 'text', required: true, placeholder: 'Rua dos Inquilinos, 789' },
+          { name: 'imovel_tipo', label: 'Tipo do Imóvel', type: 'select', required: true, options: ['Residencial', 'Comercial', 'Sala', 'Apartamento', 'Casa'] },
+          { name: 'valor_aluguel', label: 'Valor do Aluguel (R$)', type: 'text', required: true, placeholder: '2.500,00' },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '30' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE LOCAÇÃO
+
+LOCADOR: {{locador_nome}}, inscrito no CPF/CNPJ {{locador_cnpj_cpf}}, residente à {{locador_endereco}}
+
+LOCATÁRIO: {{locatario_nome}}, inscrito no CPF/CNPJ {{locatario_cnpj_cpf}}, residente à {{locatario_endereco}}
+
+IMÓVEL: {{imovel_tipo}} localizado à {{imovel_endereco}}
+
+PRAZO: {{prazo_meses}} meses, iniciando em {{data_inicio}}
+
+VALOR: R$ {{valor_aluguel}} mensais, vencimento dia 10
+
+OBRIGAÇÕES:
+- Locatário: pagar pontualmente, conservar o imóvel
+- Locador: garantir uso pacífico do imóvel
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     LOCADOR                    LOCATÁRIO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== RECURSOS HUMANOS =====
+      {
+        id: 'contrato-trabalho-clt',
+        name: 'Contrato de Trabalho CLT',
+        type: 'contract',
+        description: 'Contrato de trabalho pela CLT',
+        fields: [
+          { name: 'empregador_cnpj', label: 'CNPJ do Empregador', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empregador_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'empregador_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'empregado_cpf', label: 'CPF do Empregado', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'empregado_nome', label: 'Nome do Empregado', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'empregado_endereco', label: 'Endereço do Empregado', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'empregado_rg', label: 'RG do Empregado', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'cargo', label: 'Cargo', type: 'text', required: true, placeholder: 'Analista de Sistemas' },
+          { name: 'salario', label: 'Salário (R$)', type: 'text', required: true, placeholder: '5.000,00' },
+          { name: 'jornada', label: 'Jornada de Trabalho', type: 'text', required: true, placeholder: '44 horas semanais' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE TRABALHO
+
+EMPREGADOR: {{empregador_nome}}, CNPJ {{empregador_cnpj}}, com sede à {{empregador_endereco}}
+
+EMPREGADO: {{empregado_nome}}, CPF {{empregado_cpf}}, RG {{empregado_rg}}, residente à {{empregado_endereco}}
+
+CARGO: {{cargo}}
+
+SALÁRIO: R$ {{salario}} mensais
+
+JORNADA: {{jornada}}
+
+INÍCIO: {{data_inicio}}
+
+OBRIGAÇÕES: Cumprimento da CLT e regulamentos internos
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    EMPREGADOR                  EMPREGADO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'contrato-estagio',
+        name: 'Contrato de Estágio',
+        type: 'contract',
+        description: 'Contrato de estágio curricular',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'estagiario_cpf', label: 'CPF do Estagiário', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'estagiario_nome', label: 'Nome do Estagiário', type: 'text', required: true, placeholder: 'Ana Silva' },
+          { name: 'estagiario_endereco', label: 'Endereço do Estagiário', type: 'text', required: true, placeholder: 'Rua Estudante, 789' },
+          { name: 'instituicao_ensino', label: 'Instituição de Ensino', type: 'text', required: true, placeholder: 'Universidade XYZ' },
+          { name: 'curso', label: 'Curso', type: 'text', required: true, placeholder: 'Administração' },
+          { name: 'valor_bolsa', label: 'Valor da Bolsa (R$)', type: 'text', required: true, placeholder: '800,00' },
+          { name: 'carga_horaria', label: 'Carga Horária Semanal', type: 'text', required: true, placeholder: '30 horas' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'data_fim', label: 'Data de Término', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE ESTÁGIO
+
+CONCEDENTE: {{empresa_nome}}, CNPJ {{empresa_cnpj}}, com sede à {{empresa_endereco}}
+
+ESTAGIÁRIO: {{estagiario_nome}}, CPF {{estagiario_cpf}}, estudante de {{curso}} na {{instituicao_ensino}}, residente à {{estagiario_endereco}}
+
+PERÍODO: {{data_inicio}} a {{data_fim}}
+
+CARGA HORÁRIA: {{carga_horaria}}
+
+BOLSA-AUXÍLIO: R$ {{valor_bolsa}} mensais
+
+ATIVIDADES: Relacionadas ao curso de {{curso}}
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    CONCEDENTE                  ESTAGIÁRIO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== VEICULAR =====
+      {
+        id: 'contrato-compra-venda-veiculo',
+        name: 'Contrato de Compra e Venda de Veículo',
+        type: 'contract',
+        description: 'Contrato específico para venda de veículos',
+        fields: [
+          { name: 'vendedor_cpf', label: 'CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cpf', label: 'CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'veiculo_marca', label: 'Marca do Veículo', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_ano', label: 'Ano', type: 'text', required: true, placeholder: '2020' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'veiculo_chassi', label: 'Chassi', type: 'text', required: true, placeholder: '9BWHE21JX24060831' },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '45.000,00' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE COMPRA E VENDA DE VEÍCULO
+
+VENDEDOR: {{vendedor_nome}}, CPF {{vendedor_cpf}}, residente à {{vendedor_endereco}}
+
+COMPRADOR: {{comprador_nome}}, CPF {{comprador_cpf}}, residente à {{comprador_endereco}}
+
+VEÍCULO:
+- Marca: {{veiculo_marca}}
+- Modelo: {{veiculo_modelo}}
+- Ano: {{veiculo_ano}}
+- Placa: {{veiculo_placa}}
+- Chassi: {{veiculo_chassi}}
+
+VALOR: R$ {{valor_venda}}
+
+CONDIÇÕES: Veículo vendido no estado em que se encontra
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     VENDEDOR                    COMPRADOR`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== FISCAL/CONTÁBIL =====
+      {
         id: 'declaracao-renda',
         name: 'Declaração de Renda',
         type: 'certificate',
         description: 'Declaração de renda para fins diversos',
         fields: [
-          { name: 'nome_completo', label: 'Nome Completo', type: 'text', required: true },
-          { name: 'cpf', label: 'CPF', type: 'text', required: true },
-          { name: 'rg', label: 'RG', type: 'text', required: true },
-          { name: 'endereco', label: 'Endereço Completo', type: 'text', required: true },
-          { name: 'renda_mensal', label: 'Renda Mensal (R$)', type: 'text', required: true },
-          { name: 'empresa', label: 'Empresa/Empregador', type: 'text', required: true },
-          { name: 'cargo', label: 'Cargo/Função', type: 'text', required: true },
-          { name: 'finalidade', label: 'Finalidade da Declaração', type: 'text', required: true }
+          { name: 'cpf', label: 'CPF', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'nome_completo', label: 'Nome Completo', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'rg', label: 'RG', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'endereco', label: 'Endereço Completo', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'empresa', label: 'Empresa/Empregador', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'cargo', label: 'Cargo/Função', type: 'text', required: true, placeholder: 'Desenvolvedor' },
+          { name: 'renda_mensal', label: 'Renda Mensal (R$)', type: 'text', required: true, placeholder: '5.000,00' },
+          { name: 'finalidade', label: 'Finalidade da Declaração', type: 'text', required: true, placeholder: 'Financiamento imobiliário' }
         ],
         template: `DECLARAÇÃO DE RENDA
 
-Eu, {{nome_completo}}, portador(a) do CPF nº {{cpf}} e RG nº {{rg}}, residente e domiciliado(a) à {{endereco}}, declaro para os devidos fins que possuo renda mensal no valor de R$ {{renda_mensal}} ({{renda_mensal}} reais), proveniente de salário como {{cargo}} na empresa {{empresa}}.
+Eu, {{nome_completo}}, portador(a) do CPF nº {{cpf}} e RG nº {{rg}}, residente e domiciliado(a) à {{endereco}}, declaro para os devidos fins que possuo renda mensal no valor de R$ {{renda_mensal}}, proveniente de salário como {{cargo}} na empresa {{empresa}}.
 
 Esta declaração é feita para fins de {{finalidade}} e é verdadeira em todos os seus termos.
 
@@ -375,6 +670,593 @@ Por ser expressão da verdade, firmo a presente.
 _________________________________
 {{nome_completo}}
 CPF: {{cpf}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'declaracao-residencia',
+        name: 'Declaração de Residência',
+        type: 'certificate',
+        description: 'Declaração de residência',
+        fields: [
+          { name: 'declarante_cpf', label: 'CPF do Declarante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'declarante_nome', label: 'Nome do Declarante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'declarante_rg', label: 'RG do Declarante', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'residente_cpf', label: 'CPF do Residente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'residente_nome', label: 'Nome do Residente', type: 'text', required: true, placeholder: 'Maria Silva' },
+          { name: 'endereco_residencia', label: 'Endereço da Residência', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'tempo_residencia', label: 'Tempo de Residência', type: 'text', required: true, placeholder: '2 anos' },
+          { name: 'finalidade', label: 'Finalidade', type: 'text', required: true, placeholder: 'Comprovação de endereço' }
+        ],
+        template: `DECLARAÇÃO DE RESIDÊNCIA
+
+Eu, {{declarante_nome}}, portador do CPF {{declarante_cpf}} e RG {{declarante_rg}}, DECLARO sob as penas da lei que {{residente_nome}}, portador do CPF {{residente_cpf}}, reside no endereço {{endereco_residencia}} há {{tempo_residencia}}.
+
+Esta declaração é feita para fins de {{finalidade}}.
+
+Por ser verdade, firmo a presente.
+
+{{data_atual}}
+
+_________________________________
+{{declarante_nome}}
+Declarante`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== FINANCEIRO =====
+      {
+        id: 'recibo-pagamento',
+        name: 'Recibo de Pagamento',
+        type: 'form',
+        description: 'Recibo para comprovação de pagamento',
+        fields: [
+          { name: 'pagador_cnpj_cpf', label: 'CNPJ/CPF do Pagador', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'pagador_nome', label: 'Nome do Pagador', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'recebedor_cnpj_cpf', label: 'CNPJ/CPF do Recebedor', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'recebedor_nome', label: 'Nome do Recebedor', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'valor_pago', label: 'Valor Pago (R$)', type: 'text', required: true, placeholder: '1.500,00' },
+          { name: 'referente_pagamento', label: 'Referente ao Pagamento', type: 'textarea', required: true, placeholder: 'Serviços de consultoria...' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'select', required: true, options: ['Dinheiro', 'PIX', 'Transferência', 'Cartão', 'Cheque'] },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `RECIBO DE PAGAMENTO
+
+Eu, {{recebedor_nome}}, inscrito no CPF/CNPJ {{recebedor_cnpj_cpf}}, recebi de {{pagador_nome}}, inscrito no CPF/CNPJ {{pagador_cnpj_cpf}}, a quantia de R$ {{valor_pago}}, referente a {{referente_pagamento}}.
+
+Forma de pagamento: {{forma_pagamento}}
+
+Para clareza firmo o presente recibo.
+
+{{cidade}}, {{data_atual}}
+
+_________________________________
+{{recebedor_nome}}
+Recebedor`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== CONSTRUÇÃO CIVIL =====
+      {
+        id: 'contrato-construcao',
+        name: 'Contrato de Prestação de Serviços de Construção',
+        type: 'contract',
+        description: 'Contrato para serviços de construção civil',
+        fields: [
+          { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'contratante_nome', label: 'Nome do Contratante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'construtor_cnpj_cpf', label: 'CNPJ/CPF do Construtor', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'construtor_nome', label: 'Nome/Razão Social do Construtor', type: 'text', required: true, placeholder: 'Construtora ABC Ltda' },
+          { name: 'construtor_endereco', label: 'Endereço do Construtor', type: 'text', required: true, placeholder: 'Rua Construção, 456' },
+          { name: 'engenheiro_nome', label: 'Nome do Engenheiro Responsável', type: 'text', required: true, placeholder: 'Eng. Carlos Santos' },
+          { name: 'crea_numero', label: 'CREA', type: 'text', required: true, placeholder: 'CREA 123456' },
+          { name: 'obra_endereco', label: 'Endereço da Obra', type: 'text', required: true, placeholder: 'Rua da Obra, 789' },
+          { name: 'tipo_obra', label: 'Tipo de Obra', type: 'select', required: true, options: ['Construção', 'Reforma', 'Ampliação', 'Demolição'] },
+          { name: 'valor_obra', label: 'Valor da Obra (R$)', type: 'text', required: true, placeholder: '150.000,00' },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '6' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CONSTRUÇÃO
+
+CONTRATANTE: {{contratante_nome}}, CPF/CNPJ {{contratante_cnpj_cpf}}, residente à {{contratante_endereco}}
+
+CONTRATADO: {{construtor_nome}}, CNPJ/CPF {{construtor_cnpj_cpf}}, com sede à {{construtor_endereco}}
+
+RESPONSÁVEL TÉCNICO: {{engenheiro_nome}}, {{crea_numero}}
+
+OBRA: {{tipo_obra}} no endereço {{obra_endereco}}
+
+VALOR: R$ {{valor_obra}}
+
+PRAZO: {{prazo_meses}} meses a partir de {{data_inicio}}
+
+RESPONSABILIDADES:
+- Fornecimento de materiais e mão de obra
+- Cumprimento de normas técnicas e ambientais
+- Entrega conforme projeto aprovado
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+   CONTRATANTE                  CONTRATADO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== E-COMMERCE/DIGITAL =====
+      {
+        id: 'termos-uso-lgpd',
+        name: 'Termos de Uso e Política de Privacidade (LGPD)',
+        type: 'custom',
+        description: 'Termos de uso conforme LGPD',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Digital, 123' },
+          { name: 'site_url', label: 'URL do Site', type: 'text', required: true, placeholder: 'www.exemplo.com.br' },
+          { name: 'email_contato', label: 'Email de Contato', type: 'text', required: true, placeholder: 'contato@exemplo.com.br' },
+          { name: 'dpo_nome', label: 'Nome do DPO', type: 'text', required: false, placeholder: 'Ana Silva (opcional)' },
+          { name: 'dpo_email', label: 'Email do DPO', type: 'text', required: false, placeholder: 'dpo@exemplo.com.br' }
+        ],
+        template: `TERMOS DE USO E POLÍTICA DE PRIVACIDADE
+
+{{empresa_nome}}, CNPJ {{empresa_cnpj}}, situada à {{empresa_endereco}}, estabelece os seguintes termos para uso do site {{site_url}}:
+
+1. ACEITAÇÃO DOS TERMOS
+Ao acessar nosso site, você concorda com estes termos.
+
+2. COLETA DE DADOS (LGPD)
+Coletamos apenas dados necessários para prestação dos serviços, conforme Lei Geral de Proteção de Dados.
+
+3. USO DOS DADOS
+Seus dados são utilizados exclusivamente para:
+- Prestação de serviços contratados
+- Comunicação sobre nossos serviços
+- Cumprimento de obrigações legais
+
+4. DIREITOS DO TITULAR
+Você pode solicitar acesso, correção ou exclusão de seus dados através do email {{email_contato}}.
+
+5. ENCARREGADO DE DADOS
+{{dpo_nome}} - {{dpo_email}}
+
+6. CONTATO
+Para dúvidas: {{email_contato}}
+
+Última atualização: {{data_atual}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== SAÚDE/EDUCAÇÃO =====
+      {
+        id: 'atestado-medico',
+        name: 'Atestado Médico',
+        type: 'certificate',
+        description: 'Atestado médico para afastamento',
+        fields: [
+          { name: 'medico_nome', label: 'Nome do Médico', type: 'text', required: true, placeholder: 'Dr. Carlos Silva' },
+          { name: 'medico_crm', label: 'CRM', type: 'text', required: true, placeholder: 'CRM 123456-SP' },
+          { name: 'medico_especialidade', label: 'Especialidade', type: 'text', required: true, placeholder: 'Clínico Geral' },
+          { name: 'paciente_cpf', label: 'CPF do Paciente', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'paciente_nome', label: 'Nome do Paciente', type: 'text', required: true, placeholder: 'João Santos' },
+          { name: 'dias_afastamento', label: 'Dias de Afastamento', type: 'number', required: true, placeholder: '3' },
+          { name: 'cid', label: 'CID (opcional)', type: 'text', required: false, placeholder: 'Z76.1' },
+          { name: 'observacoes', label: 'Observações', type: 'textarea', required: false, placeholder: 'Repouso absoluto' }
+        ],
+        template: `ATESTADO MÉDICO
+
+Atesto para os devidos fins que o(a) paciente {{paciente_nome}}, portador(a) do CPF {{paciente_cpf}}, esteve sob meus cuidados médicos e deverá afastar-se de suas atividades laborais pelo período de {{dias_afastamento}} dias, a contar de {{data_atual}}.
+
+{{cid}}
+
+{{observacoes}}
+
+{{data_atual}}
+
+_____________________
+{{medico_nome}}
+{{medico_especialidade}}
+{{medico_crm}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== UNIÃO ESTÁVEL/DEPENDÊNCIA =====
+      {
+        id: 'declaracao-uniao-estavel',
+        name: 'Declaração de União Estável',
+        type: 'certificate',
+        description: 'Declaração de união estável',
+        fields: [
+          { name: 'companheiro1_cpf', label: 'CPF do Companheiro 1', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'companheiro1_nome', label: 'Nome do Companheiro 1', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'companheiro1_profissao', label: 'Profissão do Companheiro 1', type: 'text', required: true, placeholder: 'Engenheiro' },
+          { name: 'companheiro1_endereco', label: 'Endereço do Companheiro 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'companheiro2_cpf', label: 'CPF do Companheiro 2', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'companheiro2_nome', label: 'Nome do Companheiro 2', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'companheiro2_profissao', label: 'Profissão do Companheiro 2', type: 'text', required: true, placeholder: 'Professora' },
+          { name: 'companheiro2_endereco', label: 'Endereço do Companheiro 2', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'data_inicio_uniao', label: 'Data do Início da União', type: 'date', required: true },
+          { name: 'testemunha1_nome', label: 'Nome da Testemunha 1', type: 'text', required: true, placeholder: 'Carlos Souza' },
+          { name: 'testemunha1_cpf', label: 'CPF da Testemunha 1', type: 'text', required: true, placeholder: '111.222.333-44' },
+          { name: 'testemunha2_nome', label: 'Nome da Testemunha 2', type: 'text', required: true, placeholder: 'Ana Costa' },
+          { name: 'testemunha2_cpf', label: 'CPF da Testemunha 2', type: 'text', required: true, placeholder: '555.666.777-88' }
+        ],
+        template: `DECLARAÇÃO DE UNIÃO ESTÁVEL
+
+Declaramos que {{companheiro1_nome}}, {{companheiro1_profissao}}, CPF {{companheiro1_cpf}}, residente à {{companheiro1_endereco}}, e {{companheiro2_nome}}, {{companheiro2_profissao}}, CPF {{companheiro2_cpf}}, residente à {{companheiro2_endereco}}, vivem em união estável desde {{data_inicio_uniao}}, constituindo família nos moldes do art. 1.723 do Código Civil.
+
+A presente declaração é feita para todos os fins de direito.
+
+{{data_atual}}
+
+_____________________          _____________________
+{{companheiro1_nome}}          {{companheiro2_nome}}
+
+TESTEMUNHAS:
+___________________________    ___________________________
+{{testemunha1_nome}}           {{testemunha2_nome}}
+CPF: {{testemunha1_cpf}}       CPF: {{testemunha2_cpf}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== SEGUROS =====
+      {
+        id: 'comunicacao-sinistro',
+        name: 'Comunicação de Sinistro',
+        type: 'report',
+        description: 'Comunicação de sinistro para seguradora',
+        fields: [
+          { name: 'segurado_cpf', label: 'CPF do Segurado', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'segurado_nome', label: 'Nome do Segurado', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'segurado_endereco', label: 'Endereço do Segurado', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'segurado_telefone', label: 'Telefone do Segurado', type: 'text', required: true, placeholder: '(11) 99999-9999' },
+          { name: 'apolice_numero', label: 'Número da Apólice', type: 'text', required: true, placeholder: '12345678' },
+          { name: 'seguradora_nome', label: 'Nome da Seguradora', type: 'text', required: true, placeholder: 'Seguradora XYZ S.A.' },
+          { name: 'data_sinistro', label: 'Data do Sinistro', type: 'date', required: true },
+          { name: 'local_sinistro', label: 'Local do Sinistro', type: 'text', required: true, placeholder: 'Av. Paulista, 1000' },
+          { name: 'descricao_sinistro', label: 'Descrição do Sinistro', type: 'textarea', required: true, placeholder: 'Descreva o que aconteceu...' },
+          { name: 'danos_estimados', label: 'Danos Estimados (R$)', type: 'text', required: false, placeholder: '5.000,00' }
+        ],
+        template: `COMUNICAÇÃO DE SINISTRO
+
+À {{seguradora_nome}}
+
+SEGURADO: {{segurado_nome}}, CPF {{segurado_cpf}}
+ENDEREÇO: {{segurado_endereco}}
+TELEFONE: {{segurado_telefone}}
+APÓLICE: {{apolice_numero}}
+
+DADOS DO SINISTRO:
+Data: {{data_sinistro}}
+Local: {{local_sinistro}}
+
+DESCRIÇÃO DOS FATOS:
+{{descricao_sinistro}}
+
+DANOS ESTIMADOS: R$ {{danos_estimados}}
+
+Solicito a abertura do processo de sinistro conforme contrato.
+
+{{data_atual}}
+
+_________________________________
+{{segurado_nome}}
+Segurado`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== TERMO DE RESPONSABILIDADE =====
+      {
+        id: 'termo-responsabilidade-veiculo',
+        name: 'Termo de Responsabilidade - Uso de Veículo',
+        type: 'custom',
+        description: 'Termo para uso responsável de veículo da empresa',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'funcionario_cpf', label: 'CPF do Funcionário', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'funcionario_nome', label: 'Nome do Funcionário', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'funcionario_endereco', label: 'Endereço do Funcionário', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'veiculo_marca', label: 'Marca do Veículo', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'finalidade_uso', label: 'Finalidade do Uso', type: 'text', required: true, placeholder: 'Serviços externos da empresa' }
+        ],
+        template: `TERMO DE RESPONSABILIDADE - USO DE VEÍCULO
+
+{{empresa_nome}}, CNPJ {{empresa_cnpj}}, autoriza {{funcionario_nome}}, CPF {{funcionario_cpf}}, residente à {{funcionario_endereco}}, a utilizar o veículo {{veiculo_marca}} {{veiculo_modelo}}, placa {{veiculo_placa}}, para {{finalidade_uso}}.
+
+RESPONSABILIDADES DO USUÁRIO:
+- Usar o veículo apenas para fins autorizados
+- Manter carteira de habilitação válida
+- Comunicar imediatamente acidentes ou problemas
+- Zelar pela conservação do veículo
+- Responsabilizar-se por multas de trânsito
+
+RESPONSABILIDADES DA EMPRESA:
+- Manter seguro e documentação em dia
+- Arcar com manutenção preventiva
+
+{{data_atual}}
+
+_____________________          _____________________
+   {{empresa_nome}}            {{funcionario_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== CONTRATO SOCIAL (CONSTITUIÇÃO) =====
+      {
+        id: 'contrato-social-ltda',
+        name: 'Contrato Social - LTDA',
+        type: 'contract',
+        description: 'Contrato social para sociedade limitada',
+        fields: [
+          { name: 'socio1_cpf', label: 'CPF do Sócio 1', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'socio1_nome', label: 'Nome do Sócio 1', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'socio1_endereco', label: 'Endereço do Sócio 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'socio1_participacao', label: 'Participação do Sócio 1 (%)', type: 'number', required: true, placeholder: '70' },
+          { name: 'socio2_cpf', label: 'CPF do Sócio 2', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'socio2_nome', label: 'Nome do Sócio 2', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'socio2_endereco', label: 'Endereço do Sócio 2', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'socio2_participacao', label: 'Participação do Sócio 2 (%)', type: 'number', required: true, placeholder: '30' },
+          { name: 'empresa_nome', label: 'Nome da Empresa', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 789' },
+          { name: 'objeto_social', label: 'Objeto Social', type: 'textarea', required: true, placeholder: 'Desenvolvimento de software...' },
+          { name: 'capital_social', label: 'Capital Social (R$)', type: 'text', required: true, placeholder: '100.000,00' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO SOCIAL
+
+SÓCIOS:
+{{socio1_nome}}, CPF {{socio1_cpf}}, residente à {{socio1_endereco}} - {{socio1_participacao}}%
+{{socio2_nome}}, CPF {{socio2_cpf}}, residente à {{socio2_endereco}} - {{socio2_participacao}}%
+
+DENOMINAÇÃO: {{empresa_nome}}
+
+SEDE: {{empresa_endereco}}
+
+OBJETO SOCIAL: {{objeto_social}}
+
+CAPITAL SOCIAL: R$ {{capital_social}}, dividido em quotas
+
+ADMINISTRAÇÃO: Todos os sócios podem administrar
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+  {{socio1_nome}}              {{socio2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== ACORDOS COMERCIAIS =====
+      {
+        id: 'acordo-parceria',
+        name: 'Acordo de Parceria Comercial',
+        type: 'contract',
+        description: 'Acordo para parceria entre empresas',
+        fields: [
+          { name: 'empresa1_cnpj', label: 'CNPJ da Empresa 1', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa1_nome', label: 'Razão Social da Empresa 1', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa1_endereco', label: 'Endereço da Empresa 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'empresa2_cnpj', label: 'CNPJ da Empresa 2', type: 'text', required: true, placeholder: '98.765.432/0001-10' },
+          { name: 'empresa2_nome', label: 'Razão Social da Empresa 2', type: 'text', required: true, placeholder: 'Digital Corp S.A.' },
+          { name: 'empresa2_endereco', label: 'Endereço da Empresa 2', type: 'text', required: true, placeholder: 'Av. B, 456' },
+          { name: 'objeto_parceria', label: 'Objeto da Parceria', type: 'textarea', required: true, placeholder: 'Desenvolvimento conjunto de soluções...' },
+          { name: 'prazo_anos', label: 'Prazo (anos)', type: 'number', required: true, placeholder: '2' },
+          { name: 'divisao_resultados', label: 'Divisão de Resultados', type: 'text', required: true, placeholder: '50% para cada' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `ACORDO DE PARCERIA COMERCIAL
+
+EMPRESA 1: {{empresa1_nome}}, CNPJ {{empresa1_cnpj}}, sede à {{empresa1_endereco}}
+
+EMPRESA 2: {{empresa2_nome}}, CNPJ {{empresa2_cnpj}}, sede à {{empresa2_endereco}}
+
+OBJETO: {{objeto_parceria}}
+
+PRAZO: {{prazo_anos}} anos
+
+RESULTADOS: {{divisao_resultados}}
+
+OBRIGAÇÕES:
+- Colaboração técnica e comercial
+- Compartilhamento de recursos conforme acordado
+- Manutenção de sigilo de informações
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+  {{empresa1_nome}}            {{empresa2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== DECLARAÇÕES ESPECÍFICAS =====
+      {
+        id: 'declaracao-dependencia',
+        name: 'Declaração de Dependência',
+        type: 'certificate',
+        description: 'Declaração de dependência para fins legais',
+        fields: [
+          { name: 'declarante_cpf', label: 'CPF do Declarante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'declarante_nome', label: 'Nome do Declarante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'declarante_endereco', label: 'Endereço do Declarante', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'dependente_cpf', label: 'CPF do Dependente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'dependente_nome', label: 'Nome do Dependente', type: 'text', required: true, placeholder: 'Maria Silva' },
+          { name: 'grau_parentesco', label: 'Grau de Parentesco', type: 'select', required: true, options: ['Cônjuge', 'Filho(a)', 'Pai/Mãe', 'Irmão(ã)', 'Outros'] },
+          { name: 'finalidade', label: 'Finalidade', type: 'text', required: true, placeholder: 'Imposto de Renda' },
+          { name: 'renda_dependente', label: 'Renda do Dependente (R$)', type: 'text', required: false, placeholder: '0,00' }
+        ],
+        template: `DECLARAÇÃO DE DEPENDÊNCIA
+
+Eu, {{declarante_nome}}, CPF {{declarante_cpf}}, residente à {{declarante_endereco}}, DECLARO que {{dependente_nome}}, CPF {{dependente_cpf}}, é meu(minha) {{grau_parentesco}} e encontra-se sob minha dependência econômica.
+
+{{dependente_nome}} possui renda própria de R$ {{renda_dependente}} mensais.
+
+Esta declaração é feita para fins de {{finalidade}}.
+
+{{data_atual}}
+
+_________________________________
+{{declarante_nome}}
+Declarante`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== ORDEM DE SERVIÇO =====
+      {
+        id: 'ordem-servico',
+        name: 'Ordem de Serviço (OS)',
+        type: 'form',
+        description: 'Ordem de serviço para controle interno',
+        fields: [
+          { name: 'cliente_cnpj_cpf', label: 'CNPJ/CPF do Cliente', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'cliente_nome', label: 'Nome do Cliente', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'cliente_endereco', label: 'Endereço do Cliente', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'cliente_telefone', label: 'Telefone do Cliente', type: 'text', required: true, placeholder: '(11) 99999-9999' },
+          { name: 'servico_descricao', label: 'Descrição do Serviço', type: 'textarea', required: true, placeholder: 'Manutenção de equipamento...' },
+          { name: 'servico_local', label: 'Local do Serviço', type: 'text', required: true, placeholder: 'Endereço onde será realizado' },
+          { name: 'data_prevista', label: 'Data Prevista', type: 'date', required: true },
+          { name: 'responsavel_tecnico', label: 'Responsável Técnico', type: 'text', required: true, placeholder: 'Carlos Santos' },
+          { name: 'valor_estimado', label: 'Valor Estimado (R$)', type: 'text', required: false, placeholder: '500,00' },
+          { name: 'observacoes', label: 'Observações', type: 'textarea', required: false, placeholder: 'Observações especiais...' }
+        ],
+        template: `ORDEM DE SERVIÇO
+
+CLIENTE: {{cliente_nome}}
+CPF/CNPJ: {{cliente_cnpj_cpf}}
+ENDEREÇO: {{cliente_endereco}}
+TELEFONE: {{cliente_telefone}}
+
+SERVIÇO: {{servico_descricao}}
+
+LOCAL: {{servico_local}}
+
+DATA PREVISTA: {{data_prevista}}
+
+RESPONSÁVEL: {{responsavel_tecnico}}
+
+VALOR ESTIMADO: R$ {{valor_estimado}}
+
+OBSERVAÇÕES: {{observacoes}}
+
+{{data_atual}}
+
+_________________________________
+Responsável Técnico`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== PROPOSTAS COMERCIAIS =====
+      {
+        id: 'proposta-comercial',
+        name: 'Proposta Comercial',
+        type: 'form',
+        description: 'Proposta comercial para clientes',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 123' },
+          { name: 'empresa_telefone', label: 'Telefone da Empresa', type: 'text', required: true, placeholder: '(11) 3333-4444' },
+          { name: 'empresa_email', label: 'Email da Empresa', type: 'text', required: true, placeholder: 'contato@empresa.com.br' },
+          { name: 'cliente_cnpj_cpf', label: 'CNPJ/CPF do Cliente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'cliente_nome', label: 'Nome do Cliente', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'proposta_descricao', label: 'Descrição da Proposta', type: 'textarea', required: true, placeholder: 'Desenvolvimento de sistema...' },
+          { name: 'valor_proposta', label: 'Valor da Proposta (R$)', type: 'text', required: true, placeholder: '25.000,00' },
+          { name: 'prazo_entrega', label: 'Prazo de Entrega', type: 'text', required: true, placeholder: '60 dias' },
+          { name: 'validade_proposta', label: 'Validade da Proposta', type: 'text', required: true, placeholder: '30 dias' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'textarea', required: true, placeholder: '50% inicio, 50% entrega' }
+        ],
+        template: `PROPOSTA COMERCIAL
+
+DE: {{empresa_nome}}
+CNPJ: {{empresa_cnpj}}
+ENDEREÇO: {{empresa_endereco}}
+TELEFONE: {{empresa_telefone}}
+EMAIL: {{empresa_email}}
+
+PARA: {{cliente_nome}}
+CPF/CNPJ: {{cliente_cnpj_cpf}}
+
+PROPOSTA: {{proposta_descricao}}
+
+VALOR: R$ {{valor_proposta}}
+
+PRAZO: {{prazo_entrega}}
+
+PAGAMENTO: {{forma_pagamento}}
+
+VALIDADE: Esta proposta é válida por {{validade_proposta}}.
+
+{{data_atual}}
+
+_________________________________
+{{empresa_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== COMUNICAÇÃO DE VENDA DETRAN =====
+      {
+        id: 'comunicacao-venda-detran',
+        name: 'Comunicação de Venda (Detran)',
+        type: 'form',
+        description: 'Comunicação de venda de veículo ao Detran',
+        fields: [
+          { name: 'vendedor_cpf', label: 'CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cpf', label: 'CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'veiculo_marca', label: 'Marca', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_ano', label: 'Ano/Modelo', type: 'text', required: true, placeholder: '2020/2021' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'veiculo_chassi', label: 'Chassi', type: 'text', required: true, placeholder: '9BWHE21JX24060831' },
+          { name: 'data_venda', label: 'Data da Venda', type: 'date', required: true },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '45.000,00' }
+        ],
+        template: `COMUNICAÇÃO DE VENDA - DETRAN
+
+VENDEDOR:
+Nome: {{vendedor_nome}}
+CPF: {{vendedor_cpf}}
+Endereço: {{vendedor_endereco}}
+
+COMPRADOR:
+Nome: {{comprador_nome}}
+CPF: {{comprador_cpf}}
+Endereço: {{comprador_endereco}}
+
+VEÍCULO:
+Marca/Modelo: {{veiculo_marca}} {{veiculo_modelo}}
+Ano/Modelo: {{veiculo_ano}}
+Placa: {{veiculo_placa}}
+Chassi: {{veiculo_chassi}}
+
+DATA DA VENDA: {{data_venda}}
+VALOR: R$ {{valor_venda}}
+
+Comunico a venda do veículo acima especificado.
+
+{{data_atual}}
+
+_________________________________
+{{vendedor_nome}}
+Vendedor`,
         createdAt: Date.now(),
         updatedAt: Date.now()
       }
@@ -2001,42 +2883,139 @@ Data: ${currentDate}`,
       {activeTab === 'templates' && (
         <div className="card">
           <h3>📋 Templates de Documentos</h3>
+          
+          {(() => {
+            // Organizar templates por categoria
+            const categorias = {
+              'Jurídico': templates.filter(t => 
+                t.name.toLowerCase().includes('procuração') ||
+                t.name.toLowerCase().includes('confidencialidade') ||
+                t.name.toLowerCase().includes('nda')
+              ),
+              'Comercial': templates.filter(t => 
+                t.name.toLowerCase().includes('contrato') && (
+                  t.name.toLowerCase().includes('serviços') ||
+                  t.name.toLowerCase().includes('compra') ||
+                  t.name.toLowerCase().includes('venda') ||
+                  t.name.toLowerCase().includes('locação') ||
+                  t.name.toLowerCase().includes('parceria')
+                )
+              ),
+              'Recursos Humanos': templates.filter(t => 
+                t.name.toLowerCase().includes('trabalho') ||
+                t.name.toLowerCase().includes('estágio') ||
+                t.name.toLowerCase().includes('clt')
+              ),
+              'Fiscal/Contábil': templates.filter(t => 
+                t.name.toLowerCase().includes('declaração') ||
+                t.name.toLowerCase().includes('renda') ||
+                t.name.toLowerCase().includes('residência') ||
+                t.name.toLowerCase().includes('dependência')
+              ),
+              'Financeiro': templates.filter(t => 
+                t.name.toLowerCase().includes('recibo') ||
+                t.name.toLowerCase().includes('pagamento')
+              ),
+              'Veicular': templates.filter(t => 
+                t.name.toLowerCase().includes('veículo') ||
+                t.name.toLowerCase().includes('detran') ||
+                t.name.toLowerCase().includes('comunicação')
+              ),
+              'Construção Civil': templates.filter(t => 
+                t.name.toLowerCase().includes('construção') ||
+                t.name.toLowerCase().includes('obra')
+              ),
+              'E-commerce/Digital': templates.filter(t => 
+                t.name.toLowerCase().includes('termos') ||
+                t.name.toLowerCase().includes('lgpd') ||
+                t.name.toLowerCase().includes('privacidade')
+              ),
+              'Seguros': templates.filter(t => 
+                t.name.toLowerCase().includes('sinistro') ||
+                t.name.toLowerCase().includes('seguro')
+              ),
+              'Constituição': templates.filter(t => 
+                t.name.toLowerCase().includes('social') ||
+                t.name.toLowerCase().includes('ltda') ||
+                t.name.toLowerCase().includes('mei')
+              ),
+              'Operacional': templates.filter(t => 
+                t.name.toLowerCase().includes('ordem') ||
+                t.name.toLowerCase().includes('proposta') ||
+                t.name.toLowerCase().includes('termo') && t.name.toLowerCase().includes('responsabilidade')
+              )
+            };
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-            {templates.map(template => (
-              <div 
-                key={template.id} 
-                className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
-                onClick={() => {
-                  setSelectedTemplate(template);
-                  setActiveTab('generator');
-                }}
-              >
-                <h4>{template.name}</h4>
-                <p style={{ color: 'var(--color-textSecondary)', margin: '0.5rem 0' }}>
-                  {template.description}
-                </p>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginTop: '1rem'
-                }}>
-                  <span className="badge">{template.type}</span>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
-                    {template.fields.length} campos
-                  </span>
-                </div>
+            // Filtrar categorias vazias
+            const categoriasComTemplates = Object.entries(categorias).filter(([_, temps]) => temps.length > 0);
+
+            return (
+              <div>
+                {categoriasComTemplates.map(([categoria, categoryTemplates]) => (
+                  <div key={categoria} style={{ marginBottom: '2rem' }}>
+                    <h4 style={{
+                      margin: '0 0 1rem 0',
+                      padding: '1rem',
+                      background: 'var(--color-primary)',
+                      color: 'white',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '1.1rem',
+                      fontWeight: '700'
+                    }}>
+                      {categoria === 'Jurídico' && '⚖️'} 
+                      {categoria === 'Comercial' && '💼'} 
+                      {categoria === 'Recursos Humanos' && '👥'} 
+                      {categoria === 'Fiscal/Contábil' && '📊'} 
+                      {categoria === 'Financeiro' && '💰'} 
+                      {categoria === 'Veicular' && '🚗'} 
+                      {categoria === 'Construção Civil' && '🏗️'} 
+                      {categoria === 'E-commerce/Digital' && '💻'} 
+                      {categoria === 'Seguros' && '🛡️'} 
+                      {categoria === 'Constituição' && '🏢'} 
+                      {categoria === 'Operacional' && '⚙️'} 
+                      {categoria}
+                    </h4>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                      {categoryTemplates.map(template => (
+                        <div 
+                          key={template.id} 
+                          className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedTemplate(template);
+                            setActiveTab('generator');
+                          }}
+                        >
+                          <h4>{template.name}</h4>
+                          <p style={{ color: 'var(--color-textSecondary)', margin: '0.5rem 0' }}>
+                            {template.description}
+                          </p>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            marginTop: '1rem'
+                          }}>
+                            <span className="badge">{template.type}</span>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
+                              {template.fields.length} campos
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {templates.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-textSecondary)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
+                    <p>Nenhum template disponível</p>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-
-          {templates.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-textSecondary)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-              <p>Nenhum template disponível</p>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
