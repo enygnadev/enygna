@@ -123,19 +123,19 @@ export default function DocumentosPage() {
           try {
             if (currentUser) {
               // Verificar se o usuário tem acesso ao sistema de documentos
-              const userDocRef = firestoreModule.doc(dbInstance, 'documentos_users', currentUser.uid);
+              const userDocRef = firestoreModule.doc(firebase.db, 'documentos_users', currentUser.uid);
               const userDoc = await firestoreModule.getDoc(userDocRef);
 
-              if (userDoc.exists()) {
+              if (userDoc.exists() && userDoc.data()?.isActive) {
                 if (mounted) {
                   setUser(currentUser);
                   const userData = userDoc.data();
-                  setUserRole(userData?.role || null); // Set user role
+                  setUserRole(userData?.role || null);
 
                   // Carregar templates e documentos
                   try {
                     const templatesQuery = firestoreModule.query(
-                      firestoreModule.collection(dbInstance, 'document_templates'),
+                      firestoreModule.collection(firebase.db, 'document_templates'),
                       firestoreModule.orderBy('name', 'asc')
                     );
                     const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
@@ -146,7 +146,7 @@ export default function DocumentosPage() {
                     setTemplates(templatesData as DocumentTemplate[]);
 
                     const documentsQuery = firestoreModule.query(
-                      firestoreModule.collection(dbInstance, 'generated_documents'),
+                      firestoreModule.collection(firebase.db, 'generated_documents'),
                       firestoreModule.where('createdBy', '==', currentUser.uid),
                       firestoreModule.orderBy('createdAt', 'desc')
                     );
@@ -611,15 +611,14 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
     }
   };
 
-  // Define the tabs, including the new 'empresas' tab
+  // Define the tabs for the document system
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'documentos', label: 'Documentos', icon: '📄' },
-    { id: 'upload', label: 'Upload', icon: '⬆️' },
+    { id: 'generator', label: 'Gerar', icon: '📝' },
+    { id: 'chat', label: 'Chat IA', icon: '🤖' },
+    { id: 'ocr', label: 'OCR', icon: '📷' },
     { id: 'templates', label: 'Templates', icon: '📋' },
-    { id: 'assinatura', label: 'Assinatura', icon: '✍️' },
-    { id: 'empresas', label: 'Empresas', icon: '🏢' },
-    { id: 'relatorios', label: 'Relatórios', icon: '📈' }
+    { id: 'history', label: 'Histórico', icon: '📂' },
+    { id: 'empresas', label: 'Empresas', icon: '🏢' }
   ];
 
   if (loading) {
@@ -828,7 +827,7 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
           <button
             key={tab.id}
             className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id as any)} // Cast to any to satisfy the type
+            onClick={() => setActiveTab(tab.id as 'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas')}
           >
             {tab.icon} {tab.label}
           </button>
@@ -1245,25 +1244,7 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
         </div>
       )}
 
-      {/* Reports Tab */}
-      {activeTab === 'relatorios' && (
-        <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '2rem' }}>📈 Relatórios</h2>
-          <div style={{
-            background: 'rgba(255,255,255,0.1)',
-            padding: '3rem',
-            borderRadius: '16px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
-            <h3 style={{ marginBottom: '1rem' }}>Relatórios de Documentos</h3>
-            <p style={{ opacity: 0.8, maxWidth: '600px', margin: '0 auto' }}>
-              Sistema de relatórios em desenvolvimento. Em breve você terá acesso a relatórios sobre:
-              uso de documentos, assinaturas, templates mais utilizados e análises de conformidade.
-            </p>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

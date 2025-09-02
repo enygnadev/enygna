@@ -90,19 +90,17 @@ export default function DocumentosAuthPage() {
 
       // 2. Verificar se é empresa com sistema documentos ativo
       const empresasCollection = collection(db, 'empresas');
-      const empresasQuery = query(
-        empresasCollection,
-        where('email', '==', email),
-        where('ativo', '==', true)
-      );
-      const empresasSnapshot = await getDocs(empresasQuery);
+      const empresasSnapshot = await getDocs(empresasCollection);
 
-      if (!empresasSnapshot.empty) {
-        const empresaDoc = empresasSnapshot.docs[0];
+      for (const empresaDoc of empresasSnapshot.docs) {
         const empresaData = empresaDoc.data();
-
-        // Verificar se a empresa tem o sistema documentos ativo
-        if (empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('documentos')) {
+        
+        // Verificar se é esta empresa e se tem documentos ativo
+        if (empresaData.email === email && 
+            empresaData.ativo && 
+            empresaData.sistemasAtivos && 
+            empresaData.sistemasAtivos.includes('documentos')) {
+          
           // É empresa com documentos ativo - criar/atualizar perfil
           await setDoc(doc(db, 'documentos_users', user.uid), {
             uid: user.uid,
@@ -112,9 +110,11 @@ export default function DocumentosAuthPage() {
             empresaId: empresaDoc.id,
             isActive: true,
             createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
+            sistema: 'documentos'
           }, { merge: true });
 
+          console.log('Empresa logada no sistema de documentos:', empresaData.nome);
           router.push('/documentos');
           return;
         }
