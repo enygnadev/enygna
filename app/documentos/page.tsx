@@ -891,48 +891,55 @@ Data: ${currentDate}`,
   // Funções de formatação
   const formatCPF = (cpf: string) => {
     const cpfLimpo = cpf.replace(/\D/g, '');
-    if (cpfLimpo.length <= 11) {
-      return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    }
-    return cpf;
+    if (cpfLimpo.length === 0) return '';
+    if (cpfLimpo.length <= 3) return cpfLimpo;
+    if (cpfLimpo.length <= 6) return cpfLimpo.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+    if (cpfLimpo.length <= 9) return cpfLimpo.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+    return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4').substring(0, 14);
   };
 
   const formatCNPJ = (cnpj: string) => {
     const cnpjLimpo = cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length <= 14) {
-      return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    return cnpj;
+    if (cnpjLimpo.length === 0) return '';
+    if (cnpjLimpo.length <= 2) return cnpjLimpo;
+    if (cnpjLimpo.length <= 5) return cnpjLimpo.replace(/(\d{2})(\d{1,3})/, '$1.$2');
+    if (cnpjLimpo.length <= 8) return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
+    if (cnpjLimpo.length <= 12) return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+    return cnpjLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5').substring(0, 18);
   };
 
   const formatCEP = (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
-    if (cepLimpo.length <= 8) {
-      return cepLimpo.replace(/(\d{5})(\d{3})/, '$1-$2');
-    }
-    return cep;
+    if (cepLimpo.length === 0) return '';
+    if (cepLimpo.length <= 5) return cepLimpo;
+    return cepLimpo.replace(/(\d{5})(\d{1,3})/, '$1-$2').substring(0, 9);
   };
 
   const formatTelefone = (telefone: string) => {
     const telLimpo = telefone.replace(/\D/g, '');
+    if (telLimpo.length === 0) return '';
+    if (telLimpo.length <= 2) return `(${telLimpo}`;
+    if (telLimpo.length <= 6) return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2)}`;
     if (telLimpo.length <= 10) {
-      return telLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-    } else if (telLimpo.length <= 11) {
-      return telLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+      return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 6)}-${telLimpo.substring(6)}`;
     }
-    return telefone;
+    return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 7)}-${telLimpo.substring(7, 11)}`;
   };
 
-  // Funções de validação
-  const validateCPF = (cpf: string): boolean => {
+  // Funções de validação melhoradas
+  const validateCPF = (cpf: string): { valid: boolean; message?: string } => {
     const cpfLimpo = cpf.replace(/\D/g, '');
     
-    if (cpfLimpo.length !== 11) return false;
+    if (cpfLimpo.length !== 11) {
+      return { valid: false, message: 'CPF deve conter exatamente 11 dígitos' };
+    }
     
     // Verificar se todos os dígitos são iguais
-    if (/^(\d)\1+$/.test(cpfLimpo)) return false;
+    if (/^(\d)\1+$/.test(cpfLimpo)) {
+      return { valid: false, message: 'CPF não pode ter todos os dígitos iguais' };
+    }
     
-    // Validar dígitos verificadores
+    // Validar primeiro dígito verificador
     let soma = 0;
     for (let i = 0; i < 9; i++) {
       soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
@@ -940,8 +947,11 @@ Data: ${currentDate}`,
     let resto = 11 - (soma % 11);
     let digito1 = resto < 2 ? 0 : resto;
     
-    if (parseInt(cpfLimpo.charAt(9)) !== digito1) return false;
+    if (parseInt(cpfLimpo.charAt(9)) !== digito1) {
+      return { valid: false, message: 'Primeiro dígito verificador do CPF está incorreto' };
+    }
     
+    // Validar segundo dígito verificador
     soma = 0;
     for (let i = 0; i < 10; i++) {
       soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
@@ -949,16 +959,24 @@ Data: ${currentDate}`,
     resto = 11 - (soma % 11);
     let digito2 = resto < 2 ? 0 : resto;
     
-    return parseInt(cpfLimpo.charAt(10)) === digito2;
+    if (parseInt(cpfLimpo.charAt(10)) !== digito2) {
+      return { valid: false, message: 'Segundo dígito verificador do CPF está incorreto' };
+    }
+    
+    return { valid: true };
   };
 
-  const validateCNPJ = (cnpj: string): boolean => {
+  const validateCNPJ = (cnpj: string): { valid: boolean; message?: string } => {
     const cnpjLimpo = cnpj.replace(/\D/g, '');
     
-    if (cnpjLimpo.length !== 14) return false;
+    if (cnpjLimpo.length !== 14) {
+      return { valid: false, message: 'CNPJ deve conter exatamente 14 dígitos' };
+    }
     
     // Verificar se todos os dígitos são iguais
-    if (/^(\d)\1+$/.test(cnpjLimpo)) return false;
+    if (/^(\d)\1+$/.test(cnpjLimpo)) {
+      return { valid: false, message: 'CNPJ não pode ter todos os dígitos iguais' };
+    }
     
     // Validar primeiro dígito verificador
     let soma = 0;
@@ -970,7 +988,9 @@ Data: ${currentDate}`,
     let resto = soma % 11;
     let digito1 = resto < 2 ? 0 : 11 - resto;
     
-    if (parseInt(cnpjLimpo.charAt(12)) !== digito1) return false;
+    if (parseInt(cnpjLimpo.charAt(12)) !== digito1) {
+      return { valid: false, message: 'Primeiro dígito verificador do CNPJ está incorreto' };
+    }
     
     // Validar segundo dígito verificador
     soma = 0;
@@ -982,17 +1002,38 @@ Data: ${currentDate}`,
     resto = soma % 11;
     let digito2 = resto < 2 ? 0 : 11 - resto;
     
-    return parseInt(cnpjLimpo.charAt(13)) === digito2;
+    if (parseInt(cnpjLimpo.charAt(13)) !== digito2) {
+      return { valid: false, message: 'Segundo dígito verificador do CNPJ está incorreto' };
+    }
+    
+    return { valid: true };
   };
 
-  const validateCEP = (cep: string): boolean => {
+  const validateCEP = (cep: string): { valid: boolean; message?: string } => {
     const cepLimpo = cep.replace(/\D/g, '');
-    return cepLimpo.length === 8 && /^\d{8}$/.test(cepLimpo);
+    if (cepLimpo.length !== 8) {
+      return { valid: false, message: 'CEP deve conter exatamente 8 dígitos' };
+    }
+    if (!/^\d{8}$/.test(cepLimpo)) {
+      return { valid: false, message: 'CEP deve conter apenas números' };
+    }
+    return { valid: true };
   };
 
-  const validateTelefone = (telefone: string): boolean => {
+  const validateTelefone = (telefone: string): { valid: boolean; message?: string } => {
     const telLimpo = telefone.replace(/\D/g, '');
-    return telLimpo.length >= 10 && telLimpo.length <= 11;
+    if (telLimpo.length < 10) {
+      return { valid: false, message: 'Telefone deve ter pelo menos 10 dígitos' };
+    }
+    if (telLimpo.length > 11) {
+      return { valid: false, message: 'Telefone deve ter no máximo 11 dígitos' };
+    }
+    // Verificar se o DDD é válido (11-99)
+    const ddd = parseInt(telLimpo.substring(0, 2));
+    if (ddd < 11 || ddd > 99) {
+      return { valid: false, message: 'DDD inválido. Deve estar entre 11 e 99' };
+    }
+    return { valid: true };
   };
 
   // Função para aplicar máscara durante a digitação
@@ -1011,129 +1052,237 @@ Data: ${currentDate}`,
 
   // Função para preencher automaticamente baseado no CEP
   const preencherPorCEP = async (cep: string, fieldName: string) => {
-    if (!validateCEP(cep)) {
-      alert('❌ CEP inválido. Deve conter 8 dígitos.');
+    const validation = validateCEP(cep);
+    if (!validation.valid) {
+      alert(`❌ ${validation.message}`);
       return;
     }
 
-    const dadosCEP = await buscarCEP(cep);
-    if (dadosCEP) {
-      const novoFormData = { ...formData };
+    // Mostrar loading
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Buscando endereço...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
 
-      // Mapear campos do CEP para os campos do formulário
-      const mapeamento: Record<string, string> = {
-        'endereco': dadosCEP.logradouro,
-        'bairro': dadosCEP.bairro,
-        'cidade': dadosCEP.cidade,
-        'uf': dadosCEP.uf,
-        'cep': formatCEP(cep),
-        // Para campos que contenham essas palavras
-        'outorgante_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
-        'procurador_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
-        'contratante_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
-        'contratado_endereco': `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`
-      };
+    try {
+      const dadosCEP = await buscarCEP(cep);
+      
+      if (dadosCEP) {
+        const novoFormData = { ...formData };
 
-      // Preencher campos relacionados ao endereço
-      Object.keys(mapeamento).forEach(campo => {
-        if (selectedTemplate?.fields.some(field => field.name === campo)) {
-          novoFormData[campo] = mapeamento[campo];
+        // Mapear campos do CEP para os campos do formulário
+        const mapeamento: Record<string, string> = {
+          'endereco': dadosCEP.logradouro,
+          'bairro': dadosCEP.bairro,
+          'cidade': dadosCEP.cidade,
+          'uf': dadosCEP.uf,
+          'cep': formatCEP(cep),
+          // Para campos que contenham essas palavras
+          'outorgante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'procurador_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'contratante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'contratado_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`
+        };
+
+        // Preencher campos relacionados ao endereço
+        Object.keys(mapeamento).forEach(campo => {
+          if (selectedTemplate?.fields.some(field => field.name === campo)) {
+            novoFormData[campo] = mapeamento[campo];
+          }
+        });
+
+        // Para o campo atual, definir endereço específico
+        if (fieldName.includes('endereco')) {
+          novoFormData[fieldName] = `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}`;
         }
-      });
 
-      // Para o campo atual, adicionar o número se necessário
-      if (fieldName.includes('endereco')) {
-        novoFormData[fieldName] = `${dadosCEP.logradouro}, [NÚMERO]`;
+        setFormData(novoFormData);
+        
+        loadingAlert.innerHTML = '✅ Endereço encontrado!';
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+        
+        // Focar no campo de número se disponível
+        setTimeout(() => {
+          const numeroInput = document.querySelector(`input[placeholder*="Número"]`) as HTMLInputElement;
+          if (numeroInput) numeroInput.focus();
+        }, 500);
+        
+      } else {
+        loadingAlert.innerHTML = '❌ CEP não encontrado';
+        loadingAlert.style.background = '#ef4444';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
       }
-
-      setFormData(novoFormData);
-      alert('✅ Endereço preenchido automaticamente! Não esqueça de adicionar o número.');
-    } else {
-      alert('❌ CEP não encontrado. Verifique o código postal ou preencha manualmente.');
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      loadingAlert.innerHTML = '❌ Erro ao buscar CEP';
+      loadingAlert.style.background = '#ef4444';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
     }
   };
 
   // Função para preencher automaticamente baseado no CPF
   const preencherPorCPF = async (cpf: string, fieldName: string) => {
-    if (!validateCPF(cpf)) {
-      alert('❌ CPF inválido. Verifique os dígitos e tente novamente.');
+    const validation = validateCPF(cpf);
+    if (!validation.valid) {
+      alert(`❌ CPF inválido: ${validation.message}`);
       return;
     }
 
-    const dadosCPF = await buscarDadosCPF(cpf);
-    if (dadosCPF) {
+    // Mostrar loading
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Consultando CPF...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCPF = await buscarDadosCPF(cpf);
+      
+      if (dadosCPF && dadosCPF.nome) {
+        const novoFormData = { ...formData };
+
+        // Mapear campos do CPF
+        const mapeamento: Record<string, string> = {
+          'nome_completo': dadosCPF.nome,
+          'outorgante_nome': dadosCPF.nome,
+          'procurador_nome': dadosCPF.nome,
+          'contratante_nome': dadosCPF.nome,
+          'contratado_nome': dadosCPF.nome,
+          'cpf': formatCPF(cpf),
+          'outorgante_cpf': formatCPF(cpf),
+          'procurador_cpf': formatCPF(cpf),
+          'contratante_cnpj_cpf': formatCPF(cpf),
+          'contratado_cnpj_cpf': formatCPF(cpf)
+        };
+
+        // Preencher campos relacionados
+        Object.keys(mapeamento).forEach(campo => {
+          if (selectedTemplate?.fields.some(field => field.name === campo)) {
+            novoFormData[campo] = mapeamento[campo];
+          }
+        });
+
+        setFormData(novoFormData);
+        
+        loadingAlert.innerHTML = '✅ Dados encontrados!';
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+        
+      } else {
+        loadingAlert.innerHTML = '⚠️ CPF válido, mas sem dados disponíveis';
+        loadingAlert.style.background = '#f59e0b';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+        
+        // Apenas formatar o CPF se não encontrar dados
+        const novoFormData = { ...formData };
+        novoFormData[fieldName] = formatCPF(cpf);
+        setFormData(novoFormData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CPF:', error);
+      loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual';
+      loadingAlert.style.background = '#f59e0b';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+      
+      // Formatar o CPF mesmo se der erro na consulta
       const novoFormData = { ...formData };
-
-      // Mapear campos do CPF
-      const mapeamento: Record<string, string> = {
-        'nome_completo': dadosCPF.nome,
-        'outorgante_nome': dadosCPF.nome,
-        'procurador_nome': dadosCPF.nome,
-        'contratante_nome': dadosCPF.nome,
-        'contratado_nome': dadosCPF.nome,
-        'cpf': formatCPF(cpf),
-        'outorgante_cpf': formatCPF(cpf),
-        'procurador_cpf': formatCPF(cpf),
-        'contratante_cnpj_cpf': formatCPF(cpf),
-        'contratado_cnpj_cpf': formatCPF(cpf)
-      };
-
-      // Preencher campos relacionados
-      Object.keys(mapeamento).forEach(campo => {
-        if (selectedTemplate?.fields.some(field => field.name === campo)) {
-          novoFormData[campo] = mapeamento[campo];
-        }
-      });
-
+      novoFormData[fieldName] = formatCPF(cpf);
       setFormData(novoFormData);
-      alert('✅ Dados do CPF preenchidos automaticamente!');
-    } else {
-      alert('❌ CPF não encontrado na base de dados. Preencha manualmente.');
     }
   };
 
   // Função para preencher automaticamente baseado no CNPJ
   const preencherPorCNPJ = async (cnpj: string, fieldName: string) => {
-    if (!validateCNPJ(cnpj)) {
-      alert('❌ CNPJ inválido. Verifique os dígitos e tente novamente.');
+    const validation = validateCNPJ(cnpj);
+    if (!validation.valid) {
+      alert(`❌ CNPJ inválido: ${validation.message}`);
       return;
     }
 
-    const dadosCNPJ = await buscarDadosCNPJ(cnpj);
-    if (dadosCNPJ) {
+    // Mostrar loading
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Consultando CNPJ...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCNPJ = await buscarDadosCNPJ(cnpj);
+      
+      if (dadosCNPJ && dadosCNPJ.razao_social) {
+        const novoFormData = { ...formData };
+
+        // Mapear campos do CNPJ
+        const mapeamento: Record<string, string> = {
+          'nome_completo': dadosCNPJ.razao_social,
+          'razao_social': dadosCNPJ.razao_social,
+          'nome_fantasia': dadosCNPJ.nome_fantasia,
+          'contratante_nome': dadosCNPJ.razao_social,
+          'contratado_nome': dadosCNPJ.razao_social,
+          'empresa': dadosCNPJ.razao_social,
+          'cnpj': formatCNPJ(cnpj),
+          'contratante_cnpj_cpf': formatCNPJ(cnpj),
+          'contratado_cnpj_cpf': formatCNPJ(cnpj),
+          'endereco': dadosCNPJ.endereco,
+          'contratante_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+          'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+          'cidade': dadosCNPJ.cidade,
+          'telefone': dadosCNPJ.telefone ? formatTelefone(dadosCNPJ.telefone) : '',
+          'email': dadosCNPJ.email,
+          'atividade_principal': dadosCNPJ.atividade_principal
+        };
+
+        // Preencher campos relacionados
+        Object.keys(mapeamento).forEach(campo => {
+          if (selectedTemplate?.fields.some(field => field.name === campo)) {
+            novoFormData[campo] = mapeamento[campo];
+          }
+        });
+
+        setFormData(novoFormData);
+        
+        loadingAlert.innerHTML = '✅ Empresa encontrada!';
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+        
+      } else {
+        loadingAlert.innerHTML = '⚠️ CNPJ válido, mas sem dados disponíveis';
+        loadingAlert.style.background = '#f59e0b';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+        
+        // Apenas formatar o CNPJ se não encontrar dados
+        const novoFormData = { ...formData };
+        novoFormData[fieldName] = formatCNPJ(cnpj);
+        setFormData(novoFormData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CNPJ:', error);
+      loadingAlert.innerHTML = '⚠️ CNPJ válido, preenchimento manual';
+      loadingAlert.style.background = '#f59e0b';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+      
+      // Formatar o CNPJ mesmo se der erro na consulta
       const novoFormData = { ...formData };
-
-      // Mapear campos do CNPJ
-      const mapeamento: Record<string, string> = {
-        'nome_completo': dadosCNPJ.razao_social,
-        'razao_social': dadosCNPJ.razao_social,
-        'nome_fantasia': dadosCNPJ.nome_fantasia,
-        'contratante_nome': dadosCNPJ.razao_social,
-        'contratado_nome': dadosCNPJ.razao_social,
-        'empresa': dadosCNPJ.razao_social,
-        'cnpj': formatCNPJ(cnpj),
-        'contratante_cnpj_cpf': formatCNPJ(cnpj),
-        'contratado_cnpj_cpf': formatCNPJ(cnpj),
-        'endereco': dadosCNPJ.endereco,
-        'contratante_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
-        'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
-        'cidade': dadosCNPJ.cidade,
-        'telefone': formatTelefone(dadosCNPJ.telefone),
-        'email': dadosCNPJ.email,
-        'atividade_principal': dadosCNPJ.atividade_principal
-      };
-
-      // Preencher campos relacionados
-      Object.keys(mapeamento).forEach(campo => {
-        if (selectedTemplate?.fields.some(field => field.name === campo)) {
-          novoFormData[campo] = mapeamento[campo];
-        }
-      });
-
+      novoFormData[fieldName] = formatCNPJ(cnpj);
       setFormData(novoFormData);
-      alert('✅ Dados da empresa preenchidos automaticamente!');
-    } else {
-      alert('❌ CNPJ não encontrado na base de dados. Preencha manualmente.');
+    } finally {
+      // Garantir que o loading seja removido
+      setTimeout(() => {
+        if (document.body.contains(loadingAlert)) {
+          document.body.removeChild(loadingAlert);
+        }
+      }, 5000);
     }
   };
 
@@ -1925,39 +2074,46 @@ Data: ${currentDate}`,
                               }}
                               onBlur={(e) => {
                                 const value = e.target.value;
+                                if (!value) return; // Não validar campos vazios
+
                                 let isValid = true;
+                                let errorMessage = '';
                                 
                                 // Validar e fazer auto-fill por CEP
-                                if (field.name.toLowerCase().includes('cep') && value.length >= 8) {
-                                  if (validateCEP(value)) {
+                                if (field.name.toLowerCase().includes('cep') && value.replace(/\D/g, '').length >= 8) {
+                                  const cepValidation = validateCEP(value);
+                                  if (cepValidation.valid) {
                                     preencherPorCEP(value, field.name);
                                   } else {
-                                    alert('⚠️ CEP inválido. Verifique o formato.');
+                                    errorMessage = cepValidation.message || 'CEP inválido';
                                     isValid = false;
                                   }
                                 }
                                 // Validar e fazer auto-fill por CPF
-                                else if ((field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && value.replace(/\D/g, '').length === 11) {
-                                  if (validateCPF(value)) {
+                                else if ((field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && value.replace(/\D/g, '').length >= 11) {
+                                  const cpfValidation = validateCPF(value);
+                                  if (cpfValidation.valid) {
                                     preencherPorCPF(value, field.name);
                                   } else {
-                                    alert('⚠️ CPF inválido. Verifique os dígitos verificadores.');
+                                    errorMessage = cpfValidation.message || 'CPF inválido';
                                     isValid = false;
                                   }
                                 }
                                 // Validar e fazer auto-fill por CNPJ
-                                else if (field.name.toLowerCase().includes('cnpj') && value.replace(/\D/g, '').length === 14) {
-                                  if (validateCNPJ(value)) {
+                                else if (field.name.toLowerCase().includes('cnpj') && value.replace(/\D/g, '').length >= 14) {
+                                  const cnpjValidation = validateCNPJ(value);
+                                  if (cnpjValidation.valid) {
                                     preencherPorCNPJ(value, field.name);
                                   } else {
-                                    alert('⚠️ CNPJ inválido. Verifique os dígitos verificadores.');
+                                    errorMessage = cnpjValidation.message || 'CNPJ inválido';
                                     isValid = false;
                                   }
                                 }
                                 // Validar telefone
                                 else if ((field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && value.length > 0) {
-                                  if (!validateTelefone(value)) {
-                                    alert('⚠️ Telefone inválido. Deve ter entre 10 e 11 dígitos.');
+                                  const telefoneValidation = validateTelefone(value);
+                                  if (!telefoneValidation.valid) {
+                                    errorMessage = telefoneValidation.message || 'Telefone inválido';
                                     isValid = false;
                                   }
                                 }
@@ -1966,9 +2122,27 @@ Data: ${currentDate}`,
                                 if (!isValid && value.length > 0) {
                                   e.target.style.borderColor = '#ef4444';
                                   e.target.style.boxShadow = '0 0 0 1px #ef4444';
+                                  e.target.title = errorMessage;
+                                  
+                                  // Mostrar tooltip de erro
+                                  const errorTooltip = document.createElement('div');
+                                  errorTooltip.innerHTML = errorMessage;
+                                  errorTooltip.style.cssText = `
+                                    position: absolute; top: -2.5rem; left: 0; z-index: 1000;
+                                    background: #ef4444; color: white; padding: 0.5rem;
+                                    border-radius: 0.25rem; font-size: 0.75rem;
+                                    white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                  `;
+                                  e.target.parentElement?.appendChild(errorTooltip);
+                                  setTimeout(() => {
+                                    if (errorTooltip.parentElement) {
+                                      errorTooltip.parentElement.removeChild(errorTooltip);
+                                    }
+                                  }, 3000);
                                 } else {
                                   e.target.style.borderColor = '';
                                   e.target.style.boxShadow = '';
+                                  e.target.title = '';
                                 }
                               }}
                               placeholder={field.placeholder}
@@ -2008,14 +2182,24 @@ Data: ${currentDate}`,
                             )}
 
                             {/* Número da casa para CEP */}
-                            {field.name.toLowerCase().includes('cep') && formData[field.name] && (
+                            {field.name.toLowerCase().includes('endereco') && !field.name.toLowerCase().includes('cep') && formData[field.name] && formData[field.name].includes('[NÚMERO]') && (
                               <div style={{ marginTop: '0.5rem' }}>
+                                <label style={{ fontSize: '0.85rem', color: 'var(--color-textSecondary)', marginBottom: '0.25rem', display: 'block' }}>
+                                  🏠 Número da casa/estabelecimento
+                                </label>
                                 <input
                                   type="text"
                                   className="input"
-                                  placeholder="Número da casa/estabelecimento"
+                                  placeholder="Ex: 123, 45A, S/N"
                                   value={formData[field.name + '_numero'] || ''}
-                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.name + '_numero']: e.target.value }))}
+                                  onChange={(e) => {
+                                    const numero = e.target.value;
+                                    setFormData(prev => ({ 
+                                      ...prev, 
+                                      [field.name + '_numero']: numero,
+                                      [field.name]: prev[field.name].replace('[NÚMERO]', numero || '[NÚMERO]')
+                                    }));
+                                  }}
                                   style={{ fontSize: '0.9rem' }}
                                 />
                               </div>
@@ -2029,22 +2213,27 @@ Data: ${currentDate}`,
                           field.name.toLowerCase().includes('cnpj') ||
                           field.name.toLowerCase().includes('telefone') ||
                           field.name.toLowerCase().includes('fone') ||
-                          field.name.toLowerCase().includes('outorgante') ||
-                          field.name.toLowerCase().includes('procurador') ||
-                          field.name.toLowerCase().includes('contrat')) && (
+                          field.name.toLowerCase().includes('endereco')) && (
                           <div style={{
                             fontSize: '0.75rem',
                             color: 'var(--color-textSecondary)',
                             marginTop: '0.25rem',
-                            fontStyle: 'italic'
+                            fontStyle: 'italic',
+                            background: 'var(--color-surface)',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            border: '1px solid var(--color-border)'
                           }}>
-                            {field.name.toLowerCase().includes('cep') && '🔍 Digite o CEP (8 dígitos) para preenchimento automático do endereço'}
+                            {field.name.toLowerCase().includes('cep') && 
+                              '🔍 CEP com preenchimento automático (Ex: 01234-567 ou 01234567)'}
                             {(field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && 
-                              '🔍 Digite o CPF (11 dígitos) para preenchimento automático dos dados'}
+                              '🔍 CPF com preenchimento automático (Ex: 123.456.789-09)'}
                             {field.name.toLowerCase().includes('cnpj') && 
-                              '🔍 Digite o CNPJ (14 dígitos) para preenchimento automático da empresa'}
+                              '🔍 CNPJ com preenchimento automático (Ex: 12.345.678/0001-90)'}
                             {(field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && 
-                              '📞 Formato: (11) 99999-9999 ou (11) 9999-9999'}
+                              '📞 Telefone com formatação automática (Ex: (11) 99999-9999)'}
+                            {(field.name.toLowerCase().includes('endereco') && !field.name.toLowerCase().includes('cep')) && 
+                              '🏠 Endereço completo (Use CEP em outros campos para preenchimento automático)'}
                           </div>
                         )}
                       </div>
