@@ -132,7 +132,7 @@ export default function DocumentosPage() {
                   const userData = userDoc.data();
                   setUserRole(userData?.role || null);
 
-                  // Carregar templates e documentos
+                  // Carregar templates com fallback para templates locais
                   try {
                     const templatesQuery = firestoreModule.query(
                       firestoreModule.collection(firebase.db, 'document_templates'),
@@ -143,8 +143,21 @@ export default function DocumentosPage() {
                       id: doc.id,
                       ...doc.data()
                     }));
-                    setTemplates(templatesData as DocumentTemplate[]);
+                    
+                    // Se não há templates no Firestore, usar templates locais
+                    if (templatesData.length === 0) {
+                      setTemplates(getLocalTemplates());
+                    } else {
+                      setTemplates(templatesData as DocumentTemplate[]);
+                    }
+                  } catch (error) {
+                    console.error('Erro ao carregar templates:', error);
+                    // Usar templates locais como fallback
+                    setTemplates(getLocalTemplates());
+                  }
 
+                  // Carregar documentos com tratamento de erro melhorado
+                  try {
                     const documentsQuery = firestoreModule.query(
                       firestoreModule.collection(firebase.db, 'generated_documents'),
                       firestoreModule.where('createdBy', '==', currentUser.uid),
@@ -157,8 +170,7 @@ export default function DocumentosPage() {
                     }));
                     setDocuments(documentsData as GeneratedDocument[]);
                   } catch (error) {
-                    console.error('Erro ao carregar dados:', error);
-                    setTemplates([]);
+                    console.error('Erro ao carregar documentos:', error);
                     setDocuments([]);
                   }
 
@@ -241,6 +253,132 @@ O que posso criar para você hoje?`,
     }]);
   };
 
+  // Templates locais como fallback
+  const getLocalTemplates = (): DocumentTemplate[] => {
+    return [
+      {
+        id: 'procuracao-simples',
+        name: 'Procuração Simples',
+        type: 'custom',
+        description: 'Documento para outorgar poderes a terceiros',
+        fields: [
+          { name: 'outorgante_nome', label: 'Nome do Outorgante', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'outorgante_nacionalidade', label: 'Nacionalidade', type: 'text', required: true, placeholder: 'brasileiro' },
+          { name: 'outorgante_estado_civil', label: 'Estado Civil', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
+          { name: 'outorgante_profissao', label: 'Profissão', type: 'text', required: true, placeholder: 'Engenheiro' },
+          { name: 'outorgante_rg', label: 'RG', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'outorgante_cpf', label: 'CPF', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'outorgante_endereco', label: 'Endereço', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'procurador_nome', label: 'Nome do Procurador', type: 'text', required: true, placeholder: 'Maria Santos Silva' },
+          { name: 'procurador_nacionalidade', label: 'Nacionalidade do Procurador', type: 'text', required: true, placeholder: 'brasileira' },
+          { name: 'procurador_estado_civil', label: 'Estado Civil do Procurador', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
+          { name: 'procurador_profissao', label: 'Profissão do Procurador', type: 'text', required: true, placeholder: 'Advogada' },
+          { name: 'procurador_rg', label: 'RG do Procurador', type: 'text', required: true, placeholder: '98.765.432-1' },
+          { name: 'procurador_cpf', label: 'CPF do Procurador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'procurador_endereco', label: 'Endereço do Procurador', type: 'text', required: true, placeholder: 'Avenida Central, 456' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `PROCURAÇÃO
+
+Eu, {{outorgante_nome}}, {{outorgante_nacionalidade}}, {{outorgante_estado_civil}}, {{outorgante_profissao}}, portador(a) do RG nº {{outorgante_rg}} e CPF nº {{outorgante_cpf}}, residente e domiciliado(a) à {{outorgante_endereco}}, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) {{procurador_nome}}, {{procurador_nacionalidade}}, {{procurador_estado_civil}}, {{procurador_profissao}}, portador(a) do RG nº {{procurador_rg}} e CPF nº {{procurador_cpf}}, residente e domiciliado(a) à {{procurador_endereco}}, para o fim específico de:
+
+- Representar-me perante repartições públicas, empresas e instituições em geral;
+- Assinar documentos em meu nome;
+- Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.
+
+A presente procuração é válida por 90 (noventa) dias a contar desta data.
+
+{{cidade}}, {{data_atual}}
+
+_________________________________
+{{outorgante_nome}}
+Outorgante
+
+RECONHECIMENTO DE FIRMA
+________________________`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'contrato-servicos',
+        name: 'Contrato de Prestação de Serviços',
+        type: 'contract',
+        description: 'Contrato padrão para prestação de serviços',
+        fields: [
+          { name: 'contratante_nome', label: 'Nome/Razão Social do Contratante', type: 'text', required: true },
+          { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true },
+          { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true },
+          { name: 'contratado_nome', label: 'Nome/Razão Social do Contratado', type: 'text', required: true },
+          { name: 'contratado_cnpj_cpf', label: 'CNPJ/CPF do Contratado', type: 'text', required: true },
+          { name: 'contratado_endereco', label: 'Endereço do Contratado', type: 'text', required: true },
+          { name: 'objeto', label: 'Objeto do Contrato', type: 'textarea', required: true },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'valor_total', label: 'Valor Total (R$)', type: 'text', required: true }
+        ],
+        template: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+CONTRATANTE: {{contratante_nome}}, inscrito no CNPJ/CPF nº {{contratante_cnpj_cpf}}, com sede/residência à {{contratante_endereco}}
+
+CONTRATADO: {{contratado_nome}}, inscrito no CNPJ/CPF nº {{contratado_cnpj_cpf}}, com sede/residência à {{contratado_endereco}}
+
+OBJETO: O presente contrato tem por objeto {{objeto}}.
+
+PRAZO: O prazo de vigência será de {{prazo_meses}} meses, iniciando em {{data_inicio}}.
+
+VALOR: O valor total dos serviços será de R$ {{valor_total}}, pago conforme cronograma anexo.
+
+OBRIGAÇÕES DO CONTRATADO:
+- Executar os serviços com qualidade e pontualidade;
+- Manter sigilo sobre informações confidenciais;
+- Entregar o trabalho no prazo estabelecido.
+
+OBRIGAÇÕES DO CONTRATANTE:
+- Fornecer informações necessárias para execução;
+- Efetuar pagamentos conforme acordado;
+- Dar condições adequadas para trabalho.
+
+{{data_atual}}
+
+_____________________          _____________________
+    CONTRATANTE                    CONTRATADO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'declaracao-renda',
+        name: 'Declaração de Renda',
+        type: 'certificate',
+        description: 'Declaração de renda para fins diversos',
+        fields: [
+          { name: 'nome_completo', label: 'Nome Completo', type: 'text', required: true },
+          { name: 'cpf', label: 'CPF', type: 'text', required: true },
+          { name: 'rg', label: 'RG', type: 'text', required: true },
+          { name: 'endereco', label: 'Endereço Completo', type: 'text', required: true },
+          { name: 'renda_mensal', label: 'Renda Mensal (R$)', type: 'text', required: true },
+          { name: 'empresa', label: 'Empresa/Empregador', type: 'text', required: true },
+          { name: 'cargo', label: 'Cargo/Função', type: 'text', required: true },
+          { name: 'finalidade', label: 'Finalidade da Declaração', type: 'text', required: true }
+        ],
+        template: `DECLARAÇÃO DE RENDA
+
+Eu, {{nome_completo}}, portador(a) do CPF nº {{cpf}} e RG nº {{rg}}, residente e domiciliado(a) à {{endereco}}, declaro para os devidos fins que possuo renda mensal no valor de R$ {{renda_mensal}} ({{renda_mensal}} reais), proveniente de salário como {{cargo}} na empresa {{empresa}}.
+
+Esta declaração é feita para fins de {{finalidade}} e é verdadeira em todos os seus termos.
+
+Por ser expressão da verdade, firmo a presente.
+
+{{data_atual}}
+
+_________________________________
+{{nome_completo}}
+CPF: {{cpf}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }
+    ];
+  };
+
   const loadTemplates = async () => {
     try {
       const templatesQuery = query(
@@ -252,11 +390,16 @@ O que posso criar para você hoje?`,
         id: doc.id,
         ...doc.data()
       })) as DocumentTemplate[];
-      setTemplates(templatesData);
+      
+      if (templatesData.length === 0) {
+        setTemplates(getLocalTemplates());
+      } else {
+        setTemplates(templatesData);
+      }
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
-      // Não quebrar a aplicação se não conseguir carregar templates
-      setTemplates([]);
+      // Usar templates locais como fallback
+      setTemplates(getLocalTemplates());
     }
   };
 
@@ -289,67 +432,57 @@ O que posso criar para você hoje?`,
     setIsAiTyping(true);
 
     try {
-      const response = await fetch('/api/ai/assist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `Você é um especialista em geração de documentos profissionais. Sua tarefa é criar documentos completos, formatados e prontos para impressão baseados nas solicitações do usuário.
+      // Tentar usar IA primeiro, mas com fallback local
+      let documentData;
+      
+      try {
+        const response = await fetch('/api/ai/assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: `Você é um especialista em geração de documentos profissionais. Gere um documento baseado na solicitação do usuário.`
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ]
+          })
+        });
 
-INSTRUÇÕES:
-1. Analise o tipo de documento solicitado
-2. Gere um documento completo e profissional
-3. Use formatação adequada com cabeçalhos, parágrafos e espaçamentos
-4. Inclua campos preenchíveis quando necessário
-5. Adicione data atual automaticamente
-6. Retorne tanto versão texto quanto HTML formatada
+        const data = await response.json();
 
-FORMATO DE RESPOSTA:
-{
-  "tipo": "tipo do documento",
-  "titulo": "título do documento",
-  "conteudo_texto": "versão em texto simples",
-  "conteudo_html": "versão formatada em HTML",
-  "campos_editaveis": ["lista de campos que podem ser editados"],
-  "instrucoes": "instruções de uso do documento"
-}`
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.choices && data.choices[0]) {
-        const aiResponse = data.choices[0].message.content;
-
-        // Tentar parsear JSON se possível
-        let documentData;
-        try {
-          documentData = JSON.parse(aiResponse);
-        } catch {
-          // Se não for JSON, usar como texto simples
-          documentData = {
-            tipo: 'Documento Personalizado',
-            titulo: 'Documento Gerado por IA',
-            conteudo_texto: aiResponse,
-            conteudo_html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; padding: 20px;">${aiResponse.replace(/\n/g, '<br>')}</div>`,
-            campos_editaveis: [],
-            instrucoes: 'Documento gerado automaticamente pela IA'
-          };
+        if (data.choices && data.choices[0]) {
+          const aiResponse = data.choices[0].message.content;
+          try {
+            documentData = JSON.parse(aiResponse);
+          } catch {
+            documentData = {
+              tipo: 'Documento Personalizado',
+              titulo: 'Documento Gerado por IA',
+              conteudo_texto: aiResponse,
+              conteudo_html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; padding: 20px;">${aiResponse.replace(/\n/g, '<br>')}</div>`,
+              campos_editaveis: [],
+              instrucoes: 'Documento gerado automaticamente pela IA'
+            };
+          }
+        } else {
+          throw new Error('Resposta inválida da IA');
         }
+      } catch (error) {
+        console.log('IA indisponível, usando geração local:', error);
+        // Fallback para geração local
+        documentData = generateDocumentLocally(prompt);
+      }
 
-        // Adicionar mensagem do assistente
-        const assistantMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `✅ **Documento criado com sucesso!**
+      // Adicionar mensagem do assistente
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `✅ **Documento criado com sucesso!**
 
 **Tipo:** ${documentData.tipo}
 **Título:** ${documentData.titulo}
@@ -357,24 +490,20 @@ FORMATO DE RESPOSTA:
 ${documentData.instrucoes || ''}
 
 O documento foi gerado e está pronto para visualização e impressão. Você pode editá-lo na aba "Gerar Documento" ou fazer o download diretamente.`,
-          timestamp: Date.now()
-        };
+        timestamp: Date.now()
+      };
 
-        setChatMessages(prev => [...prev, assistantMessage]);
+      setChatMessages(prev => [...prev, assistantMessage]);
 
-        // Definir conteúdo gerado
-        setGeneratedContent(documentData.conteudo_texto);
-        setGeneratedHtml(documentData.conteudo_html);
+      // Definir conteúdo gerado
+      setGeneratedContent(documentData.conteudo_texto);
+      setGeneratedHtml(documentData.conteudo_html);
 
-        // Salvar documento
-        await saveAIDocument(documentData);
+      // Salvar documento
+      await saveAIDocument(documentData);
 
-        // Alternar para aba do gerador
-        setActiveTab('generator');
-
-      } else {
-        throw new Error('Resposta inválida da IA');
-      }
+      // Alternar para aba do gerador
+      setActiveTab('generator');
 
     } catch (error) {
       console.error('Erro ao gerar documento:', error);
@@ -390,6 +519,234 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
     }
 
     setIsAiTyping(false);
+  };
+
+  // Função para gerar documento localmente (fallback)
+  const generateDocumentLocally = (prompt: string) => {
+    const currentDate = new Date().toLocaleDateString('pt-BR');
+    const currentDateTime = new Date().toLocaleString('pt-BR');
+    
+    // Detectar tipo de documento baseado no prompt
+    const promptLower = prompt.toLowerCase();
+    
+    if (promptLower.includes('procuração')) {
+      return {
+        tipo: 'Procuração',
+        titulo: 'Procuração Simples',
+        conteudo_texto: `PROCURAÇÃO
+
+Eu, _________________________, brasileiro(a), _______ (estado civil), _______ (profissão), portador(a) do RG nº ______________ e CPF nº ________________, residente e domiciliado(a) à ______________________________, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) _________________________, brasileiro(a), _______ (estado civil), _______ (profissão), portador(a) do RG nº ______________ e CPF nº ________________, residente e domiciliado(a) à ______________________________, para o fim específico de:
+
+- Representar-me perante repartições públicas, empresas e instituições em geral;
+- Assinar documentos em meu nome;
+- Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.
+
+A presente procuração é válida por 90 (noventa) dias a contar desta data.
+
+_______________________, _____ de _____________ de _______
+
+_________________________________
+Assinatura do Outorgante
+
+RECONHECIMENTO DE FIRMA
+________________________`,
+        conteudo_html: `
+<div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">PROCURAÇÃO</h1>
+  </div>
+  
+  <div style="text-align: justify; margin-bottom: 30px;">
+    <p>Eu, <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, para o fim específico de:</p>
+  </div>
+  
+  <div style="margin: 30px 0;">
+    <ul style="padding-left: 30px;">
+      <li>Representar-me perante repartições públicas, empresas e instituições em geral;</li>
+      <li>Assinar documentos em meu nome;</li>
+      <li>Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.</li>
+    </ul>
+  </div>
+  
+  <div style="margin: 30px 0;">
+    <p>A presente procuração é válida por <strong>90 (noventa) dias</strong> a contar desta data.</p>
+  </div>
+  
+  <div style="margin-top: 60px;">
+    <p>_______________________, _____ de _____________ de _______</p>
+  </div>
+  
+  <div style="margin-top: 80px; text-align: center;">
+    <div style="display: inline-block; border-top: 1px solid black; width: 300px; padding-top: 5px;">
+      <strong>Assinatura do Outorgante</strong>
+    </div>
+  </div>
+  
+  <div style="margin-top: 60px;">
+    <p><strong>RECONHECIMENTO DE FIRMA</strong></p>
+    <p>________________________</p>
+  </div>
+</div>`,
+        campos_editaveis: ['outorgante', 'procurador', 'finalidade'],
+        instrucoes: 'Preencha os campos destacados com os dados do outorgante e procurador. Documento válido por 90 dias.'
+      };
+    }
+    
+    if (promptLower.includes('contrato')) {
+      return {
+        tipo: 'Contrato',
+        titulo: 'Contrato de Prestação de Serviços',
+        conteudo_texto: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+CONTRATANTE: _________________________, inscrito no CNPJ/CPF nº ________________, com sede/residência à _____________________________
+
+CONTRATADO: _________________________, inscrito no CNPJ/CPF nº ________________, com sede/residência à _____________________________
+
+OBJETO: O presente contrato tem por objeto ______________________________.
+
+PRAZO: O prazo de vigência será de _______ meses, iniciando em ___/___/______.
+
+VALOR: O valor total dos serviços será de R$ ____________, pago conforme cronograma anexo.
+
+OBRIGAÇÕES DO CONTRATADO:
+- Executar os serviços com qualidade e pontualidade;
+- Manter sigilo sobre informações confidenciais;
+- Entregar o trabalho no prazo estabelecido.
+
+OBRIGAÇÕES DO CONTRATANTE:
+- Fornecer informações necessárias para execução;
+- Efetuar pagamentos conforme acordado;
+- Dar condições adequadas para trabalho.
+
+________________, ${currentDate}
+
+_____________________          _____________________
+    CONTRATANTE                    CONTRATADO`,
+        conteudo_html: `
+<div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; font-weight: bold; margin: 0;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>CONTRATANTE:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>CONTRATADO:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>OBJETO:</strong> O presente contrato tem por objeto <u>______________________________</u>.</p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>PRAZO:</strong> O prazo de vigência será de <u>_______</u> meses, iniciando em <u>___/___/______</u>.</p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>VALOR:</strong> O valor total dos serviços será de R$ <u>____________</u>, pago conforme cronograma anexo.</p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>OBRIGAÇÕES DO CONTRATADO:</strong></p>
+    <ul>
+      <li>Executar os serviços com qualidade e pontualidade;</li>
+      <li>Manter sigilo sobre informações confidenciais;</li>
+      <li>Entregar o trabalho no prazo estabelecido.</li>
+    </ul>
+  </div>
+  
+  <div style="margin-bottom: 40px;">
+    <p><strong>OBRIGAÇÕES DO CONTRATANTE:</strong></p>
+    <ul>
+      <li>Fornecer informações necessárias para execução;</li>
+      <li>Efetuar pagamentos conforme acordado;</li>
+      <li>Dar condições adequadas para trabalho.</li>
+    </ul>
+  </div>
+  
+  <div style="margin-top: 60px;">
+    <p>________________, ${currentDate}</p>
+  </div>
+  
+  <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+    <div style="text-align: center; width: 200px;">
+      <div style="border-top: 1px solid black; padding-top: 5px;">
+        <strong>CONTRATANTE</strong>
+      </div>
+    </div>
+    <div style="text-align: center; width: 200px;">
+      <div style="border-top: 1px solid black; padding-top: 5px;">
+        <strong>CONTRATADO</strong>
+      </div>
+    </div>
+  </div>
+</div>`,
+        campos_editaveis: ['contratante', 'contratado', 'objeto', 'prazo', 'valor'],
+        instrucoes: 'Contrato padrão de prestação de serviços. Preencha os dados das partes e especificações do serviço.'
+      };
+    }
+    
+    // Documento genérico como fallback
+    return {
+      tipo: 'Documento Personalizado',
+      titulo: `Documento - ${currentDate}`,
+      conteudo_texto: `DOCUMENTO
+
+Data: ${currentDate}
+
+Assunto: ${prompt}
+
+Prezado(a) Senhor(a),
+
+Por meio deste documento, venho formalizar a seguinte solicitação:
+
+${prompt}
+
+Atenciosamente,
+
+_________________________________
+Nome: _________________________
+CPF: __________________________
+Data: ${currentDate}`,
+      conteudo_html: `
+<div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; font-weight: bold; margin: 0;">DOCUMENTO</h1>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>Data:</strong> ${currentDate}</p>
+  </div>
+  
+  <div style="margin-bottom: 20px;">
+    <p><strong>Assunto:</strong> ${prompt}</p>
+  </div>
+  
+  <div style="margin-bottom: 30px;">
+    <p>Prezado(a) Senhor(a),</p>
+  </div>
+  
+  <div style="margin-bottom: 30px; text-align: justify;">
+    <p>Por meio deste documento, venho formalizar a seguinte solicitação:</p>
+    <p style="margin-left: 20px; font-style: italic;">${prompt}</p>
+  </div>
+  
+  <div style="margin-bottom: 30px;">
+    <p>Atenciosamente,</p>
+  </div>
+  
+  <div style="margin-top: 80px;">
+    <p>_________________________________</p>
+    <p><strong>Nome:</strong> _________________________</p>
+    <p><strong>CPF:</strong> __________________________</p>
+    <p><strong>Data:</strong> ${currentDate}</p>
+  </div>
+</div>`,
+      campos_editaveis: ['nome', 'cpf', 'assunto'],
+      instrucoes: 'Documento personalizado gerado localmente. Preencha os campos necessários.'
+    };
   };
 
   const saveAIDocument = async (documentData: any) => {
@@ -410,8 +767,11 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
 
       await addDoc(collection(db, 'generated_documents'), documentToSave);
       await loadDocuments();
+      console.log('✅ Documento salvo com sucesso');
     } catch (error) {
       console.error('Erro ao salvar documento:', error);
+      // Não bloquear a experiência do usuário se não conseguir salvar
+      console.log('⚠️ Documento gerado mas não foi possível salvar no histórico');
     }
   };
 
