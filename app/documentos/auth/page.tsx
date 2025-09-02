@@ -25,16 +25,11 @@ export default function DocumentosAuthPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Verificar se o usuário tem acesso ao sistema de documentos
-        try {
-          const userDocRef = doc(db, 'documentos_users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists() && userDoc.data()?.isActive) {
-            router.push('/documentos');
-          }
-        } catch (error) {
-          console.error('Erro ao verificar usuário:', error);
-        }
+        // Apenas verifica se o usuário está logado, sem redirecionamento automático
+        // O redirecionamento será feito apenas nas funções de login/registro
+        setLoading(false);
+      } else {
+        setLoading(false);
       }
     });
 
