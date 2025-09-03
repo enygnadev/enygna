@@ -73,6 +73,31 @@ export function useSystemAccess(user: User | null): SystemAccess {
             }
           }
 
+          // NOVA VERIFICAÇÃO: Buscar por tipo = 'empresa' e email
+          if (userData.tipo === 'empresa' || userData.role === 'empresa') {
+            console.log('Usuário é do tipo empresa, buscando por email:', user.email);
+            try {
+              const empresaQuery = query(collection(db, 'empresas'), where('email', '==', user.email));
+              const empresaSnapshot = await getDocs(empresaQuery);
+              
+              if (!empresaSnapshot.empty) {
+                const empresaDoc = empresaSnapshot.docs[0];
+                const empresaData = empresaDoc.data();
+                const empresaId = empresaDoc.id;
+                console.log('Empresa encontrada por email:', empresaId, empresaData);
+                
+                const sistemas = empresaData.sistemasAtivos || [];
+                console.log('Sistemas da empresa:', sistemas);
+                setSystemsAvailable(sistemas);
+                setEmpresaId(empresaId);
+                setLoading(false);
+                return;
+              }
+            } catch (error) {
+              console.error('Erro ao buscar empresa por email:', error);
+            }
+          }
+
           // Verificar empresa do usuário
           const userEmpresaId = userData.empresaId || userData.company;
           setEmpresaId(userEmpresaId);
@@ -121,6 +146,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
         } else {
           console.log('Documento do usuário não encontrado, tentando buscar por email');
           console.log('Email para busca:', user.email);
+          console.log('UID do usuário:', user.uid);
           
           // Primeiro, tentar buscar na coleção users por email
           try {
@@ -138,6 +164,29 @@ export function useSystemAccess(user: User | null): SystemAccess {
                 setEmpresaId(userData.empresaId || userData.company || null);
                 setLoading(false);
                 return;
+              }
+
+              // Se é do tipo empresa, buscar na coleção empresas
+              if (userData.tipo === 'empresa' || userData.role === 'empresa') {
+                console.log('Usuário é empresa, buscando dados da empresa');
+                try {
+                  const empresaQuery = query(collection(db, 'empresas'), where('email', '==', user.email));
+                  const empresaSnapshot = await getDocs(empresaQuery);
+                  
+                  if (!empresaSnapshot.empty) {
+                    const empresaDoc = empresaSnapshot.docs[0];
+                    const empresaData = empresaDoc.data();
+                    console.log('Dados da empresa encontrados:', empresaData);
+                    const sistemas = empresaData.sistemasAtivos || [];
+                    console.log('Sistemas da empresa:', sistemas);
+                    setSystemsAvailable(sistemas);
+                    setEmpresaId(empresaDoc.id);
+                    setLoading(false);
+                    return;
+                  }
+                } catch (error) {
+                  console.error('Erro ao buscar empresa:', error);
+                }
               }
             }
           } catch (error) {

@@ -19,13 +19,20 @@ export default function SistemasPage() {
   // Debug para verificar o que está acontecendo
   useEffect(() => {
     if (!loading && !systemsLoading && user) {
-      console.log('Debug sistemas:', {
-        user: user.email,
+      console.log('Debug sistemas completo:', {
+        userEmail: user.email,
+        userId: user.uid,
+        userData: userData,
         systemsAvailable,
-        hasAccess: hasAccess('ponto')
+        systemsCount: systemsAvailable?.length || 0,
+        hasAccessPonto: hasAccess('ponto'),
+        hasAccessChamados: hasAccess('chamados'),
+        hasAccessCrm: hasAccess('crm'),
+        loading,
+        systemsLoading
       });
     }
-  }, [loading, systemsLoading, user, systemsAvailable, hasAccess]);
+  }, [loading, systemsLoading, user, userData, systemsAvailable, hasAccess]);
 
 
   // Check online status and PWA mode

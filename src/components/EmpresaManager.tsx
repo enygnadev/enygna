@@ -249,6 +249,7 @@ export default function EmpresaManager({
         const userDocRef = await addDoc(collection(db, 'users'), {
           email: formData.email,
           displayName: formData.nome,
+          nome: formData.nome,
           createdAt: serverTimestamp(),
           isAdmin: false,
           hourlyRate: 0,
@@ -260,7 +261,7 @@ export default function EmpresaManager({
           empresaId: empresaId, // Vincular à empresa criada
           sistemasAtivos: formData.sistemasAtivos, // Definir sistemas ativos do usuário
           role: 'empresa', // Definir papel como empresa
-          company: empresaId // Adicionar referência alternativa
+          company: empresaId, // Adicionar referência alternativa
         });
 
         console.log('Usuário criado na coleção "users" com ID:', userDocRef.id);
