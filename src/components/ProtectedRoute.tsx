@@ -110,7 +110,8 @@ export default function ProtectedRoute({
       type ValidPermission = typeof validPermissions[number];
       
       if (validPermissions.includes(permission as ValidPermission)) {
-        return hasPermission(permission as keyof NonNullable<typeof userData>['permissions']);
+        // Force type assertion to bypass TypeScript inference issue
+        return (hasPermission as any)(permission);
       }
       return false;
     });
