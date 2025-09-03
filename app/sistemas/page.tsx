@@ -6,12 +6,14 @@ import Tutorial from '@/src/components/Tutorial';
 import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
+import { useAuthData } from '@/src/hooks/useAuth';
 
 
 
 export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
+  const { user, userData, loading, hasPermission, signOut } = useAuthData();
 
   
 
@@ -180,6 +182,19 @@ export default function SistemasPage() {
               {isOnline ? 'Conectado' : 'Offline'}
             </div>
             <div className="badge">📱 PWA: {isPWA ? 'Ativo' : 'Web'}</div>
+            
+            {/* Status de Login */}
+            {!loading && (
+              <div className="badge">
+                <span
+                  className="status-indicator"
+                  style={{
+                    background: user ? 'var(--color-success)' : 'var(--color-error)',
+                  }}
+                ></span>
+                {user ? `👤 ${userData?.nome || user.email?.split('@')[0]}` : '🔒 Não logado'}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 'var(--gap-md)', flexWrap: 'wrap' }}>
             <ThemeSelector />
@@ -194,6 +209,26 @@ export default function SistemasPage() {
               </svg>
               Tutorial
             </button>
+            
+            {/* Botão de Sair */}
+            {user && (
+              <button
+                onClick={signOut}
+                className="button button-ghost"
+                style={{ 
+                  fontSize: '0.9rem',
+                  color: 'var(--color-error)',
+                  borderColor: 'var(--color-error)'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="16,17 21,12 16,7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Sair
+              </button>
+            )}
           </div>
         </div>
 
@@ -236,6 +271,33 @@ export default function SistemasPage() {
             Escolha o sistema que deseja acessar
           </p>
 
+          {/* Sistemas Ativos do Usuário */}
+          {user && userData && userData.permissions && (
+            <div style={{
+              marginBottom: 'var(--gap-xl)',
+              padding: 'var(--gap-lg)',
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <h3 style={{
+                fontSize: 'clamp(1rem, 2vw, 1.2rem)',
+                marginBottom: 'var(--gap-md)',
+                color: 'var(--color-primary)'
+              }}>
+                🎯 Seus Sistemas Ativos
+              </h3>
+              <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
+                {hasPermission('ponto') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>🕒 Ponto</span>}
+                {hasPermission('chamados') && <span className="tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>🎫 Chamados</span>}
+                {hasPermission('frota') && <span className="tag" style={{ background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)' }}>🚗 Frota</span>}
+                {hasPermission('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
+                {userData.permissions.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
+                {Object.values(userData.permissions).every(p => !p) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+              </div>
+            </div>
+          )}
+
           <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
             <span className="tag">🔐 Segurança Enterprise</span>
             <span className="tag">☁️ Cloud Native</span>
@@ -251,33 +313,42 @@ export default function SistemasPage() {
           gap: 'var(--gap-xl)',
           marginBottom: 'var(--gap-2xl)'
         }}>
-          {systems.map((system) => (
-            <div
-              key={system.id}
-              className="system-card"
-              onClick={() => handleSystemSelect(system.id)}
-              style={{
-                background: 'var(--gradient-card)',
-                border: `2px solid ${system.borderColor}`,
-                borderRadius: '20px',
-                padding: 'var(--gap-xl)',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                backdropFilter: 'blur(20px)',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
-                e.currentTarget.style.borderColor = system.borderColor;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-              }}
-            >
+          {systems.map((system) => {
+            const hasSystemAccess = user && userData && hasPermission(system.id as keyof typeof userData.permissions);
+            const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.id);
+            
+            return (
+              <div
+                key={system.id}
+                className="system-card"
+                onClick={() => isAccessible ? handleSystemSelect(system.id) : null}
+                style={{
+                  background: 'var(--gradient-card)',
+                  border: `2px solid ${system.borderColor}`,
+                  borderRadius: '20px',
+                  padding: 'var(--gap-xl)',
+                  cursor: isAccessible ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backdropFilter: 'blur(20px)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: isAccessible ? 1 : 0.5
+                }}
+                onMouseEnter={(e) => {
+                  if (isAccessible) {
+                    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
+                    e.currentTarget.style.borderColor = system.borderColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isAccessible) {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                  }
+                }}
+              >
               {/* Background gradient overlay */}
               <div style={{
                 position: 'absolute',
@@ -325,20 +396,50 @@ export default function SistemasPage() {
                   justifyContent: 'center',
                   gap: 'var(--gap-sm)',
                   padding: 'var(--gap-sm) var(--gap-md)',
-                  background: system.gradient,
+                  background: isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
                   borderRadius: '12px',
                   color: 'white',
                   fontWeight: '600',
                   fontSize: '0.9rem'
                 }}>
-                  <span>Acessar Sistema</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  {user && userData ? (
+                    hasSystemAccess ? (
+                      <>
+                        <span>✅ Acessar Sistema</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </>
+                    ) : ['vendas', 'estoque', 'rh'].includes(system.id) ? (
+                      <>
+                        <span>🚧 Em Breve</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                          <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔒 Sem Acesso</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                          <circle cx="12" cy="16" r="1" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <span>Acessar Sistema</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
