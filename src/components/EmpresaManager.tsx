@@ -251,6 +251,7 @@ export default function EmpresaManager({
           displayName: formData.nome,
           nome: formData.nome,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
           isAdmin: false,
           hourlyRate: 0,
           monthlySalary: 0,
@@ -263,6 +264,12 @@ export default function EmpresaManager({
           role: 'empresa', // Definir papel como empresa
           tipo: 'empresa', // Adicionar tipo empresa
           company: empresaId, // Adicionar referência alternativa
+          ativo: true, // Marcar como ativo
+          plano: formData.plano, // Incluir plano
+          permissions: {
+            canAccessSystems: formData.sistemasAtivos,
+            isEmpresa: true
+          }
         });
 
         console.log('Usuário criado na coleção "users" com UID:', userCredential.user.uid);

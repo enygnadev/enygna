@@ -155,6 +155,8 @@ export default function SistemasPage() {
     }
   };
 
+  const empresaId = userData?.empresaId;
+
   return (
       <div className="container" style={{
         background: 'linear-gradient(135deg, var(--gradient-primary))',
@@ -233,7 +235,7 @@ export default function SistemasPage() {
               <button
                 onClick={signOut}
                 className="button button-ghost"
-                style={{ 
+                style={{
                   fontSize: '0.9rem',
                   color: 'var(--color-error)',
                   borderColor: 'var(--color-error)'
@@ -459,6 +461,59 @@ export default function SistemasPage() {
             );
           })}
         </div>
+
+        {!loading && !systemsLoading && systemsAvailable && systemsAvailable.length === 0 && (
+            <div className="card" style={{
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.05))',
+              border: '2px dashed rgba(239,68,68,0.3)',
+              textAlign: 'center',
+              padding: '3rem 1.5rem'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
+              <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#ef4444' }}>
+                Nenhum sistema ativo
+              </h3>
+              <p style={{ opacity: 0.8, marginBottom: '1.5rem' }}>
+                {user ? 'Sua conta não possui acesso a nenhum sistema.' : 'Faça login para ver seus sistemas.'}
+              </p>
+              {user && (
+                <div style={{
+                  background: 'rgba(239,68,68,0.1)',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  marginTop: '1rem',
+                  fontSize: '0.9rem',
+                  color: '#ef4444'
+                }}>
+                  <strong>Debug Info:</strong><br />
+                  Email: {user.email}<br />
+                  UID: {user.uid}<br />
+                  EmpresaId: {empresaId || 'Não encontrado'}<br />
+                  {userData && (
+                    <>
+                      Tipo: {userData.tipo || 'Não definido'}<br />
+                      Role: {userData.role || 'Não definido'}<br />
+                      Sistemas do usuário: {userData.sistemasAtivos?.join(', ') || 'Nenhum'}
+                    </>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(45deg, #3b82f6, #1d4ed8)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  marginTop: '1rem'
+                }}
+              >
+                🔄 Recarregar
+              </button>
+            </div>
+          )}
 
         {/* Footer */}
         <footer className="card" style={{

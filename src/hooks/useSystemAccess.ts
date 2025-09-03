@@ -24,10 +24,14 @@ export function useSystemAccess(user: User | null): SystemAccess {
       }
 
       try {
-        console.log('Verificando acesso aos sistemas para:', user.email);
+        console.log('=== INICIANDO VERIFICAÇÃO DE SISTEMAS ===');
+        console.log('Email do usuário:', user.email);
+        console.log('UID do usuário:', user.uid);
 
         // Verificar se é admin/superadmin (tem acesso a tudo)
         const userDoc = await getDoc(doc(db, 'users', user.uid));
+        console.log('Documento do usuário existe?', userDoc.exists());
+        
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log('Dados do usuário encontrados:', userData);
@@ -94,6 +98,26 @@ export function useSystemAccess(user: User | null): SystemAccess {
               }
             } catch (error) {
               console.error('Erro ao buscar empresa por email:', error);
+            }
+          }
+
+          // VERIFICAÇÃO ADICIONAL: Buscar por userId vinculado à empresa
+          if (userData.empresaId) {
+            console.log('Buscando empresa pelo empresaId do usuário:', userData.empresaId);
+            try {
+              const empresaDoc = await getDoc(doc(db, 'empresas', userData.empresaId));
+              if (empresaDoc.exists()) {
+                const empresaData = empresaDoc.data();
+                console.log('Empresa encontrada pelo empresaId:', empresaData);
+                const sistemas = empresaData.sistemasAtivos || [];
+                console.log('Sistemas da empresa (por empresaId):', sistemas);
+                setSystemsAvailable(sistemas);
+                setEmpresaId(userData.empresaId);
+                setLoading(false);
+                return;
+              }
+            } catch (error) {
+              console.error('Erro ao buscar empresa por empresaId:', error);
             }
           }
 
@@ -190,6 +214,54 @@ export function useSystemAccess(user: User | null): SystemAccess {
             }
           } catch (error) {
             console.error('Erro ao buscar usuário por email:', error);
+          }
+
+          // BUSCA DIRETA NA COLEÇÃO EMPRESAS POR EMAIL (PRIORIDADE)
+          console.log('Tentando busca direta na coleção empresas por email');
+          try {
+            const empresaQuery = query(collection(db, 'empresas'), where('email', '==', user.email));
+            const empresaSnapshot = await getDocs(empresaQuery);
+
+            if (!empresaSnapshot.empty) {
+              const empresaDoc = empresaSnapshot.docs[0];
+              const empresaData = empresaDoc.data();
+              const empresaId = empresaDoc.id;
+              console.log('Empresa encontrada diretamente por email:', empresaId, empresaData);
+
+              const sistemas = empresaData.sistemasAtivos || [];
+              console.log('Sistemas encontrados na empresa:', sistemas);
+              setSystemsAvailable(sistemas);
+              setEmpresaId(empresaId);
+              setLoading(false);
+              return;
+            } else {
+              console.log('Nenhuma empresa encontrada com o email:', user.email);
+            }
+          } catch (error) {
+            console.error('Erro na busca direta por empresa:', error);
+          }
+
+          // BUSCA POR userId VINCULADO À EMPRESA
+          console.log('Tentando buscar empresa por userId');
+          try {
+            const empresaQuery = query(collection(db, 'empresas'), where('userId', '==', user.uid));
+            const empresaSnapshot = await getDocs(empresaQuery);
+
+            if (!empresaSnapshot.empty) {
+              const empresaDoc = empresaSnapshot.docs[0];
+              const empresaData = empresaDoc.data();
+              const empresaId = empresaDoc.id;
+              console.log('Empresa encontrada por userId:', empresaId, empresaData);
+
+              const sistemas = empresaData.sistemasAtivos || [];
+              console.log('Sistemas encontrados na empresa (por userId):', sistemas);
+              setSystemsAvailable(sistemas);
+              setEmpresaId(empresaId);
+              setLoading(false);
+              return;
+            }
+          } catch (error) {
+            console.error('Erro ao buscar empresa por userId:', error);
           }
 
           // Se não encontrou o usuário por UID, tentar buscar por email nas coleções de empresas
