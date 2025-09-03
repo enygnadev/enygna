@@ -6,7 +6,20 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { auth, db } from '@/src/lib/firebase';
-import { useAuth } from '@/src/hooks/useAuth';
+import { useAuth, AuthContext, useAuthData } from '@/src/hooks/useAuth';
+
+// Force dynamic rendering to prevent SSR issues
+export const dynamic = 'force-dynamic';
+
+// AuthProvider wrapper component
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authData = useAuthData();
+  return (
+    <AuthContext.Provider value={authData}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
 type LoginRole = 'colaborador' | 'empresa' | 'admin';
 type AuthMode = 'login' | 'register';
@@ -27,7 +40,7 @@ interface ChamadosUserDoc {
   lastLogin: Date;
 }
 
-export default function ChamadosAdminAuth() {
+function ChamadosAdminAuthContent() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<LoginRole>('colaborador');
@@ -514,5 +527,13 @@ export default function ChamadosAdminAuth() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChamadosAdminAuth() {
+  return (
+    <AuthProvider>
+      <ChamadosAdminAuthContent />
+    </AuthProvider>
   );
 }
