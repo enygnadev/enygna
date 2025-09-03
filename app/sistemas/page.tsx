@@ -14,18 +14,18 @@ export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
   const { user, userData, loading, signOut } = useAuthData();
-  const { hasAccess, systemsAvailable, loading } = useSystemAccess(user);
+  const { hasAccess, systemsAvailable, loading: systemsLoading } = useSystemAccess(user);
 
   // Debug para verificar o que está acontecendo
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && !systemsLoading && user) {
       console.log('Debug sistemas:', {
         user: user.email,
         systemsAvailable,
         hasAccess: hasAccess('ponto')
       });
     }
-  }, [loading, user, systemsAvailable, hasAccess]);
+  }, [loading, systemsLoading, user, systemsAvailable, hasAccess]);
 
 
   // Check online status and PWA mode
