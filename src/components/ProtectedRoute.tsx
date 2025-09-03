@@ -5,23 +5,6 @@ import React from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import Link from 'next/link';
 
-interface UserData {
-  uid: string;
-  email: string;
-  nome: string;
-  role: string;
-  tipo: 'colaborador' | 'empresa' | 'adminmaster';
-  empresaId?: string;
-  permissions?: {
-    frota: boolean;
-    ponto: boolean;
-    chamados: boolean;
-    documentos: boolean;
-    admin?: boolean;
-  };
-  ativo: boolean;
-}
-
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermissions?: string[];
