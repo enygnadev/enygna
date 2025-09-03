@@ -105,7 +105,7 @@ export default function ProtectedRoute({
 
   // Verificar permissões
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
-    requiredPermissions.some(permission => hasPermission(permission));
+    requiredPermissions.some(permission => hasPermission(permission as any));
 
   const hasRequiredRoles = requiredRoles.length === 0 || 
     requiredRoles.some(role => isRole(role));

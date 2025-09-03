@@ -16,6 +16,9 @@ interface UserData {
   role?: string;
   empresaId?: string;
   sistemasAtivos?: string[];
+  permissions?: Record<string, boolean>;
+  tipo?: string;
+  nome?: string;
 }
 
 

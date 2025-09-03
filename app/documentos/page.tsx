@@ -1998,7 +1998,7 @@ Data: ${currentDate}`,
         const numeroAtual = formData[`${sectionPrefix}_numero`] || '';
 
         if (selectedTemplate?.fields.some(field => field.name === enderecoFieldName)) {
-          novoFormData[enderecoFieldName] = numeroAtual ? 
+          novoFormData[enderecoFieldName] = numeroAtual ?
             `${dadosCEP.logradouro}, ${numeroAtual}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}` :
             `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`;
         }
@@ -2078,7 +2078,7 @@ Data: ${currentDate}`,
 
             // Adicionar campos específicos de gênero e nascimento se disponíveis
             if (dadosCPF.genero) {
-              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['outorgante_genero'] = generoTexto;
               mapeamento['genero'] = generoTexto;
@@ -2097,7 +2097,7 @@ Data: ${currentDate}`,
             mapeamento['procurador_cpf'] = formatCpfCnpj(cpf);
 
             if (dadosCPF.genero) {
-              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['procurador_genero'] = generoTexto;
             }
@@ -2112,7 +2112,7 @@ Data: ${currentDate}`,
             mapeamento['contratante_cnpj_cpf'] = formatCpfCnpj(cpf);
 
             if (dadosCPF.genero) {
-              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['contratante_genero'] = generoTexto;
             }
@@ -2127,7 +2127,7 @@ Data: ${currentDate}`,
             mapeamento['contratado_cnpj_cpf'] = formatCpfCnpj(cpf);
 
             if (dadosCPF.genero) {
-              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['contratado_genero'] = generoTexto;
             }
@@ -2149,7 +2149,7 @@ Data: ${currentDate}`,
           // Mensagem de sucesso com detalhes dos dados encontrados
           let detalhes = ['Nome: ' + dadosCPF.nome];
           if (dadosCPF.genero) {
-            const generoTexto = dadosCPF.genero === 'M' ? 'Masculino' : 
+            const generoTexto = dadosCPF.genero === 'M' ? 'Masculino' :
                               dadosCPF.genero === 'F' ? 'Feminino' : 'Não informado';
             detalhes.push('Gênero: ' + generoTexto);
           }
@@ -2467,8 +2467,8 @@ Data: ${currentDate}`,
 
   const downloadDocument = (content: string, title: string, format: 'txt' | 'html' = 'txt') => {
     const element = document.createElement('a');
-    const file = new Blob([format === 'html' ? generatedHtml : content], { 
-      type: format === 'html' ? 'text/html' : 'text/plain' 
+    const file = new Blob([format === 'html' ? generatedHtml : content], {
+      type: format === 'html' ? 'text/html' : 'text/plain'
     });
     element.href = URL.createObjectURL(file);
     element.download = `${title}.${format}`;
@@ -2501,11 +2501,11 @@ Data: ${currentDate}`,
 
   if (loading) {
     return (
-      <div className="container" style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh' 
+      <div className="container" style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div className="spinner" style={{
@@ -2796,7 +2796,7 @@ Data: ${currentDate}`,
         <div className="card">
           <h3>📷 Extração de Dados de Imagens (OCR)</h3>
 
-          <div 
+          <div
             className="ocr-drop-zone"
             onClick={() => document.getElementById('ocr-file-input')?.click()}
           >
@@ -2827,9 +2827,9 @@ Data: ${currentDate}`,
               <h4>Imagens Selecionadas:</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                 {ocrImages.map((file, index) => (
-                  <div key={index} style={{ 
-                    padding: '1rem', 
-                    border: '1px solid var(--color-border)', 
+                  <div key={index} style={{
+                    padding: '1rem',
+                    border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius)',
                     textAlign: 'center'
                   }}>
@@ -2861,9 +2861,9 @@ Data: ${currentDate}`,
           {Object.keys(extractedData).length > 0 && (
             <div style={{ marginTop: '2rem' }}>
               <h4>✅ Dados Extraídos:</h4>
-              <div style={{ 
-                background: 'var(--color-surface)', 
-                padding: '1rem', 
+              <div style={{
+                background: 'var(--color-surface)',
+                padding: '1rem',
                 borderRadius: 'var(--radius)',
                 border: '1px solid var(--color-border)'
               }}>
@@ -2888,12 +2888,12 @@ Data: ${currentDate}`,
           {(() => {
             // Organizar templates por categoria
             const categorias = {
-              'Jurídico': templates.filter(t => 
+              'Jurídico': templates.filter(t =>
                 t.name.toLowerCase().includes('procuração') ||
                 t.name.toLowerCase().includes('confidencialidade') ||
                 t.name.toLowerCase().includes('nda')
               ),
-              'Comercial': templates.filter(t => 
+              'Comercial': templates.filter(t =>
                 t.name.toLowerCase().includes('contrato') && (
                   t.name.toLowerCase().includes('serviços') ||
                   t.name.toLowerCase().includes('compra') ||
@@ -2902,45 +2902,45 @@ Data: ${currentDate}`,
                   t.name.toLowerCase().includes('parceria')
                 )
               ),
-              'Recursos Humanos': templates.filter(t => 
+              'Recursos Humanos': templates.filter(t =>
                 t.name.toLowerCase().includes('trabalho') ||
                 t.name.toLowerCase().includes('estágio') ||
                 t.name.toLowerCase().includes('clt')
               ),
-              'Fiscal/Contábil': templates.filter(t => 
+              'Fiscal/Contábil': templates.filter(t =>
                 t.name.toLowerCase().includes('declaração') ||
                 t.name.toLowerCase().includes('renda') ||
                 t.name.toLowerCase().includes('residência') ||
                 t.name.toLowerCase().includes('dependência')
               ),
-              'Financeiro': templates.filter(t => 
+              'Financeiro': templates.filter(t =>
                 t.name.toLowerCase().includes('recibo') ||
                 t.name.toLowerCase().includes('pagamento')
               ),
-              'Veicular': templates.filter(t => 
+              'Veicular': templates.filter(t =>
                 t.name.toLowerCase().includes('veículo') ||
                 t.name.toLowerCase().includes('detran') ||
                 t.name.toLowerCase().includes('comunicação')
               ),
-              'Construção Civil': templates.filter(t => 
+              'Construção Civil': templates.filter(t =>
                 t.name.toLowerCase().includes('construção') ||
                 t.name.toLowerCase().includes('obra')
               ),
-              'E-commerce/Digital': templates.filter(t => 
+              'E-commerce/Digital': templates.filter(t =>
                 t.name.toLowerCase().includes('termos') ||
                 t.name.toLowerCase().includes('lgpd') ||
                 t.name.toLowerCase().includes('privacidade')
               ),
-              'Seguros': templates.filter(t => 
+              'Seguros': templates.filter(t =>
                 t.name.toLowerCase().includes('sinistro') ||
                 t.name.toLowerCase().includes('seguro')
               ),
-              'Constituição': templates.filter(t => 
+              'Constituição': templates.filter(t =>
                 t.name.toLowerCase().includes('social') ||
                 t.name.toLowerCase().includes('ltda') ||
                 t.name.toLowerCase().includes('mei')
               ),
-              'Operacional': templates.filter(t => 
+              'Operacional': templates.filter(t =>
                 t.name.toLowerCase().includes('ordem') ||
                 t.name.toLowerCase().includes('proposta') ||
                 t.name.toLowerCase().includes('termo') && t.name.toLowerCase().includes('responsabilidade')
@@ -2963,24 +2963,24 @@ Data: ${currentDate}`,
                       fontSize: '1.1rem',
                       fontWeight: '700'
                     }}>
-                      {categoria === 'Jurídico' && '⚖️'} 
-                      {categoria === 'Comercial' && '💼'} 
-                      {categoria === 'Recursos Humanos' && '👥'} 
-                      {categoria === 'Fiscal/Contábil' && '📊'} 
-                      {categoria === 'Financeiro' && '💰'} 
-                      {categoria === 'Veicular' && '🚗'} 
-                      {categoria === 'Construção Civil' && '🏗️'} 
-                      {categoria === 'E-commerce/Digital' && '💻'} 
-                      {categoria === 'Seguros' && '🛡️'} 
-                      {categoria === 'Constituição' && '🏢'} 
-                      {categoria === 'Operacional' && '⚙️'} 
+                      {categoria === 'Jurídico' && '⚖️'}
+                      {categoria === 'Comercial' && '💼'}
+                      {categoria === 'Recursos Humanos' && '👥'}
+                      {categoria === 'Fiscal/Contábil' && '📊'}
+                      {categoria === 'Financeiro' && '💰'}
+                      {categoria === 'Veicular' && '🚗'}
+                      {categoria === 'Construção Civil' && '🏗️'}
+                      {categoria === 'E-commerce/Digital' && '💻'}
+                      {categoria === 'Seguros' && '🛡️'}
+                      {categoria === 'Constituição' && '🏢'}
+                      {categoria === 'Operacional' && '⚙️'}
                       {categoria}
                     </h4>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                       {categoryTemplates.map(template => (
-                        <div 
-                          key={template.id} 
+                        <div
+                          key={template.id}
                           className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
                           onClick={() => {
                             setSelectedTemplate(template);
@@ -2991,9 +2991,9 @@ Data: ${currentDate}`,
                           <p style={{ color: 'var(--color-textSecondary)', margin: '0.5rem 0' }}>
                             {template.description}
                           </p>
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             marginTop: '1rem'
                           }}>
@@ -3145,7 +3145,7 @@ Data: ${currentDate}`,
                         imovel: fields.filter(f => f.name.toLowerCase().includes('imovel') || f.name.toLowerCase().includes('imóvel') || f.name.toLowerCase().includes('obra')),
 
                         // Objetos/Serviços
-                        objeto: fields.filter(f => 
+                        objeto: fields.filter(f =>
                           f.name.toLowerCase().includes('objeto') ||
                           f.name.toLowerCase().includes('servico') ||
                           f.name.toLowerCase().includes('serviço') ||
@@ -3153,7 +3153,7 @@ Data: ${currentDate}`,
                         ),
 
                         // Valores/Financeiro
-                        financeiro: fields.filter(f => 
+                        financeiro: fields.filter(f =>
                           f.name.toLowerCase().includes('valor') ||
                           f.name.toLowerCase().includes('preco') ||
                           f.name.toLowerCase().includes('preço') ||
@@ -3165,7 +3165,7 @@ Data: ${currentDate}`,
                         ),
 
                         // Datas/Prazos
-                        temporal: fields.filter(f => 
+                        temporal: fields.filter(f =>
                           f.name.toLowerCase().includes('data') ||
                           f.name.toLowerCase().includes('prazo') ||
                           f.name.toLowerCase().includes('inicio') ||
@@ -3176,7 +3176,7 @@ Data: ${currentDate}`,
                         ),
 
                         // Localização
-                        localizacao: fields.filter(f => 
+                        localizacao: fields.filter(f =>
                           f.name.toLowerCase().includes('cidade') ||
                           f.name.toLowerCase().includes('local') ||
                           f.name.toLowerCase().includes('endereco_')
@@ -3266,7 +3266,7 @@ Data: ${currentDate}`,
                             onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                           >
                             <option value="">Selecione...</option>
-                            {field.options?.map((option: any) => (
+                            {field.options?.map((option: string) => (
                               <option key={option} value={option}>{option}</option>
                             ))}
                           </select>
@@ -3283,7 +3283,7 @@ Data: ${currentDate}`,
                                 const maskedValue = applyMask(value, field.name);
 
                                 const newFormData = { ...formData, [field.name]: maskedValue };
-                                setFormData(newFormDat<ctrl63>a);
+                                setFormData(newFormData);
 
                                 // Atualizar preview em tempo real
                                 if (selectedTemplate) {
@@ -3437,13 +3437,13 @@ Data: ${currentDate}`,
                             borderRadius: '0.25rem',
                             border: '1px solid var(--color-border)'
                           }}>
-                            {field.name.toLowerCase().includes('cep') && 
+                            {field.name.toLowerCase().includes('cep') &&
                               '🔍 CEP com preenchimento automático (Ex: 01234-567 ou 01234567)'}
-                            {(field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && 
+                            {(field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) &&
                               '🔍 CPF com preenchimento automático (Ex: 123.456.789-09)'}
-                            {field.name.toLowerCase().includes('cnpj') && 
+                            {field.name.toLowerCase().includes('cnpj') &&
                               '🔍 CNPJ com preenchimento automático (Ex: 12.345.678/0001-90)'}
-                            {(field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && 
+                            {(field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) &&
                               '📞 Telefone com formatação automática (Ex: (11) 99999-9999)'}
                           </div>
                         )}
@@ -3455,9 +3455,9 @@ Data: ${currentDate}`,
 
                       // Organizar campos da seção em ordem lógica
                       const fieldOrder = [
-                        'cpf', 'cnpj', 'nome', 'razao_social', 'nome_fantasia', 
-                        'nacionalidade', 'estado_civil', 'profissao', 'cargo', 'rg', 
-                        'cep', 'endereco', 'numero', 'bairro', 'cidade', 'uf', 
+                        'cpf', 'cnpj', 'nome', 'razao_social', 'nome_fantasia',
+                        'nacionalidade', 'estado_civil', 'profissao', 'cargo', 'rg',
+                        'cep', 'endereco', 'numero', 'bairro', 'cidade', 'uf',
                         'telefone', 'email', 'nascimento', 'genero'
                       ];
 
@@ -3511,10 +3511,10 @@ Data: ${currentDate}`,
                             </div>
                           </div>
 
-                          <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                            gap: '1rem' 
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '1rem'
                           }}>
                             {orderedFields.map(renderField)}
                           </div>
@@ -3545,10 +3545,10 @@ Data: ${currentDate}`,
                             {icon} {title}
                           </h5>
 
-                          <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                            gap: '1rem' 
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '1rem'
                           }}>
                             {fields.map(field => (
                               <div key={field.name} style={{ marginBottom: '1rem' }}>
@@ -3581,7 +3581,7 @@ Data: ${currentDate}`,
                                     }}
                                   >
                                     <option value="">Selecione...</option>
-                                    {field.options?.map((option: any) => (
+                                    {field.options?.map((option: string) => (
                                       <option key={option} value={option}>{option}</option>
                                     ))}
                                   </select>
@@ -3645,7 +3645,7 @@ Data: ${currentDate}`,
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                         {/* Campo CEP para preenchimento automático global (se não existir campo CEP específico) */}
-                        {!selectedTemplate.fields.some(f => f.name.toLowerCase().includes('cep')) && 
+                        {!selectedTemplate.fields.some(f => f.name.toLowerCase().includes('cep')) &&
                          selectedTemplate.fields.some(f => f.name.toLowerCase().includes('endereco')) && (
                           <div style={{
                             marginBottom: '2rem',
@@ -3760,14 +3760,14 @@ Data: ${currentDate}`,
                         <button className="button button-primary" onClick={printDocument}>
                           🖨️ Imprimir
                         </button>
-                        <button 
+                        <button
                           className="button button-outline"
                           onClick={() => downloadDocument(generatedContent, selectedTemplate.name)}
                         >
                           📥 Download
                         </button>
-                        <button 
-                          className="button button-outline" 
+                        <button
+                          className="button button-outline"
                           onClick={() => downloadDocument(generatedContent, selectedTemplate.name, 'html')}
                         >
                           🌐 Download HTML
@@ -3785,7 +3785,7 @@ Data: ${currentDate}`,
       {/* Companies Tab */}
       {activeTab === 'empresas' && (
         <div className="card">
-          <EmpresaManager 
+          <EmpresaManager
             sistema="documentos"
             allowCreate={userRole === 'admin' || userRole === 'superadmin'}
             allowEdit={userRole === 'admin' || userRole === 'superadmin'}
@@ -3806,7 +3806,7 @@ Data: ${currentDate}`,
           {documents.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {documents.map((document) => (
-                <div 
+                <div
                   key={document.id}
                   style={{
                     padding: '1.5rem',
@@ -3827,7 +3827,7 @@ Data: ${currentDate}`,
                       </small>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         className="button button-outline"
                         onClick={() => {
                           setGeneratedContent(document.content);
@@ -3837,13 +3837,13 @@ Data: ${currentDate}`,
                       >
                         👁️ Ver
                       </button>
-                      <button 
+                      <button
                         className="button button-outline"
                         onClick={() => downloadDocument(document.content, document.title)}
                       >
                         📥 Download
                       </button>
-                      <button 
+                      <button
                         className="button button-ghost"
                         onClick={() => deleteDocument(document.id)}
                         style={{ color: 'red' }}
