@@ -3290,7 +3290,7 @@ Data: ${currentDate}`,
                                   let previewContent = selectedTemplate.template;
 
                                   selectedTemplate.fields.forEach(templateField => {
-                                    const fieldValue = newFormData[templateField.name] || '';
+                                    const fieldValue = (newFormData as Record<string, any>)[templateField.name] || '';
                                     const regex = new RegExp(`{{${templateField.name}}}`, 'g');
                                     if (fieldValue) {
                                       previewContent = previewContent.replace(regex, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${fieldValue}</span>`);

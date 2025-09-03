@@ -505,7 +505,7 @@ export default function SistemasPage() {
                     <>
                       Tipo: {userData.tipo || 'Não definido'}<br />
                       Role: {userData.role || 'Não definido'}<br />
-                      Sistemas do usuário: {userData.sistemasAtivos?.join(', ') || 'Nenhum'}<br />
+                      Sistemas do usuário: {(userData as any).sistemasAtivos?.join(', ') || 'Nenhum'}<br />
                       Sistemas disponíveis: {systemsAvailable?.join(', ') || 'Nenhum'}<br />
                       Loading: {systemsLoading ? 'Sim' : 'Não'}<br />
                       User Loading: {loading ? 'Sim' : 'Não'}
