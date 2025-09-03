@@ -43,7 +43,7 @@ interface Sistema {
 }
 
 interface EmpresaManagerProps {
-  sistema: 'chamados' | 'ponto' | 'frota' | 'financeiro' | 'documentos' | 'universal';
+  sistema: 'chamados' | 'ponto' | 'frota' | 'financeiro' | 'documentos', 'crm' | 'universal';
   allowCreate?: boolean;
   allowEdit?: boolean;
   allowDelete?: boolean;
@@ -86,6 +86,7 @@ export default function EmpresaManager({
     { id: 'financeiro', nome: 'Sistema Financeiro', descricao: 'Controle de contas a pagar/receber.', icon: '💰' },
     { id: 'documentos', nome: 'Sistema de Documentos', descricao: 'Armazenamento e organização de arquivos.', icon: '📄' },
     { id: 'ponto', nome: 'Sistema de Ponto',descricao: 'Registro de jornada de trabalho.', icon: '⏰' },
+    { id: 'crm', nome: 'Sistema CRM', descricao: 'Gestão de relacionamento com o cliente.', icon: '🎯' }
   ];
 
   // Estados do formulário
@@ -101,7 +102,7 @@ export default function EmpresaManager({
     geofencing: false,
     selfieObrigatoria: false,
     notificacaoEmail: true,
-    sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos'] : [sistema]
+    sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos', 'crm'] : [sistema]
   });
 
   useEffect(() => {
@@ -165,6 +166,7 @@ export default function EmpresaManager({
       'financeiro': 'financeiro_empresas',
       'documentos': 'documentos_empresas',
       'ponto': 'empresas',
+      'crm': 'crm_empresas', // Adicionado para CRM
       'universal': 'empresas'
     };
     return collectionMap[sistema] || 'empresas';
@@ -219,7 +221,7 @@ export default function EmpresaManager({
 
       // Salvar o usuário admin atual antes de criar novo usuário
       const currentUser = auth.currentUser;
-      
+
       // Criar usuário no Firebase Authentication
       try {
         const userCredential = await createUserWithEmailAndPassword(
@@ -237,7 +239,7 @@ export default function EmpresaManager({
 
         // Fazer logout do usuário recém-criado e manter o admin logado
         await auth.signOut();
-        
+
         // Se havia um usuário admin logado antes, restaurar a sessão
         if (currentUser) {
           console.log('Mantendo admin logado após criação da empresa');
@@ -413,9 +415,18 @@ export default function EmpresaManager({
           });
           break;
 
+        case 'crm': // Adicionado para CRM
+          await setDoc(doc(db, 'crm_empresas', empresaId, 'configuracoes', 'default'), {
+            etapasVenda: ['Lead', 'Qualificação', 'Proposta', 'Fechamento', 'Perda'],
+            tiposContato: ['Telefone', 'Email', 'Reunião', 'Rede Social'],
+            statusOportunidade: ['Aberta', 'Em Andamento', 'Ganho', 'Perdido'],
+            criadoEm: serverTimestamp()
+          });
+          break;
+
         case 'universal':
           // Criar configurações padrão para todos os sistemas
-          const sistemasParaConfig = ['chamados', 'frota', 'financeiro', 'documentos', 'ponto'];
+          const sistemasParaConfig = ['chamados', 'frota', 'financeiro', 'documentos', 'ponto', 'crm']; // Incluir CRM
           for (const sist of sistemasParaConfig) {
             try {
               // Criar configurações específicas para cada sistema
@@ -457,6 +468,14 @@ export default function EmpresaManager({
                     horariosTrabalho: { entrada: '08:00', saida: '17:00', intervalo: 60 },
                     tolerancia: 15,
                     geofencing: formData.geofencing,
+                    criadoEm: serverTimestamp()
+                  });
+                  break;
+                case 'crm': // Adicionado para CRM
+                  await setDoc(doc(db, 'crm_empresas', empresaId, 'configuracoes', 'default'), {
+                    etapasVenda: ['Lead', 'Qualificação', 'Proposta', 'Fechamento', 'Perda'],
+                    tiposContato: ['Telefone', 'Email', 'Reunião', 'Rede Social'],
+                    statusOportunidade: ['Aberta', 'Em Andamento', 'Ganho', 'Perdido'],
                     criadoEm: serverTimestamp()
                   });
                   break;
@@ -504,7 +523,7 @@ export default function EmpresaManager({
       geofencing: false,
       selfieObrigatoria: false,
       notificacaoEmail: true,
-      sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos'] : [sistema]
+      sistemasAtivos: sistema === 'universal' ? ['chamados', 'ponto', 'frota', 'financeiro', 'documentos', 'crm'] : [sistema]
     });
   };
 
@@ -551,6 +570,7 @@ export default function EmpresaManager({
             sistema === 'ponto' ? 'Sistema de Ponto' :
             sistema === 'frota' ? 'Sistema de Frota' :
             sistema === 'financeiro' ? 'Sistema Financeiro' :
+            sistema === 'crm' ? 'Sistema CRM' : // Adicionado para CRM
             'Sistema de Documentos'
           }
         </h2>
