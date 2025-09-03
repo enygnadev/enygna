@@ -5199,29 +5199,468 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'cria-contas' && (
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(30px)',
-            padding: '2rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(255,255,255,0.1)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '900',
-              marginBottom: '1rem',
-              background: 'linear-gradient(45deg, #ffffff, #ffd700)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Header da seção */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              textAlign: 'center'
             }}>
-              CRIAÇÃO UNIVERSAL DE EMPRESAS
-            </h2>
-            <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '2rem' }}>
-              Crie empresas para todos os sistemas com controle total
-            </p>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
+              <h2 style={{
+                fontSize: '2rem',
+                fontWeight: '900',
+                marginBottom: '1rem',
+                background: 'linear-gradient(45deg, #ffffff, #ffd700)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                CRIAÇÃO UNIVERSAL DE EMPRESAS
+              </h2>
+              <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '0' }}>
+                Crie empresas para todos os sistemas com controle total e planos personalizados
+              </p>
+            </div>
 
+            {/* Botões de criação rápida */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '1.5rem'
+            }}>
+              {/* Criar Empresa CRM */}
+              <div style={{
+                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(59,130,246,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('crm');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(59,130,246,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Nova Empresa CRM
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Crie uma empresa com sistema CRM completo para gestão de vendas e relacionamento
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  ✨ Inclui funil de vendas, gestão de clientes e relatórios
+                </div>
+              </div>
+
+              {/* Criar Empresa Universal */}
+              <div style={{
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(16,185,129,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('universal');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(16,185,129,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏢</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Empresa Universal
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Crie empresa com acesso a todos os sistemas disponíveis
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  🎯 Ponto • 📋 Chamados • 💰 Financeiro • 🚗 Frota • 🎯 CRM
+                </div>
+              </div>
+
+              {/* Criar Empresa com Sistema Específico */}
+              <div style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(139,92,246,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('personalizado');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(139,92,246,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚙️</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Sistema Personalizado
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Escolha quais sistemas ativar para a empresa
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  🎛️ Configuração sob medida
+                </div>
+              </div>
+            </div>
+
+            {/* Planos Disponíveis */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                marginBottom: '2rem',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                justifyContent: 'center'
+              }}>
+                💎 Planos Disponíveis
+              </h3>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {/* Plano Free */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #6b7280, #4b5563)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(107,114,128,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🆓</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Free
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#10b981',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 0
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 5 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios básicos</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ App móvel</li>
+                    <li style={{ marginBottom: '0.5rem' }}>❌ Rastreamento GPS</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Free selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #6b7280, #4b5563)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Free
+                  </button>
+                </div>
+
+                {/* Plano Mensal */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(59,130,246,0.3)',
+                  textAlign: 'center',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '20px',
+                    background: '#10b981',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '12px',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    color: 'white'
+                  }}>
+                    POPULAR
+                  </div>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⭐</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Mensal
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 29,90<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/mês</span>
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios avançados</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Rastreamento GPS</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Export PDF</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Mensal selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #10b981, #059669)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Mensal
+                  </button>
+                </div>
+
+                {/* Plano Anual */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(16,185,129,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💎</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Anual
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '0.5rem'
+                  }}>
+                    R$ 239,20<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/ano</span>
+                  </div>
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#10b981',
+                    marginBottom: '1rem',
+                    fontWeight: '600'
+                  }}>
+                    💰 Economia de 33%
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Tudo do mensal</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Analytics avançado</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Suporte 24/7</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Export ilimitado</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Anual selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Anual
+                  </button>
+                </div>
+
+                {/* Plano Enterprise */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(139,92,246,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🚀</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Enterprise
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 99,90<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/mês</span>
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 999 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 10 empresas</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ API personalizada</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Suporte dedicado</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ White label</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Enterprise selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #ec4899, #db2777)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar Enterprise
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Gestão de Empresas Existentes */}
             <EmpresaManager
               sistema="universal"
               allowCreate={true}
@@ -5231,6 +5670,119 @@ export default function AdminMasterPage() {
                 console.log('Empresa selecionada:', empresa);
               }}
             />
+
+            {/* Modal de criação de empresa */}
+            {showEmpresaModal && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1000
+              }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #1e293b, #334155)',
+                  padding: '2rem',
+                  borderRadius: '20px',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  maxWidth: '600px',
+                  width: '90%',
+                  maxHeight: '80%',
+                  overflowY: 'auto'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '2rem'
+                  }}>
+                    <h3 style={{
+                      fontSize: '1.5rem',
+                      fontWeight: '700',
+                      color: '#ffffff',
+                      margin: 0
+                    }}>
+                      {selectedSistema === 'crm' ? '🎯 Nova Empresa CRM' : 
+                       selectedSistema === 'universal' ? '🏢 Nova Empresa Universal' :
+                       '⚙️ Sistema Personalizado'}
+                    </h3>
+                    <button
+                      onClick={() => setShowEmpresaModal(false)}
+                      style={{
+                        background: 'rgba(239,68,68,0.2)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: '8px',
+                        color: '#fca5a5',
+                        cursor: 'pointer',
+                        padding: '0.5rem',
+                        fontSize: '1rem'
+                      }}
+                    >
+                      ❌
+                    </button>
+                  </div>
+
+                  <p style={{
+                    fontSize: '1rem',
+                    opacity: 0.9,
+                    marginBottom: '2rem',
+                    color: '#e2e8f0'
+                  }}>
+                    {selectedSistema === 'crm' ? 
+                      'Configure uma nova empresa com sistema CRM completo para gestão de vendas e relacionamento com clientes.' :
+                      selectedSistema === 'universal' ?
+                      'Crie uma empresa com acesso a todos os sistemas disponíveis na plataforma.' :
+                      'Escolha quais sistemas e funcionalidades ativar para esta empresa.'}
+                  </p>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '1rem'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setShowEmpresaModal(false);
+                        // Aqui você implementaria a lógica de criação
+                        alert(`Criando empresa com sistema: ${selectedSistema}`);
+                      }}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: 'linear-gradient(45deg, #10b981, #059669)',
+                        border: 'none',
+                        borderRadius: '12px',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '700'
+                      }}
+                    >
+                      ✅ Confirmar Criação
+                    </button>
+                    <button
+                      onClick={() => setShowEmpresaModal(false)}
+                      style={{
+                        padding: '1rem 2rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
