@@ -1,0 +1,399 @@
+
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { auth, db } from '@/src/lib/firebase';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+
+export default function PontoAuthPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Usuário já logado, verificar permissões
+        await checkUserPermissions(user.email!);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const checkUserPermissions = async (userEmail: string) => {
+    try {
+      // Primeiro, verificar se é uma empresa nas coleções empresariais
+      const collections = ['empresas', 'companies', 'chamados_empresas', 'frota_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
+      let empresaEncontrada = null;
+      let sistemaEncontrado = '';
+
+      for (const collectionName of collections) {
+        const q = query(
+          collection(db, collectionName),
+          where('email', '==', userEmail),
+          where('ativo', '==', true)
+        );
+
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          empresaEncontrada = snapshot.docs[0];
+          sistemaEncontrado = collectionName.replace('_empresas', '');
+          if (sistemaEncontrado === 'empresas' || sistemaEncontrado === 'companies') sistemaEncontrado = 'ponto';
+          break;
+        }
+      }
+
+      if (empresaEncontrada) {
+        const empresaData = empresaEncontrada.data();
+        const sistemasAtivos = empresaData.sistemasAtivos || [];
+        
+        // Verificar se a empresa tem acesso ao sistema de ponto
+        if (sistemasAtivos.includes('ponto')) {
+          // Empresa tem acesso ao sistema de ponto - vai para dashboard empresarial
+          router.push(`/ponto/dashboard?empresaId=${empresaEncontrada.id}`);
+          return;
+        } else {
+          setError('Esta empresa não tem permissão para acessar o sistema de ponto.');
+          return;
+        }
+      }
+
+      // Se não encontrou empresa, verificar se é um colaborador/usuário do sistema
+      const usuariosRef = collection(db, 'users');
+      const q = query(usuariosRef, where('email', '==', userEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userData = querySnapshot.docs[0].data();
+        const role = userData.role?.toLowerCase();
+
+        // Redirecionar baseado no papel do usuário
+        if (role === 'superadmin' || role === 'adminmaster') {
+          router.push('/admin'); // Super admins vão para o painel master
+        } else if (role === 'admin' || role === 'gestor') {
+          router.push('/ponto/dashboard'); // Admins e gestores vão para o dashboard empresarial
+        } else if (role === 'colaborador') {
+          router.push('/colaborador/dashboard'); // Colaboradores vão para sua área específica
+        } else {
+          setError('Você não tem permissão para acessar o sistema de ponto.');
+        }
+      } else {
+        setError('Usuário não encontrado no sistema');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar permissões:', error);
+      setError('Erro ao verificar permissões do usuário');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.password) {
+      setError('Preencha todos os campos');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      await checkUserPermissions(userCredential.user.email!);
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      const errorMessage = getErrorMessage(error.code);
+      setError(errorMessage);
+
+      // Notificação adicional para credenciais inválidas
+      if (error.code === 'auth/invalid-credential') {
+        setTimeout(() => {
+          setError('💡 Dica: Verifique se você digitou o email e a senha corretamente. Se esqueceu sua senha, use a opção "Esqueci minha senha".');
+        }, 3000);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      setError('Digite seu email');
+      return;
+    }
+
+    setResetLoading(true);
+    setError(null);
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetSuccess(true);
+    } catch (error: any) {
+      setError(getErrorMessage(error.code));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const getErrorMessage = (errorCode: string) => {
+    switch (errorCode) {
+      case 'auth/user-not-found':
+        return 'Usuário não encontrado';
+      case 'auth/wrong-password':
+        return 'Senha incorreta';
+      case 'auth/invalid-credential':
+        return '🚫 Credenciais inválidas. Verifique seu email e senha.';
+      case 'auth/email-already-in-use':
+        return 'Este email já está em uso';
+      case 'auth/weak-password':
+        return 'Senha muito fraca';
+      case 'auth/invalid-email':
+        return 'Email inválido';
+      case 'auth/too-many-requests':
+        return '⚠️ Muitas tentativas de login. Tente novamente mais tarde.';
+      default:
+        return 'Erro no sistema. Tente novamente.';
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="container">
+        <style jsx>{`
+          .auth-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--gap-md);
+          }
+
+          .auth-card {
+            background: var(--gradient-card);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(0, 255, 127, 0.3);
+            backdrop-filter: blur(15px);
+          }
+
+          .form-group {
+            margin-bottom: var(--gap-md);
+          }
+
+          .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: var(--gap-sm);
+            border-radius: var(--radius);
+            margin-bottom: var(--gap-md);
+          }
+
+          .success-message {
+            background: rgba(0, 255, 127, 0.1);
+            border: 1px solid #00ff7f;
+            color: #00ff7f;
+            padding: var(--gap-sm);
+            border-radius: var(--radius);
+            margin-bottom: var(--gap-md);
+          }
+        `}</style>
+
+        <div className="auth-container">
+          <div className="auth-card">
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔑</div>
+              <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
+                Recuperar Senha
+              </h1>
+              <p style={{ color: 'var(--color-textSecondary)' }}>
+                Sistema de Ponto
+              </p>
+            </div>
+
+            {error && <div className="error-message">{error}</div>}
+            {resetSuccess && (
+              <div className="success-message">
+                Email de recuperação enviado! Verifique sua caixa de entrada.
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword}>
+              <div className="form-group">
+                <label htmlFor="resetEmail">Email</label>
+                <input
+                  id="resetEmail"
+                  type="email"
+                  className="input"
+                  placeholder="Digite seu email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="button button-primary"
+                disabled={resetLoading}
+                style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
+              >
+                {resetLoading ? 'Enviando...' : 'Enviar Email de Recuperação'}
+              </button>
+
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setError(null);
+                    setResetSuccess(false);
+                  }}
+                  className="button button-ghost"
+                >
+                  Voltar ao Login
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container">
+      <style jsx>{`
+        .auth-container {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--gap-md);
+        }
+
+        .auth-card {
+          background: var(--gradient-card);
+          border-radius: var(--radius-lg);
+          padding: 2rem;
+          width: 100%;
+          max-width: 400px;
+          border: 1px solid rgba(0, 255, 127, 0.3);
+          backdrop-filter: blur(15px);
+        }
+
+        .form-group {
+          margin-bottom: var(--gap-md);
+        }
+
+        .error-message {
+          background: rgba(255, 107, 107, 0.1);
+          border: 1px solid #ff6b6b;
+          color: #ff6b6b;
+          padding: var(--gap-sm);
+          border-radius: var(--radius);
+          margin-bottom: var(--gap-md);
+        }
+      `}</style>
+
+      <div className="auth-container">
+        <div className="auth-card">
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🕒</div>
+            <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
+              Sistema de Ponto
+            </h1>
+            <p style={{ color: 'var(--color-textSecondary)' }}>
+              Controle de jornada e frequência
+            </p>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label htmlFor="email">Email *</label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                placeholder="seu@email.com"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Senha *</label>
+              <input
+                id="password"
+                type="password"
+                className="input"
+                placeholder="Digite sua senha"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="button button-primary"
+              disabled={loading}
+              style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
+            >
+              {loading ? 'Processando...' : 'Entrar no Sistema'}
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: 'var(--gap-md)' }}>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="button button-ghost"
+                style={{ fontSize: '0.9rem' }}
+              >
+                Esqueceu sua senha?
+              </button>
+            </div>
+
+            {/* Admin controlled access message */}
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
+              <p style={{ marginBottom: 'var(--gap-md)' }}>
+                🔐 Acesso para empresas e colaboradores
+              </p>
+            </div>
+
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
+              <Link href="/sistemas" className="button button-ghost">
+                ← Voltar aos Sistemas
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

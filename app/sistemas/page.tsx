@@ -112,8 +112,8 @@ export default function SistemasPage() {
 
   const handleSystemSelect = (systemId: string) => {
     if (systemId === 'ponto') {
-      // Redirecionar para o dashboard empresarial (sistema de ponto)
-      window.location.href = '/ponto/dashboard';
+      // Redirecionar para a autenticação do sistema de ponto
+      window.location.href = '/ponto/auth';
     } else if (systemId === 'chamados') {
       // Redirecionar para o sistema de chamados
       window.location.href = '/chamados/auth';
