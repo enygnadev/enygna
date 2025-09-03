@@ -259,7 +259,7 @@ const adminTutorialSteps = [
     placement: 'top' as const
   },
   {
-    id: 'intelligence-center',
+    id: 'notifications-section',
     title: 'Central de Inteligência 🔔',
     content: 'Receba alertas críticos, notificações de segurança e monitore todas as atividades suspeitas.',
     target: '.notifications-section',
@@ -718,7 +718,7 @@ export default function AdminMasterPage() {
             // Verificar se é um admin tentando criar empresa
             const userDocSnap = await getDoc(doc(db, 'users', user.uid));
             let isAdminUser = false;
-            
+
             if (userDocSnap.exists()) {
               const userData = userDocSnap.data();
               isAdminUser = userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin;
@@ -1761,6 +1761,33 @@ export default function AdminMasterPage() {
             topCompanies: analytics?.topCompanies || []
           };
           break;
+        case 'crm':
+          // Relatório específico do sistema CRM
+          const empresasCrm = companies.filter(c => c.sistemasAtivos?.includes('crm'));
+          reportData.data = {
+            totalEmpresas: empresasCrm.length,
+            empresasAtivas: empresasCrm.filter(c => c.active || c.ativo).length,
+            totalClientes: 0, // Será implementado com consulta real ao Firestore
+            clientesAtivos: 0,
+            vendasFechadas: 0,
+            faturamentoTotal: 0,
+            ticketMedio: 0,
+            taxaConversao: 0,
+            empresas: empresasCrm.map(c => ({
+              id: c.id,
+              nome: c.name || c.nome,
+              email: c.email,
+              plano: c.subscription?.plan || c.plano,
+              ativo: c.active || c.ativo,
+              receita: c.monthlyRevenue,
+              criadoEm: c.createdAt || c.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
         case 'chamados':
           // Relatório específico do sistema de chamados
           const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
@@ -1875,6 +1902,31 @@ export default function AdminMasterPage() {
             }
           };
           filename = 'sistema_chamados_dados.json';
+          break;
+        case 'crm':
+          const empresasCrm = companies.filter(c => c.sistemasAtivos?.includes('crm'));
+          data = {
+            empresas: empresasCrm.map(c => ({
+              id: c.id,
+              nome: c.name || c.nome,
+              email: c.email,
+              plano: c.subscription?.plan || c.plano,
+              ativo: c.active || c.ativo,
+              receita: c.monthlyRevenue,
+            })),
+            estatisticas: {
+              totalEmpresas: empresasCrm.length,
+              empresasComCRMAtivo: empresasCrm.filter(c => c.active || c.ativo).length,
+              receitaTotalCRM: empresasCrm.reduce((sum, c) => sum + c.monthlyRevenue, 0),
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'crm',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_crm_dados.json';
           break;
       }
 
@@ -2694,7 +2746,7 @@ export default function AdminMasterPage() {
                   >
                     <p
                       style={{
-                        margin: '0 0 1rem 0',
+                        marginBottom: '1rem',
                         fontSize: '0.9rem',
                         opacity: 0.9,
                       }}
@@ -3139,7 +3191,8 @@ export default function AdminMasterPage() {
           { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
           { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
           { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' },
-          { id: 'cria-contas', label: 'Cria Contas', icon: '➕' }, // Adicionada a nova aba
+          { id: 'sistema-crm', label: 'Sistema CRM', icon: '🎯' }, {/* Adicionada a nova aba */}
+          { id: 'cria-contas', label: 'Cria Contas', icon: '➕' },
           { id: 'controle-planos', label: '🎛️ Controle Planos', icon: '💳' },
         ].map(tab => (
           <button
@@ -3336,135 +3389,6 @@ export default function AdminMasterPage() {
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Gráficos e Analytics Premium */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-              {/* Top Empresas */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(30px)',
-                padding: '2rem',
-                borderRadius: '24px',
-                border: '2px solid rgba(255,255,255,0.1)'
-              }}>
-                <h3 style={{
-                  margin: '0 0 1.5rem 0',
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  🏆 Top Empresas Premium
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {analytics.topCompanies.map((company, index) => (
-                    <div key={company.id} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1.2rem',
-                      background: `linear-gradient(135deg, rgba(255,255,255,${0.08 - index * 0.01}), rgba(255,255,255,${0.05 - index * 0.01}))`,
-                      borderRadius: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.1)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,${0.08 - index * 0.01}), rgba(255,255,255,${0.05 - index * 0.01}))`;
-                    }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          background: index === 0
-                            ? 'linear-gradient(45deg, #ffd700, #ffed4e)'
-                            : index === 1
-                            ? 'linear-gradient(45deg, #c0c0c0, #e5e5e5)'
-                            : index === 2
-                            ? 'linear-gradient(45deg, #cd7f32, #daa520)'
-                            : 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.2rem',
-                          fontWeight: '900',
-                          color: index < 3 ? '#000' : '#fff'
-                        }}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{company.name}</div>
-                          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-                            {company.employees} funcionários • {company.subscription.plan.toUpperCase()}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{
-                          fontWeight: '700',
-                          color: '#10b981',
-                          fontSize: '1.2rem'
-                        }}>
-                          R$ {company.monthlyRevenue.toLocaleString('pt-BR')}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-                          /mês
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Métricas Operacionais */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(30px)',
-                padding: '2rem',
-                borderRadius: '24px',
-                border: '2px solid rgba(255,255,255,0.1)'
-              }}>
-                <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                  📊 Métricas Operacionais
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {[
-                    { label: 'Total de Sessões', value: analytics.metrics.totalSessions, icon: '⏱️' },
-                    { label: 'Horas Médias/Dia', value: analytics.metrics.averageWorkHours.toFixed(1) + 'h', icon: '📈' },
-                    { label: 'Atrasos', value: analytics.metrics.lateArrivals, icon: '⏰' },
-                    { label: 'Saídas Antecipadas', value: analytics.metrics.earlyDepartures, icon: '🚪' },
-                    { label: 'Horas Extras', value: analytics.metrics.overtimeHours + 'h', icon: '⚡' }
-                  ].map((metric, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1.2rem' }}>{metric.icon}</span>
-                        <span style={{ fontWeight: '600' }}>{metric.label}</span>
-                      </div>
-                      <div style={{
-                        fontWeight: '700',
-                        fontSize: '1.2rem',
-                        color: '#8b5cf6'
-                      }}>
-                        {metric.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* Ações Rápidas Premium */}
@@ -4627,6 +4551,12 @@ export default function AdminMasterPage() {
               >
                 💰 Gerar Relatório Financeiro
               </button>
+              <button
+                onClick={() => generateReport('crm')}
+                style={{ padding: '1rem 1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}
+              >
+                🎯 Gerar Relatório CRM
+              </button>
             </div>
             <div style={{
               background: 'rgba(255,255,255,0.05)',
@@ -5069,139 +4999,123 @@ export default function AdminMasterPage() {
           </div>
         )}
 
-        {activeTab === 'controle-planos' && (
-          <div>
-            <h2 style={{ marginBottom: '2rem', fontSize: '1.8rem', fontWeight: '700' }}>
-              🎛️ Controle de Planos
-            </h2>
-
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '16px',
-              padding: '2rem',
-              marginBottom: '2rem'
+        {activeTab === 'sistema-crm' && (
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 2rem 0',
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}>
-              <h3 style={{ marginBottom: '1rem' }}>Buscar Usuário</h3>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                <input
-                  type="email"
-                  placeholder="Digite o email do usuário..."
-                  value={selectedUserEmail}
-                  onChange={(e) => setSelectedUserEmail(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: 'var(--color-text)'
-                  }}
-                />
-                <button
-                  onClick={searchUser}
-                  disabled={!selectedUserEmail || searchingUser}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    borderRadius: '8px',
-                    border: '2px solid #3b82f6',
-                    background: 'rgba(59, 130, 246, 0.2)',
-                    color: '#3b82f6',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {searchingUser ? '🔍 Buscando...' : '🔍 Buscar'}
-                </button>
+              🎯 Gestão do Sistema CRM
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '1.5rem'
+            }}>
+              {/* Métricas do Sistema CRM */}
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>{companies.filter(c => c.sistemasAtivos?.includes('crm')).length}</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Empresas com CRM</div>
               </div>
-
-              {selectedUser && (
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  borderRadius: '12px',
-                  padding: '1.5rem',
-                  marginBottom: '2rem'
-                }}>
-                  <h4>👤 Usuário Encontrado</h4>
-                  <p><strong>Email:</strong> {selectedUser.email}</p>
-                  <p><strong>Nome:</strong> {selectedUser.displayName || 'N/A'}</p>
-                  <p><strong>Plano:</strong> {selectedUser.plan || 'free'}</p>
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💰</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>
+                  R$ {companies.filter(c => c.sistemasAtivos?.includes('crm')).reduce((sum, c) => sum + c.monthlyRevenue, 0).toLocaleString('pt-BR')}
                 </div>
-              )}
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Receita CRM</div>
+              </div>
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏆</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>
+                  {companies.filter(c => c.sistemasAtivos?.includes('crm')).length > 0
+                    ? ((companies.filter(c => c.sistemasAtivos?.includes('crm') && c.active).length / companies.filter(c => c.sistemasAtivos?.includes('crm')).length) * 100).toFixed(1)
+                    : 0}%
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Taxa de Ativação</div>
+              </div>
             </div>
 
-            {selectedUser && (
-              <PlanControlPanel
-                userId={selectedUser.uid}
-                isAdmin={true}
-              />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'sistema-chamados' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Gestão de Empresas do Sistema de Chamados */}
-            <EmpresaManager
-              sistema="chamados"
-              allowCreate={true}
-              allowEdit={true}
-              allowDelete={isSuperAdmin}
-              onEmpresaSelect={(empresa) => {
-                console.log('Empresa selecionada para chamados:', empresa);
-                // Navegar para gestão específica da empresa no sistema de chamados
-                alert(`Empresa ${empresa.nome} selecionada para o sistema de chamados`);
-              }}
-            />
-
+            {/* Ações Rápidas Premium */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
               backdropFilter: 'blur(30px)',
               padding: '2rem',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)'
+              borderRadius: '24px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              marginTop: '1.5rem'
             }}>
-              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-                🎫 Estatísticas do Sistema de Chamados
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                🎯 Ações do Sistema CRM
               </h3>
-
-              {/* Estatísticas */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#93c5fd' }}>
-                    {/* Buscar tickets abertos */}
-                    0
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Abertos</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#6ee7b7' }}>
-                    {/* Buscar empresas ativas no sistema de chamados */}
-                    {empresas.filter(e => e.sistemasAtivos?.includes('chamados')).length}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Empresas Ativas</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#fbbf24' }}>
-                    {/* Buscar colaboradores do sistema de chamados */}
-                    0
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Colaboradores</div>
-                </div>
-                <div style={{ padding: '1rem', background: 'rgba(139,92,246,0.1)', borderRadius: '12px', border: '1px solid rgba(139,92,246,0.3)' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#c4b5fd' }}>
-                    {/* Buscar tickets resolvidos */}
-                    0
-                  </div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Tickets Resolvidos</div>
-                </div>
-              </div>
-
-              {/* Ações de Gerenciamento */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.5rem'
+              }}>
                 <button
                   onClick={() => {
-                    // Navegar para gestão de usuários do sistema de chamados
-                    window.open('/chamados/admin', '_blank');
+                    // Navegar para gestão de empresas no CRM
+                    window.open('/crm/empresas', '_blank');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59,130,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  🏢 Gerenciar Empresas
+                </button>
+                <button
+                  onClick={() => {
+                    // Navegar para gestão de contatos no CRM
+                    window.open('/crm/contatos', '_blank');
                   }}
                   style={{
                     padding: '1.5rem',
@@ -5223,12 +5137,12 @@ export default function AdminMasterPage() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  👤 Gerenciar Colaboradores
+                  👤 Gerenciar Contatos
                 </button>
                 <button
                   onClick={() => {
-                    // Navegar para todos os chamados
-                    window.open('/chamados', '_blank');
+                    // Gerar relatório do sistema CRM
+                    generateReport('crm');
                   }}
                   style={{
                     padding: '1.5rem',
@@ -5250,12 +5164,12 @@ export default function AdminMasterPage() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  🎫 Ver Todos os Chamados
+                  📊 Relatórios CRM
                 </button>
                 <button
                   onClick={() => {
-                    // Gerar relatório específico do sistema de chamados
-                    generateReport('chamados');
+                    // Exportar dados do sistema CRM
+                    exportData('crm');
                   }}
                   style={{
                     padding: '1.5rem',
@@ -5277,120 +5191,9 @@ export default function AdminMasterPage() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  📊 Relatórios de Chamados
-                </button>
-                <button
-                  onClick={() => {
-                    // Exportar dados do sistema de chamados
-                    exportData('chamados');
-                  }}
-                  style={{
-                    padding: '1.5rem',
-                    background: 'linear-gradient(45deg, #ef4444, #dc2626)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(239,68,68,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  📥 Exportar Dados
+                  📥 Exportar Dados CRM
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'sistema-frota' && (
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(30px)',
-            padding: '2rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(255,255,255,0.1)'
-          }}>
-            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-              🚗 Gestão do Sistema de Frota
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                🏢 Gerenciar Empresas
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                🚗 Gerenciar Veículos
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                👥 Gerenciar Motoristas
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                📊 Relatórios GPS
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'sistema-financeiro' && (
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(30px)',
-            padding: '2rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(255,255,255,0.1)'
-          }}>
-            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-              💰 Gestão do Sistema Financeiro
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                🏢 Gerenciar Empresas
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                👤 Gerenciar Contadores
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                📄 Documentos Fiscais
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                📊 Relatórios Fiscais
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'sistema-documentos' && (
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(30px)',
-            padding: '2rem',
-            borderRadius: '20px',
-            border: '2px solid rgba(255,255,255,0.1)'
-          }}>
-            <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
-              📁 Gestão do Sistema de Documentos
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                🏢 Gerenciar Empresas
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #10b981, #059669)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                👤 Gerenciar Usuários
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                📄 Templates de Documentos
-              </button>
-              <button style={{ padding: '1.5rem', background: 'linear-gradient(45deg, #f59e0b, #d97706)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '700' }}>
-                🔒 Controle de Acesso
-              </button>
             </div>
           </div>
         )}

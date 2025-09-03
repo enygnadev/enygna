@@ -371,8 +371,8 @@ export default function SistemasPage() {
     } else if (systemId === 'financeiro') {
       // Redirecionar para o sistema financeiro
       window.location.href = '/financeiro/auth';
-    } else if (systemId === 'crm') {
-      // Redirecionar para o sistema de CRM
+    } else if (systemId === 'vendas') {
+      // Redirecionar para o sistema de CRM/Vendas
       window.location.href = '/crm/auth';
     } else {
       // Para outros sistemas, mostrar mensagem
