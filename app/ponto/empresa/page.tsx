@@ -422,7 +422,8 @@ function EmpresaDashboard() {
                 isEmpresaType,
                 role: userData.role,
                 sistemasAtivos: userData.sistemasAtivos,
-                tipo: userData.tipo
+                tipo: userData.tipo,
+                empresaId: userData.empresaId
               });
               
               if (hasAdminRole || hasPontoAccess || isEmpresaType) {
@@ -450,18 +451,38 @@ function EmpresaDashboard() {
               // Se o usuário não existe no 'users', verifica se foi criado via admin para empresa
               // Busca pelo email na coleção de empresas para verificar se é uma empresa do sistema de ponto
               try {
-                const empresasQuery = query(
+                // Primeiro tentar buscar empresa por email com sistema ponto
+                let empresasQuery = query(
                   collection(db, "empresas"), 
                   where("email", "==", u.email),
                   where("sistemasAtivos", "array-contains", "ponto")
                 );
-                const empresasSnap = await getDocs(empresasQuery);
+                let empresasSnap = await getDocs(empresasQuery);
+                
+                // Se não encontrou, tentar buscar apenas por email (pode ser empresa recém criada)
+                if (empresasSnap.empty) {
+                  console.log("Tentando buscar empresa apenas por email...");
+                  empresasQuery = query(
+                    collection(db, "empresas"), 
+                    where("email", "==", u.email)
+                  );
+                  empresasSnap = await getDocs(empresasQuery);
+                }
                 
                 if (!empresasSnap.empty) {
                   const empresaDoc = empresasSnap.docs[0];
                   const empresaData = empresaDoc.data();
                   
-                  console.log("Empresa encontrada com sistema de ponto:", empresaDoc.id);
+                  console.log("Empresa encontrada:", empresaDoc.id, empresaData);
+                  
+                  // Verificar se tem sistema ponto nos sistemas ativos
+                  const sistemasAtivos = empresaData.sistemasAtivos || [];
+                  if (!sistemasAtivos.includes('ponto')) {
+                    console.log("Empresa não tem sistema de ponto ativo");
+                    alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
+                    window.location.href = "/dashboard";
+                    return;
+                  }
                   
                   // Cria documento do usuário
                   await setDoc(userDocRef, {
@@ -470,7 +491,7 @@ function EmpresaDashboard() {
                     role: 'admin',
                     tipo: 'empresa',
                     empresaId: empresaDoc.id,
-                    sistemasAtivos: ['ponto'],
+                    sistemasAtivos: sistemasAtivos,
                     createdAt: new Date().toISOString(),
                     lastLogin: new Date().toISOString()
                   });
@@ -483,8 +504,8 @@ function EmpresaDashboard() {
                     setCompanyLocation(empresaData.geofencing);
                   }
                 } else {
-                  console.log("Empresa não encontrada ou sem sistema de ponto");
-                  alert("Acesso negado. Empresa não configurada no sistema de ponto.");
+                  console.log("Empresa não encontrada");
+                  alert("Acesso negado. Empresa não encontrada no sistema.");
                   window.location.href = "/dashboard";
                   return;
                 }

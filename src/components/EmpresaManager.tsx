@@ -430,50 +430,22 @@ export default function EmpresaManager({
           break;
 
         case 'ponto':
-          // IMPORTANTE: Criar empresa na coleção específica do ponto
-          await setDoc(doc(db, 'ponto-empresas', empresaId), {
-            nome: empresaDataForConfig.nome,
-            email: empresaDataForConfig.email,
-            cnpj: empresaDataForConfig.cnpj,
-            telefone: empresaDataForConfig.telefone,
-            endereco: empresaDataForConfig.endereco,
-            ativo: true,
-            plano: empresaDataForConfig.plano,
-            sistemasAtivos: ['ponto'],
-            configuracoesPonto: {
-              toleranciaMinutos: 15,
-              pausaAlmoco: 60,
-              horariosTrabalho: {
-                entrada: '08:00',
-                saida: '17:00',
-                intervalo: 60
-              },
-              geofencing: empresaDataForConfig.configuracoes.geofencing || false,
-              selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria || false,
-              notificacaoEmail: empresaDataForConfig.configuracoes.notificacaoEmail || true
-            },
-            criadoEm: serverTimestamp()
-          });
-
-          // Criar configurações padrão para ponto
-          await setDoc(doc(db, 'ponto-empresas', empresaId, 'configuracoes', 'default'), {
+          // Criar configurações específicas na subcoleção da empresa principal
+          await setDoc(doc(db, 'empresas', empresaId, 'configuracoes', 'ponto'), {
+            toleranciaMinutos: 15,
+            pausaAlmoco: 60,
             horariosTrabalho: {
               entrada: '08:00',
               saida: '17:00',
-              intervalo: 60 // minutos
+              intervalo: 60
             },
-            tolerancia: 15, // minutos
-            geofencing: empresaDataForConfig.configuracoes.geofencing,
-            selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria,
-            notificacaoEmail: empresaDataForConfig.configuracoes.notificacaoEmail,
-            jornada: {
-              horasDiarias: 8,
-              diasSemanais: 5,
-              horasSemanais: 40,
-              horasMensais: 220
-            },
-            criadoEm: serverTimestamp()
+            geofencing: empresaDataForConfig.configuracoes.geofencing || false,
+            selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria || false,
+            notificacaoEmail: empresaDataForConfig.configuracoes.notificacaoEmail || true,
+            criadoEm: serverTimestamp(),
+            atualizadoEm: serverTimestamp()
           });
+          console.log('Configurações específicas de ponto criadas');
           break;
 
         case 'crm': // Adicionado para CRM
