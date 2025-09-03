@@ -409,8 +409,33 @@ export default function EmpresaManager({
           break;
 
         case 'ponto':
+          // IMPORTANTE: Criar empresa na coleção específica do ponto
+          await setDoc(doc(db, 'ponto-empresas', empresaId), {
+            nome: empresaDataForConfig.nome,
+            email: empresaDataForConfig.email,
+            cnpj: empresaDataForConfig.cnpj,
+            telefone: empresaDataForConfig.telefone,
+            endereco: empresaDataForConfig.endereco,
+            ativo: true,
+            plano: empresaDataForConfig.plano,
+            sistemasAtivos: ['ponto'],
+            configuracoesPonto: {
+              toleranciaMinutos: 15,
+              pausaAlmoco: 60,
+              horariosTrabalho: {
+                entrada: '08:00',
+                saida: '17:00',
+                intervalo: 60
+              },
+              geofencing: empresaDataForConfig.configuracoes.geofencing || false,
+              selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria || false,
+              notificacaoEmail: empresaDataForConfig.configuracoes.notificacaoEmail || true
+            },
+            criadoEm: serverTimestamp()
+          });
+
           // Criar configurações padrão para ponto
-          await setDoc(doc(db, 'ponto_empresas', empresaId, 'configuracoes', 'default'), {
+          await setDoc(doc(db, 'ponto-empresas', empresaId, 'configuracoes', 'default'), {
             horariosTrabalho: {
               entrada: '08:00',
               saida: '17:00',
@@ -480,7 +505,7 @@ export default function EmpresaManager({
                   break;
                 case 'ponto':
                   // Criar empresa na coleção específica do ponto
-                  await setDoc(doc(db, 'ponto_empresas', empresaId), {
+                  await setDoc(doc(db, 'ponto-empresas', empresaId), {
                     nome: empresaDataForConfig.nome,
                     email: empresaDataForConfig.email,
                     cnpj: empresaDataForConfig.cnpj,
@@ -502,7 +527,7 @@ export default function EmpresaManager({
                     criadoEm: serverTimestamp()
                   });
 
-                  await setDoc(doc(db, 'ponto_empresas', empresaId, 'configuracoes', 'default'), {
+                  await setDoc(doc(db, 'ponto-empresas', empresaId, 'configuracoes', 'default'), {
                     toleranciaMinutos: 15,
                     pausaAlmocoMinutos: 60,
                     horariosTrabalho: {

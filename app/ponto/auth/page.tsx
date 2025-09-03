@@ -170,9 +170,11 @@ export default function PontoAuthPage() {
         const userDocRef = doc(db, 'users', userUid);
         await setDoc(userDocRef, {
           email: userEmail,
-          displayName: userEmail || empresaData.nome || userEmail,
+          displayName: empresaData.nome || userEmail,
           role: 'admin', // Empresa é sempre admin do próprio sistema
           empresaId: empresaDoc.id,
+          sistemasAtivos: ['ponto'],
+          tipo: 'empresa',
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp()
         }, { merge: true });
