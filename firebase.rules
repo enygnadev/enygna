@@ -198,6 +198,28 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
+    // Sistema de Ponto
+    match /ponto_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    match /ponto_users/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /sessions/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
     // === COLEÇÕES DE MONITORAMENTO E SEGURANÇA ===
     match /security_alerts/{document} {
       allow read, write: if isSuperAdmin();
@@ -228,6 +250,24 @@ service cloud.firestore {
     match /users/{userId}/sessions/{sessionId} {
       allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isSuperAdmin();
+    }
+
+    // Sessões de ponto por empresa
+    match /ponto_empresas/{empresaId}/sessions/{sessionId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+    }
+
+    // Colaboradores por empresa
+    match /ponto_empresas/{empresaId}/colaboradores/{colaboradorId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && 
+        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
+         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
     }
 
     // === TUTORIAL E CONFIGURAÇÕES PESSOAIS ===
