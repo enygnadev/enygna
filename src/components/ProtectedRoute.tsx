@@ -104,7 +104,14 @@ export default function ProtectedRoute({
 
   // Verificar permissões
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
-    requiredPermissions.some(permission => hasPermission(permission as 'frota' | 'ponto' | 'chamados' | 'documentos' | 'admin'));
+    requiredPermissions.some(permission => {
+      // Type guard to ensure permission is a valid key
+      const validPermissions = ['frota', 'ponto', 'chamados', 'documentos', 'admin'] as const;
+      if (validPermissions.includes(permission as any)) {
+        return hasPermission(permission as keyof NonNullable<UserData['permissions']>);
+      }
+      return false;
+    });
 
   const hasRequiredRoles = requiredRoles.length === 0 || 
     requiredRoles.some(role => isRole(role));
