@@ -5434,6 +5434,7 @@ export default function AdminMasterPage() {
                     <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios básicos</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ App móvel</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Sistema CRM básico</li>
                     <li style={{ marginBottom: '0.5rem' }}>❌ Rastreamento GPS</li>
                   </ul>
                   <button
@@ -5506,6 +5507,7 @@ export default function AdminMasterPage() {
                   }}>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Sistema CRM completo</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios avançados</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Rastreamento GPS</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Export PDF</li>
@@ -5574,6 +5576,7 @@ export default function AdminMasterPage() {
                   }}>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Tudo do mensal</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ CRM Premium com IA</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Analytics avançado</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Suporte 24/7</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Export ilimitado</li>
@@ -5634,6 +5637,7 @@ export default function AdminMasterPage() {
                   }}>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 999 funcionários</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 10 empresas</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ CRM Enterprise + IA</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ API personalizada</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Suporte dedicado</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ White label</li>

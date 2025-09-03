@@ -23,6 +23,7 @@ const sistemasDisponiveis: Sistema[] = [
   { id: 'frota', nome: 'Sistema de Frota', icon: '🚗', descricao: 'Gestão de veículos e rastreamento' },
   { id: 'financeiro', nome: 'Sistema Financeiro', icon: '💰', descricao: 'Contabilidade e documentos fiscais' },
   { id: 'documentos', nome: 'Sistema de Documentos', icon: '📁', descricao: 'Gestão documental' },
+  { id: 'crm', nome: 'Sistema CRM', icon: '🎯', descricao: 'CRM e gestão de relacionamento' },
   { id: 'vendas', nome: 'Sistema de Vendas', icon: '💼', descricao: 'CRM e gestão comercial' },
   { id: 'estoque', nome: 'Controle de Estoque', icon: '📦', descricao: 'Gestão de inventário' },
   { id: 'rh', nome: 'Recursos Humanos', icon: '👥', descricao: 'Gestão de pessoas' }
