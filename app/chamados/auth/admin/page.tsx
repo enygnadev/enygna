@@ -1,39 +1,46 @@
 
-<old_str>'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, collection } from 'firebase/firestore';
 import { auth, db } from '@/src/lib/firebase';
-import { useChamadosSessionProfile } from '@/src/lib/chamadosAuth';
-import { ChamadosUserDoc, ChamadosUserRole } from '@/src/types/chamados';
+import { useAuth } from '@/src/hooks/useAuth';
 
-type LoginRole = 'empresa' | 'colaborador' | 'adminmaster';
-type AuthMode = 'login' | 'signup';
+type LoginRole = 'colaborador' | 'empresa' | 'admin';
+type AuthMode = 'login' | 'register';
+type ChamadosUserRole = 'adminmaster' | 'admin' | 'colaborador';
 
-export default function ChamadosAuthPage() {
+interface ChamadosUserDoc {
+  email: string;
+  role: ChamadosUserRole;
+  empresaId?: string;
+  permissions: {
+    canCreateTickets: boolean;
+    canViewAllTickets: boolean;
+    canAssignTickets: boolean;
+    canDeleteTickets: boolean;
+    canManageUsers: boolean;
+  };
+  createdAt: Date;
+  lastLogin: Date;
+}
+
+export default function ChamadosAdminAuth() {
   const router = useRouter();
-  const { loading, profile } = useChamadosSessionProfile();
+  const { profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<LoginRole>('colaborador');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    displayName: '',
-    departamento: '',
-    empresaNome: '',
+    confirmPassword: '',
     empresaIdInput: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirecionar se já estiver logado
   useEffect(() => {
     if (!loading && profile) {
       router.push('/chamados');
@@ -44,10 +51,9 @@ export default function ChamadosAuthPage() {
     switch (tab) {
       case 'empresa':
         return 'admin';
-      case 'colaborador':
-        return 'colaborador';
-      case 'adminmaster':
+      case 'admin':
         return 'adminmaster';
+      case 'colaborador':
       default:
         return 'colaborador';
     }
@@ -55,33 +61,32 @@ export default function ChamadosAuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setError('');
+    setSubmitting(true);
 
     try {
       if (authMode === 'login') {
         // Login
         const userCredential = await signInWithEmailAndPassword(
-          auth, 
-          formData.email, 
+          auth,
+          formData.email,
           formData.password
         );
 
-        // Verificar se o usuário existe no sistema de chamados
-        const userDocRef = doc(db, 'chamados_users', userCredential.user.uid);
-        const userSnap = await getDoc(userDocRef);
-
-        if (!userSnap.exists()) {
-          // Criar perfil básico se não existir
+        // Verificar se usuário existe na coleção chamados_users
+        const userDoc = doc(db, 'chamados_users', userCredential.user.uid);
+        
+        // Se não existir, criar com role baseado na aba ativa
+        if (userCredential.user) {
           const role = getRoleFromTab(activeTab);
-          await setDoc(userDocRef, {
+          await setDoc(userDoc, {
             email: formData.email,
-            displayName: userCredential.user.displayName || formData.displayName || '',
-            role: role,
-            isActive: true,
+            role,
             permissions: getDefaultPermissions(role),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            createdAt: new Date(),
+            lastLogin: new Date(),
+            ...(activeTab === 'colaborador' && formData.empresaIdInput ? 
+              { empresaId: formData.empresaIdInput } : {})
           } as ChamadosUserDoc);
         }
 
@@ -93,45 +98,43 @@ export default function ChamadosAuthPage() {
           return;
         }
 
+        if (formData.password !== formData.confirmPassword) {
+          setError('As senhas não coincidem');
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(
-          auth, 
-          formData.email, 
+          auth,
+          formData.email,
           formData.password
         );
 
-        // Criar perfil no sistema de chamados
         const role = getRoleFromTab(activeTab);
         const userData: ChamadosUserDoc = {
           email: formData.email,
-          displayName: formData.displayName,
-          role: role,
-          isActive: true,
+          role,
           permissions: getDefaultPermissions(role),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          lastLogin: new Date()
         };
 
-        // Adicionar dados específicos por tipo
+        // Definir empresaId baseado no tipo
         if (activeTab === 'empresa') {
           userData.empresaId = userCredential.user.uid; // Empresa usa seu próprio ID
-          userData.departamento = 'Administração';
         } else if (activeTab === 'colaborador') {
           userData.empresaId = formData.empresaIdInput;
-          userData.departamento = formData.departamento;
         }
-        // adminmaster não precisa de empresa
 
+        // Salvar na coleção chamados_users
         await setDoc(doc(db, 'chamados_users', userCredential.user.uid), userData);
 
-        // Se é empresa, criar documento da empresa também
+        // Se for empresa, criar documento na coleção chamados_empresas
         if (activeTab === 'empresa') {
-          await setDoc(doc(db, 'chamados_empresas', userCredential.user.uid), {
-            nome: formData.empresaNome || formData.displayName,
-            ownerUid: userCredential.user.uid,
-            ownerEmail: formData.email,
-            ativa: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+          await setDoc(doc(collection(db, 'chamados_empresas'), userCredential.user.uid), {
+            nome: formData.email.split('@')[0], // Nome baseado no email por enquanto
+            email: formData.email,
+            adminId: userCredential.user.uid,
+            createdAt: new Date()
           });
         }
 
@@ -150,29 +153,27 @@ export default function ChamadosAuthPage() {
       case 'adminmaster':
         return {
           canCreateTickets: true,
-          canAssignTickets: true,
-          canCloseTickets: true,
           canViewAllTickets: true,
-          canManageUsers: true,
-          canViewReports: true,
+          canAssignTickets: true,
+          canDeleteTickets: true,
+          canManageUsers: true
         };
       case 'admin':
         return {
           canCreateTickets: true,
-          canAssignTickets: true,
-          canCloseTickets: true,
           canViewAllTickets: true,
-          canManageUsers: true,
-          canViewReports: true,
+          canAssignTickets: true,
+          canDeleteTickets: false,
+          canManageUsers: false
         };
+      case 'colaborador':
       default:
         return {
           canCreateTickets: true,
-          canAssignTickets: false,
-          canCloseTickets: false,
           canViewAllTickets: false,
-          canManageUsers: false,
-          canViewReports: false,
+          canAssignTickets: false,
+          canDeleteTickets: false,
+          canManageUsers: false
         };
     }
   };
@@ -181,9 +182,7 @@ export default function ChamadosAuthPage() {
     setFormData({
       email: '',
       password: '',
-      displayName: '',
-      departamento: '',
-      empresaNome: '',
+      confirmPassword: '',
       empresaIdInput: ''
     });
     setError('');
@@ -201,332 +200,319 @@ export default function ChamadosAuthPage() {
 
   if (loading) {
     return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
+      <div style={{ 
         display: 'flex', 
+        justifyContent: 'center', 
         alignItems: 'center', 
-        justifyContent: 'center' 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <div>Carregando...</div>
-        </div>
+        <div style={{ color: 'white', fontSize: '18px' }}>Carregando...</div>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ minHeight: '100vh', padding: 'var(--gap-xl)' }}>
-      <div style={{ 
-        maxWidth: '500px', 
-        margin: '0 auto',
-        paddingTop: 'var(--gap-lg)'
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '20px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+        padding: '40px',
+        width: '100%',
+        maxWidth: '500px'
       }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 'var(--gap-xl)' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <h1 style={{ margin: 0, fontSize: '1.8rem' }}>
-            Sistema de Chamados
-          </h1>
-          <p style={{ 
-            margin: '8px 0 0 0', 
-            color: 'var(--color-text-secondary)',
-            fontSize: '0.9rem'
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ 
+            color: '#333', 
+            fontSize: '28px', 
+            fontWeight: 'bold',
+            marginBottom: '10px'
           }}>
-            {authMode === 'login' ? 'Entre com sua conta' : 'Crie sua conta'}
+            🎫 Sistema de Chamados
+          </h1>
+          <p style={{ color: '#666', fontSize: '16px' }}>
+            {authMode === 'login' ? 'Faça login para continuar' : 'Crie sua conta'}
           </p>
         </div>
 
-        {/* Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '4px', 
-          marginBottom: 'var(--gap-lg)',
+        {/* Auth Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          background: '#f8f9fa',
           borderRadius: '12px',
-          background: 'var(--color-surface)',
-          padding: '4px'
+          padding: '4px',
+          marginBottom: '30px'
         }}>
-          {(['colaborador', 'empresa', 'adminmaster'] as LoginRole[]).map((tab) => (
+          <button
+            type="button"
+            onClick={() => handleModeChange('login')}
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: authMode === 'login' ? 'white' : 'transparent',
+              color: authMode === 'login' ? '#333' : '#666',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: authMode === 'login' ? 'bold' : 'normal',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: authMode === 'login' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange('register')}
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: authMode === 'register' ? 'white' : 'transparent',
+              color: authMode === 'register' ? '#333' : '#666',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: authMode === 'register' ? 'bold' : 'normal',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: authMode === 'register' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Registrar
+          </button>
+        </div>
+
+        {/* Role Tabs */}
+        <div style={{
+          display: 'flex',
+          marginBottom: '30px',
+          borderBottom: '1px solid #eee'
+        }}>
+          {(['colaborador', 'empresa', 'admin'] as LoginRole[]).map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => handleTabChange(tab)}
               style={{
                 flex: 1,
-                padding: '12px 8px',
+                padding: '12px 20px',
+                background: 'none',
                 border: 'none',
-                borderRadius: '8px',
-                background: activeTab === tab ? 'var(--color-primary)' : 'transparent',
-                color: activeTab === tab ? 'white' : 'var(--color-text)',
-                fontWeight: activeTab === tab ? '600' : '500',
-                fontSize: '0.9rem',
+                borderBottom: activeTab === tab ? '3px solid #667eea' : '3px solid transparent',
+                color: activeTab === tab ? '#667eea' : '#666',
+                fontWeight: activeTab === tab ? 'bold' : 'normal',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'all 0.3s ease',
+                fontSize: '14px',
+                textTransform: 'capitalize'
               }}
             >
-              {tab === 'colaborador' && '👤 Colaborador'}
-              {tab === 'empresa' && '🏢 Empresa'}
-              {tab === 'adminmaster' && '🛡️ Admin Master'}
+              {tab === 'colaborador' ? '👨‍💼 Colaborador' : 
+               tab === 'empresa' ? '🏢 Empresa' : '👑 Admin'}
             </button>
           ))}
         </div>
 
-        {/* Mode Toggle */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          marginBottom: 'var(--gap-lg)',
-          justifyContent: 'center'
-        }}>
-          <button
-            onClick={() => handleModeChange('login')}
-            className={authMode === 'login' ? 'button button-primary' : 'button button-ghost'}
-            style={{ fontSize: '0.9rem' }}
-          >
-            Fazer Login
-          </button>
-          <button
-            onClick={() => handleModeChange('signup')}
-            className={authMode === 'signup' ? 'button button-primary' : 'button button-ghost'}
-            style={{ fontSize: '0.9rem' }}
-          >
-            Criar Conta
-          </button>
-        </div>
-
         {/* Form */}
-        <div className="card">
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 'var(--gap-md)' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: 'var(--gap-xs)', 
-                fontSize: '0.9rem',
-                fontWeight: '600'
-              }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="input"
-                placeholder="seu@email.com"
-                required
-                style={{ width: '100%' }}
-              />
-            </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Email */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              color: '#333',
+              fontWeight: '500',
+              fontSize: '14px'
+            }}>
+              📧 Email
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                border: '2px solid #e1e5e9',
+                borderRadius: '12px',
+                fontSize: '16px',
+                transition: 'border-color 0.3s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+              placeholder="Digite seu email"
+            />
+          </div>
 
-            <div style={{ marginBottom: 'var(--gap-md)' }}>
+          {/* Password */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              color: '#333',
+              fontWeight: '500',
+              fontSize: '14px'
+            }}>
+              🔒 Senha
+            </label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                border: '2px solid #e1e5e9',
+                borderRadius: '12px',
+                fontSize: '16px',
+                transition: 'border-color 0.3s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+              placeholder="Digite sua senha"
+            />
+          </div>
+
+          {/* Confirm Password (only for register) */}
+          {authMode === 'register' && (
+            <div>
               <label style={{ 
                 display: 'block', 
-                marginBottom: 'var(--gap-xs)', 
-                fontSize: '0.9rem',
-                fontWeight: '600'
+                marginBottom: '8px', 
+                color: '#333',
+                fontWeight: '500',
+                fontSize: '14px'
               }}>
-                Senha
+                🔒 Confirmar Senha
               </label>
               <input
                 type="password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="input"
-                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
-                style={{ width: '100%' }}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  transition: 'border-color 0.3s ease',
+                  outline: 'none'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+                placeholder="Confirme sua senha"
               />
             </div>
+          )}
 
-            {authMode === 'signup' && (
-              <>
-                <div style={{ marginBottom: 'var(--gap-md)' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: 'var(--gap-xs)', 
-                    fontSize: '0.9rem',
-                    fontWeight: '600'
-                  }}>
-                    Nome Completo
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.displayName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                    className="input"
-                    placeholder="Seu nome completo"
-                    required
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {activeTab === 'empresa' && (
-                  <div style={{ marginBottom: 'var(--gap-md)' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: 'var(--gap-xs)', 
-                      fontSize: '0.9rem',
-                      fontWeight: '600'
-                    }}>
-                      Nome da Empresa
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.empresaNome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, empresaNome: e.target.value }))}
-                      className="input"
-                      placeholder="Nome da sua empresa"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                )}
-
-                {activeTab === 'colaborador' && (
-                  <>
-                    <div style={{ marginBottom: 'var(--gap-md)' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: 'var(--gap-xs)', 
-                        fontSize: '0.9rem',
-                        fontWeight: '600'
-                      }}>
-                        ID da Empresa
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.empresaIdInput}
-                        onChange={(e) => setFormData(prev => ({ ...prev, empresaIdInput: e.target.value }))}
-                        className="input"
-                        placeholder="ID fornecido pela empresa"
-                        required
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--gap-md)' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: 'var(--gap-xs)', 
-                        fontSize: '0.9rem',
-                        fontWeight: '600'
-                      }}>
-                        Departamento
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.departamento}
-                        onChange={(e) => setFormData(prev => ({ ...prev, departamento: e.target.value }))}
-                        className="input"
-                        placeholder="TI, RH, Vendas, etc."
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {error && (
-              <div style={{ 
-                padding: 'var(--gap-sm)', 
-                backgroundColor: 'var(--color-error)', 
-                color: 'white', 
-                borderRadius: 'var(--radius-md)', 
-                marginBottom: 'var(--gap-md)',
-                fontSize: '0.9rem'
+          {/* Empresa ID (only for colaborador) */}
+          {activeTab === 'colaborador' && (
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                color: '#333',
+                fontWeight: '500',
+                fontSize: '14px'
               }}>
-                {error}
-              </div>
-            )}
+                🏢 ID da Empresa
+              </label>
+              <input
+                type="text"
+                value={formData.empresaIdInput}
+                onChange={(e) => setFormData({ ...formData, empresaIdInput: e.target.value })}
+                required={activeTab === 'colaborador'}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  transition: 'border-color 0.3s ease',
+                  outline: 'none'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+                placeholder="Digite o ID da empresa"
+              />
+            </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="button button-primary"
-              style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
-            >
-              {submitting ? 'Processando...' : (authMode === 'login' ? 'Entrar' : 'Criar Conta')}
-            </button>
-          </form>
-        </div>
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              background: '#fee2e2',
+              color: '#dc2626',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '14px',
+              border: '1px solid #fecaca'
+            }}>
+              ⚠️ {error}
+            </div>
+          )}
 
-        {/* Info Cards */}
-        {authMode === 'signup' && (
-          <div style={{ marginTop: 'var(--gap-lg)' }}>
-            {activeTab === 'colaborador' && (
-              <div style={{ 
-                padding: 'var(--gap-md)', 
-                background: 'var(--color-surface)', 
-                borderRadius: 'var(--radius-md)', 
-                fontSize: '0.9rem',
-                marginBottom: 'var(--gap-md)'
-              }}>
-                <strong>📋 Colaborador:</strong> Você poderá criar e acompanhar chamados, mas precisará do ID da sua empresa para se conectar ao sistema.
-              </div>
-            )}
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: submitting ? '#9ca3af' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              transform: submitting ? 'scale(0.98)' : 'scale(1)'
+            }}
+          >
+            {submitting ? 
+              '⏳ Processando...' : 
+              authMode === 'login' ? '🚀 Entrar' : '✨ Criar Conta'
+            }
+          </button>
+        </form>
 
-            {activeTab === 'empresa' && (
-              <div style={{ 
-                padding: 'var(--gap-md)', 
-                background: 'var(--color-surface)', 
-                borderRadius: 'var(--radius-md)', 
-                fontSize: '0.9rem',
-                marginBottom: 'var(--gap-md)'
-              }}>
-                <strong>🏢 Empresa:</strong> Você será o administrador da empresa, poderá gerenciar colaboradores, chamados e ter acesso completo ao sistema.
-              </div>
-            )}
-
-            {activeTab === 'adminmaster' && (
-              <div style={{ 
-                padding: 'var(--gap-md)', 
-                background: 'linear-gradient(135deg, #dc2626, #b91c1c)', 
-                color: 'white',
-                borderRadius: 'var(--radius-md)', 
-                fontSize: '0.9rem',
-                marginBottom: 'var(--gap-md)'
-              }}>
-                <strong>🛡️ Admin Master:</strong> Acesso total ao sistema, pode gerenciar todas as empresas, usuários e configurações globais.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Link para voltar ao cartão ponto */}
-        <div style={{ textAlign: 'center', marginTop: 'var(--gap-lg)' }}>
-          <Link href="/" className="button button-ghost">
-            ← Voltar ao Cartão Ponto
-          </Link>
+        {/* Footer */}
+        <div style={{ 
+          textAlign: 'center', 
+          marginTop: '30px',
+          paddingTop: '20px',
+          borderTop: '1px solid #eee'
+        }}>
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#667eea',
+              fontSize: '14px',
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+          >
+            ← Voltar ao início
+          </button>
         </div>
       </div>
     </div>
   );
-}</old_str>
-<new_str>'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function ChamadosAdminAuthPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redireciona para o painel admin principal
-    router.push('/admin');
-  }, [router]);
-
-  return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%)',
-      color: 'white'
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔄</div>
-        <h2 style={{ margin: '0 0 1rem 0' }}>Redirecionando...</h2>
-        <p style={{ opacity: 0.8 }}>Você será redirecionado para o painel administrativo principal.</p>
-      </div>
-    </div>
-  );
-}</new_str>
+}
