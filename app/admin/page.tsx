@@ -773,34 +773,6 @@ export default function AdminMasterPage() {
   };
 
 
-  // Mock function for loading companies (replace with actual implementation)
-  const loadEmpresas = async () => {
-    try {
-      setLoadingEmpresas(true);
-      console.log('Carregando empresas...');
-      console.log('Carregando empresas do sistema:', selectedSistema, 'Collection:', getCollectionName(selectedSistema));
-
-      const empresasRef = collection(db, getCollectionName(selectedSistema));
-      const snapshot = await getDocs(empresasRef);
-
-      const empresasList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EmpresaData[];
-
-      console.log(`Carregadas ${empresasList.length} empresas do sistema ${selectedSistema}`);
-      setEmpresas(empresasList);
-    } catch (error: any) {
-      console.error('Erro ao carregar empresas:', error);
-      setError('Erro ao carregar empresas');
-      if (error?.code === 'permission-denied') {
-        console.warn('Permissão negada ao carregar empresas.');
-      }
-    } finally {
-      setLoadingEmpresas(false);
-    }
-  };
-
   // Hook para carregar dados iniciais e configurar o listener de autenticação
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -852,7 +824,7 @@ export default function AdminMasterPage() {
                 } else if (sistemasAtivos.includes('documentos')) {
                   window.location.href = '/documentos';
                 } else if (sistemasAtivos.includes('ponto')) {
-                  window.location.href = '/empresa/dashboard';
+                  window.location.href = '/ponto/empresa';
                 } else {
                   window.location.href = '/sistemas';
                 }
