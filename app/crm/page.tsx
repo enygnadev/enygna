@@ -8,7 +8,7 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProf
 import { doc, getDoc, collection, addDoc, getDocs, query, where, serverTimestamp, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import ThemeSelector from '@/src/components/ThemeSelector';
 import { useRouter } from 'next/navigation';
-import EmpresaManager from '@/src/components/EmpresaManager';
+
 
 interface Cliente {
   id: string;
@@ -110,7 +110,6 @@ export default function CrmPage() {
     { id: 'clientes', label: 'Clientes', icon: '👥' },
     { id: 'missoes', label: 'Missões RPG', icon: '⚔️' },
     { id: 'relatorios', label: 'Relatórios', icon: '📈' },
-    { id: 'empresas', label: 'Empresas', icon: '🏢' },
     { id: 'configuracoes', label: 'Configurações', icon: '⚙️' }
   ];
 
@@ -1056,19 +1055,6 @@ export default function CrmPage() {
               </p>
             </div>
           </div>
-        )}
-
-        {/* Aba Empresas */}
-        {activeTab === 'empresas' && (
-          <EmpresaManager
-            sistema="crm"
-            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
-            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
-            allowDelete={userRole === 'superadmin'}
-            onEmpresaSelect={(empresa) => {
-              console.log('Empresa selecionada para CRM:', empresa);
-            }}
-          />
         )}
 
         {/* Aba Configurações */}
