@@ -165,8 +165,8 @@ export default function EmpresaManager({
       'frota': 'frota_empresas',
       'financeiro': 'financeiro_empresas',
       'documentos': 'documentos_empresas',
-      'ponto': 'empresas',
-      'crm': 'crm_empresas', // Adicionado para CRM
+      'ponto': 'ponto_empresas',
+      'crm': 'crm_empresas',
       'universal': 'empresas'
     };
     return collectionMap[sistema] || 'empresas';
@@ -403,7 +403,7 @@ export default function EmpresaManager({
 
         case 'ponto':
           // Criar configurações padrão para ponto
-          await setDoc(doc(db, 'empresas', empresaId, 'configuracoes', 'default'), {
+          await setDoc(doc(db, 'ponto_empresas', empresaId, 'configuracoes', 'default'), {
             horariosTrabalho: {
               entrada: '08:00',
               saida: '17:00',
@@ -411,6 +411,14 @@ export default function EmpresaManager({
             },
             tolerancia: 15, // minutos
             geofencing: formData.geofencing,
+            selfieObrigatoria: formData.selfieObrigatoria,
+            notificacaoEmail: formData.notificacaoEmail,
+            jornada: {
+              horasDiarias: 8,
+              diasSemanais: 5,
+              horasSemanais: 40,
+              horasMensais: 220
+            },
             criadoEm: serverTimestamp()
           });
           break;
@@ -464,10 +472,18 @@ export default function EmpresaManager({
                   });
                   break;
                 case 'ponto':
-                  await setDoc(doc(db, 'empresas', empresaId, 'configuracoes', 'default'), {
+                  await setDoc(doc(db, 'ponto_empresas', empresaId, 'configuracoes', 'default'), {
                     horariosTrabalho: { entrada: '08:00', saida: '17:00', intervalo: 60 },
                     tolerancia: 15,
                     geofencing: formData.geofencing,
+                    selfieObrigatoria: formData.selfieObrigatoria,
+                    notificacaoEmail: formData.notificacaoEmail,
+                    jornada: {
+                      horasDiarias: 8,
+                      diasSemanais: 5,
+                      horasSemanais: 40,
+                      horasMensais: 220
+                    },
                     criadoEm: serverTimestamp()
                   });
                   break;

@@ -871,7 +871,7 @@ export default function AdminMasterPage() {
       console.log('Carregando empresas...');
 
       // Tentar carregar de múltiplas coleções
-      const collections = ['empresas', 'companies', 'chamados_empresas'];
+      const collections = ['empresas', 'companies', 'ponto_empresas', 'chamados_empresas', 'frota_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
       let empresasList: any[] = [];
 
       for (const collectionName of collections) {
@@ -1788,6 +1788,30 @@ export default function AdminMasterPage() {
             }
           };
           break;
+        case 'ponto':
+          // Relatório específico do sistema de ponto
+          const empresasPonto = empresas.filter(e => e.sistemasAtivos?.includes('ponto'));
+          reportData.data = {
+            totalEmpresas: empresasPonto.length,
+            empresasAtivas: empresasPonto.filter(e => e.ativo).length,
+            totalColaboradores: 0, // Será implementado com consulta real
+            registrosPonto: 0,
+            horasTrabalho: 0,
+            produtividade: 0,
+            empresas: empresasPonto.map(e => ({
+              id: e.id,
+              nome: e.nome,
+              email: e.email,
+              plano: e.plano,
+              ativo: e.ativo,
+              criadoEm: e.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
         case 'chamados':
           // Relatório específico do sistema de chamados
           const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
@@ -1883,6 +1907,27 @@ export default function AdminMasterPage() {
         case 'reports':
           data = reports;
           filename = 'relatorios.json';
+          break;
+        case 'ponto':
+          // Exportar dados específicos do sistema de ponto
+          const empresasPonto = empresas.filter(e => e.sistemasAtivos?.includes('ponto'));
+          data = {
+            empresas: empresasPonto,
+            estatisticas: {
+              totalEmpresas: empresasPonto.length,
+              empresasAtivas: empresasPonto.filter(e => e.ativo).length,
+              totalColaboradores: 0, // Implementar consulta real
+              registrosPonto: 0,
+              horasTrabalho: 0,
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'ponto',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_ponto_dados.json';
           break;
         case 'chamados':
           // Exportar dados específicos do sistema de chamados
@@ -3187,6 +3232,7 @@ export default function AdminMasterPage() {
           { id: 'settings', label: 'Configurações', icon: '⚙️' },
           { id: 'logs', label: 'Logs', icon: '📄' },
           { id: 'create-admin', label: 'Criar Admin', icon: '👑' },
+          { id: 'sistema-ponto', label: 'Sistema Ponto', icon: '⏰' },
           { id: 'sistema-chamados', label: 'Sistema Chamados', icon: '🎫' },
           { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
           { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
@@ -4649,6 +4695,20 @@ export default function AdminMasterPage() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'sistema-ponto' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <EmpresaManager
+              sistema="ponto"
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa do sistema ponto selecionada:', empresa);
+              }}
+            />
           </div>
         )}
 
