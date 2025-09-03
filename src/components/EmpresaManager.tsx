@@ -245,8 +245,8 @@ export default function EmpresaManager({
           userCreated: true
         });
 
-        // Criar usuário na coleção users vinculado à empresa
-        const userDocRef = await addDoc(collection(db, 'users'), {
+        // Criar usuário na coleção users vinculado à empresa com UID como document ID
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
           email: formData.email,
           displayName: formData.nome,
           nome: formData.nome,
@@ -261,10 +261,11 @@ export default function EmpresaManager({
           empresaId: empresaId, // Vincular à empresa criada
           sistemasAtivos: formData.sistemasAtivos, // Definir sistemas ativos do usuário
           role: 'empresa', // Definir papel como empresa
+          tipo: 'empresa', // Adicionar tipo empresa
           company: empresaId, // Adicionar referência alternativa
         });
 
-        console.log('Usuário criado na coleção "users" com ID:', userDocRef.id);
+        console.log('Usuário criado na coleção "users" com UID:', userCredential.user.uid);
 
         // Fazer logout do usuário recém-criado e manter o admin logado
         await auth.signOut();
