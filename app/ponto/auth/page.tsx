@@ -102,22 +102,70 @@ export default function PontoAuthPage() {
 
         // Verificar se tem empresaId e se a empresa tem acesso ao ponto
         if (empresaId) {
-          const empresaDocRef = doc(db, 'empresas', empresaId);
-          const empresaDocSnap = await getDoc(empresaDocRef);
+          // Verificar empresa em múltiplas coleções
+          let empresaData: any = null;
+          let empresaEncontrada = false;
 
-          if (empresaDocSnap.exists()) {
-            const empresaData = empresaDocSnap.data();
-            const sistemasAtivos = empresaData.sistemasAtivos || [];
+          // 1. Primeiro, buscar na coleção específica do ponto
+          try {
+            const pontoEmpresaDoc = await getDoc(doc(db, 'ponto_empresas', empresaId));
+            if (pontoEmpresaDoc.exists()) {
+              empresaData = pontoEmpresaDoc.data();
+              empresaEncontrada = true;
+              console.log('Empresa encontrada em ponto_empresas:', empresaData);
+            }
+          } catch (error) {
+            console.log('Empresa não encontrada em ponto_empresas:', error);
+          }
 
-            if (sistemasAtivos.includes('ponto')) {
-              // Redirecionar baseado no papel do usuário
-              if (role === 'admin' || role === 'gestor') {
-                router.push(`/ponto/dashboard?empresaId=${empresaId}`);
-                return;
-              } else if (role === 'colaborador') {
-                router.push(`/colaborador/dashboard?empresaId=${empresaId}`);
-                return;
+          // 2. Se não encontrou, buscar na coleção geral de empresas
+          if (!empresaEncontrada) {
+            try {
+              const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+              if (empresaDoc.exists()) {
+                const dadosEmpresa = empresaDoc.data();
+                console.log('Empresa encontrada em empresas:', dadosEmpresa);
+
+                // Verificar se tem sistema ponto ativo
+                if (dadosEmpresa.sistemasAtivos?.includes('ponto')) {
+                  empresaData = dadosEmpresa;
+                  empresaEncontrada = true;
+
+                  // Migrar dados para ponto_empresas para otimizar futuras consultas
+                  try {
+                    await setDoc(doc(db, 'ponto_empresas', empresaId), {
+                      ...dadosEmpresa,
+                      tipo: 'empresa_ponto',
+                      migradoEm: serverTimestamp()
+                    });
+                    console.log('Empresa migrada para ponto_empresas');
+                  } catch (migrationError) {
+                    console.error('Erro na migração:', migrationError);
+                  }
+                } else {
+                  console.log('Sistema de ponto não ativo para esta empresa:', dadosEmpresa.sistemasAtivos);
+                }
               }
+            } catch (error) {
+              console.error('Erro ao buscar empresa em empresas:', error);
+            }
+          }
+
+          // 3. Verificar se a empresa foi encontrada
+          if (!empresaEncontrada || !empresaData) {
+            throw new Error('Empresa não encontrada ou sistema de ponto não está ativo');
+          }
+
+          const sistemasAtivos = empresaData.sistemasAtivos || [];
+
+          if (sistemasAtivos.includes('ponto')) {
+            // Redirecionar baseado no papel do usuário
+            if (role === 'admin' || role === 'gestor') {
+              router.push(`/ponto/dashboard?empresaId=${empresaId}`);
+              return;
+            } else if (role === 'colaborador') {
+              router.push(`/colaborador/dashboard?empresaId=${empresaId}`);
+              return;
             }
           }
         }

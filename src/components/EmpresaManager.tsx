@@ -239,7 +239,7 @@ export default function EmpresaManager({
         console.log('Usuário criado com sucesso:', userCredential.user.uid);
 
         // Adicionar o UID do usuário ao documento da empresa
-        await updateDoc(doc(db, collectionName, empresaId), { 
+        await updateDoc(doc(db, collectionName, empresaId), {
           userId: userCredential.user.uid,
           userCreated: true
         });
@@ -259,7 +259,7 @@ export default function EmpresaManager({
 
         // Se o usuário não foi criado, ainda assim mantemos a empresa
         // mas marcamos que o usuário precisa ser criado manualmente
-        await updateDoc(doc(db, collectionName, empresaId), { 
+        await updateDoc(doc(db, collectionName, empresaId), {
           userCreated: false,
           userCreationError: authError.message
         });
@@ -479,17 +479,49 @@ export default function EmpresaManager({
                   });
                   break;
                 case 'ponto':
+                  // Criar empresa na coleção específica do ponto
+                  await setDoc(doc(db, 'ponto_empresas', empresaId), {
+                    nome: empresaData.nome,
+                    email: empresaData.email,
+                    cnpj: empresaData.cnpj,
+                    telefone: empresaData.telefone,
+                    endereco: empresaData.endereco,
+                    ativo: true,
+                    plano: empresaData.plano,
+                    sistemasAtivos: ['ponto'],
+                    configuracoesPonto: {
+                      toleranciaMinutos: 15,
+                      pausaAlmoco: 60,
+                      horariosTrabalho: {
+                        inicio: '09:00',
+                        fim: '18:00'
+                      },
+                      geofencing: empresaData.configuracoes.geofencing || false,
+                      selfieObrigatoria: empresaData.configuracoes.selfieObrigatoria || false
+                    },
+                    criadoEm: serverTimestamp()
+                  });
+
                   await setDoc(doc(db, 'ponto_empresas', empresaId, 'configuracoes', 'default'), {
-                    horariosTrabalho: { entrada: '08:00', saida: '17:00', intervalo: 60 },
-                    tolerancia: 15,
-                    geofencing: formData.geofencing,
-                    selfieObrigatoria: formData.selfieObrigatoria,
-                    notificacaoEmail: formData.notificacaoEmail,
-                    jornada: {
-                      horasDiarias: 8,
-                      diasSemanais: 5,
-                      horasSemanais: 40,
-                      horasMensais: 220
+                    toleranciaMinutos: 15,
+                    pausaAlmocoMinutos: 60,
+                    horariosTrabalho: {
+                      segunda: { inicio: '09:00', fim: '18:00', ativo: true },
+                      terca: { inicio: '09:00', fim: '18:00', ativo: true },
+                      quarta: { inicio: '09:00', fim: '18:00', ativo: true },
+                      quinta: { inicio: '09:00', fim: '18:00', ativo: true },
+                      sexta: { inicio: '09:00', fim: '18:00', ativo: true },
+                      sabado: { inicio: '09:00', fim: '12:00', ativo: false },
+                      domingo: { inicio: '09:00', fim: '12:00', ativo: false }
+                    },
+                    geofencing: {
+                      ativo: empresaData.configuracoes.geofencing || false,
+                      raio: 100,
+                      coordenadas: null
+                    },
+                    selfie: {
+                      obrigatoria: empresaData.configuracoes.selfieObrigatoria || false,
+                      verificacaoFacial: false
                     },
                     criadoEm: serverTimestamp()
                   });
@@ -1078,18 +1110,18 @@ export default function EmpresaManager({
                 disabled={loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
-                    ? 'rgba(107, 114, 128, 0.6)' 
+                  background: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6
+                    ? 'rgba(107, 114, 128, 0.6)'
                     : 'linear-gradient(45deg, #16a34a, #15803d)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
-                    ? 'not-allowed' 
+                  cursor: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6
+                    ? 'not-allowed'
                     : 'pointer',
                   fontWeight: 'bold',
-                  opacity: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6 
-                    ? 0.6 
+                  opacity: loading || !formData.nome || !formData.email || !formData.senha || formData.senha.length < 6
+                    ? 0.6
                     : 1
                 }}
               >
