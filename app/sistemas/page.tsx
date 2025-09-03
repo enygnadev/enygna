@@ -7,15 +7,26 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
-
+import { useSystemAccess } from '@/src/hooks/useSystemAccess';
 
 
 export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
-  const { user, userData, loading, hasPermission, signOut } = useAuthData();
+  const { user, userData, loading, signOut } = useAuthData();
+  const { hasAccess, systemsAvailable, loading } = useSystemAccess(user);
 
-  
+  // Debug para verificar o que está acontecendo
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('Debug sistemas:', {
+        user: user.email,
+        systemsAvailable,
+        hasAccess: hasAccess('ponto')
+      });
+    }
+  }, [loading, user, systemsAvailable, hasAccess]);
+
 
   // Check online status and PWA mode
   useEffect(() => {
@@ -41,9 +52,9 @@ export default function SistemasPage() {
     themeManager.getCurrentTheme();
   }, []);
 
-  
 
-  
+
+
 
   const systems = [
     {
@@ -182,7 +193,7 @@ export default function SistemasPage() {
               {isOnline ? 'Conectado' : 'Offline'}
             </div>
             <div className="badge">📱 PWA: {isPWA ? 'Ativo' : 'Web'}</div>
-            
+
             {/* Status de Login */}
             {!loading && (
               <div className="badge">
@@ -209,7 +220,7 @@ export default function SistemasPage() {
               </svg>
               Tutorial
             </button>
-            
+
             {/* Botão de Sair */}
             {user && (
               <button
@@ -288,10 +299,10 @@ export default function SistemasPage() {
                 🎯 Seus Sistemas Ativos
               </h3>
               <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
-                {hasPermission('ponto') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>🕒 Ponto</span>}
-                {hasPermission('chamados') && <span className="tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>🎫 Chamados</span>}
-                {hasPermission('frota') && <span className="tag" style={{ background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)' }}>🚗 Frota</span>}
-                {hasPermission('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
+                {hasAccess('ponto') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>🕒 Ponto</span>}
+                {hasAccess('chamados') && <span className="tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>🎫 Chamados</span>}
+                {hasAccess('frota') && <span className="tag" style={{ background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)' }}>🚗 Frota</span>}
+                {hasAccess('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
                 {userData.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
                 {(!userData.permissions || Object.values(userData.permissions).every(p => !p)) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
@@ -314,9 +325,9 @@ export default function SistemasPage() {
           marginBottom: 'var(--gap-2xl)'
         }}>
           {systems.map((system) => {
-            const hasSystemAccess = user && userData && hasPermission(system.id as keyof typeof userData.permissions);
+            const hasSystemAccess = user && userData && hasAccess(system.id as keyof typeof userData.permissions);
             const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.id);
-            
+
             return (
               <div
                 key={system.id}
