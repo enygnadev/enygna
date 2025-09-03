@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { auth, db } from '@/src/lib/firebase';
 import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 export default function PontoAuthPage() {
@@ -25,77 +25,130 @@ export default function PontoAuthPage() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Usuário já logado, verificar permissões
-        await checkUserPermissions(user.email!);
+        await checkUserPermissions(user.email!, user.uid);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const checkUserPermissions = async (userEmail: string) => {
+  const checkUserPermissions = async (userEmail: string, userUid: string) => {
     try {
-      // Primeiro, verificar se é uma empresa nas coleções empresariais
-      const collections = ['empresas', 'companies', 'chamados_empresas', 'frota_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
-      let empresaEncontrada = null;
-      let sistemaEncontrado = '';
+      console.log('Verificando permissões para:', userEmail);
 
-      for (const collectionName of collections) {
-        const q = query(
-          collection(db, collectionName),
-          where('email', '==', userEmail),
-          where('ativo', '==', true)
-        );
+      // 1. Primeiro verificar se é superadmin/adminmaster
+      const userDocRef = doc(db, 'users', userUid);
+      const userDocSnap = await getDoc(userDocRef);
 
-        const snapshot = await getDocs(q);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const role = userData.role?.toLowerCase();
         
-        if (!snapshot.empty) {
-          empresaEncontrada = snapshot.docs[0];
-          sistemaEncontrado = collectionName.replace('_empresas', '');
-          if (sistemaEncontrado === 'empresas' || sistemaEncontrado === 'companies') sistemaEncontrado = 'ponto';
-          break;
+        if (role === 'superadmin' || role === 'adminmaster') {
+          console.log('Usuario é super admin, redirecionando para /admin');
+          router.push('/admin');
+          return;
         }
       }
 
-      if (empresaEncontrada) {
-        const empresaData = empresaEncontrada.data();
+      // 2. Verificar se é uma empresa na coleção 'empresas' (sistema universal)
+      const empresasRef = collection(db, 'empresas');
+      const empresaQuery = query(empresasRef, where('email', '==', userEmail));
+      const empresaSnapshot = await getDocs(empresaQuery);
+
+      if (!empresaSnapshot.empty) {
+        const empresaDoc = empresaSnapshot.docs[0];
+        const empresaData = empresaDoc.data();
         const sistemasAtivos = empresaData.sistemasAtivos || [];
         
+        console.log('Empresa encontrada:', empresaDoc.id);
+        console.log('Sistemas ativos:', sistemasAtivos);
+
         // Verificar se a empresa tem acesso ao sistema de ponto
         if (sistemasAtivos.includes('ponto')) {
-          // Empresa tem acesso ao sistema de ponto - vai para dashboard empresarial
-          router.push(`/ponto/dashboard?empresaId=${empresaEncontrada.id}`);
+          console.log('Empresa tem acesso ao sistema de ponto');
+          router.push(`/ponto/dashboard?empresaId=${empresaDoc.id}`);
           return;
         } else {
-          setError('Esta empresa não tem permissão para acessar o sistema de ponto.');
+          setError('Esta empresa não tem permissão para acessar o sistema de ponto. Entre em contato com o administrador.');
           return;
         }
       }
 
-      // Se não encontrou empresa, verificar se é um colaborador/usuário do sistema
+      // 3. Verificar se é uma empresa nas coleções específicas (compatibilidade)
+      const collections = ['ponto_empresas', 'chamados_empresas', 'frota_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
+      
+      for (const collectionName of collections) {
+        try {
+          const q = query(
+            collection(db, collectionName),
+            where('email', '==', userEmail)
+          );
+
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const empresaDoc = snapshot.docs[0];
+            const empresaData = empresaDoc.data();
+            
+            // Se encontrou na coleção ponto_empresas ou tem sistema de ponto ativo
+            if (collectionName === 'ponto_empresas' || (empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('ponto'))) {
+              console.log('Empresa encontrada em:', collectionName);
+              router.push(`/ponto/dashboard?empresaId=${empresaDoc.id}`);
+              return;
+            }
+          }
+        } catch (error) {
+          console.log(`Erro ao buscar em ${collectionName}:`, error);
+          continue;
+        }
+      }
+
+      // 4. Verificar se é um colaborador/usuário do sistema
       const usuariosRef = collection(db, 'users');
-      const q = query(usuariosRef, where('email', '==', userEmail));
-      const querySnapshot = await getDocs(q);
+      const usuarioQuery = query(usuariosRef, where('email', '==', userEmail));
+      const usuarioSnapshot = await getDocs(usuarioQuery);
 
-      if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
+      if (!usuarioSnapshot.empty) {
+        const userData = usuarioSnapshot.docs[0].data();
         const role = userData.role?.toLowerCase();
+        const empresaId = userData.empresaId;
 
-        // Redirecionar baseado no papel do usuário
-        if (role === 'superadmin' || role === 'adminmaster') {
-          router.push('/admin'); // Super admins vão para o painel master
-        } else if (role === 'admin' || role === 'gestor') {
-          router.push('/ponto/dashboard'); // Admins e gestores vão para o dashboard empresarial
-        } else if (role === 'colaborador') {
-          router.push('/colaborador/dashboard'); // Colaboradores vão para sua área específica
-        } else {
-          setError('Você não tem permissão para acessar o sistema de ponto.');
+        console.log('Usuário encontrado com role:', role, 'empresaId:', empresaId);
+
+        // Verificar se tem empresaId e se a empresa tem acesso ao ponto
+        if (empresaId) {
+          const empresaDocRef = doc(db, 'empresas', empresaId);
+          const empresaDocSnap = await getDoc(empresaDocRef);
+          
+          if (empresaDocSnap.exists()) {
+            const empresaData = empresaDocSnap.data();
+            const sistemasAtivos = empresaData.sistemasAtivos || [];
+            
+            if (sistemasAtivos.includes('ponto')) {
+              // Redirecionar baseado no papel do usuário
+              if (role === 'admin' || role === 'gestor') {
+                router.push(`/ponto/dashboard?empresaId=${empresaId}`);
+                return;
+              } else if (role === 'colaborador') {
+                router.push(`/colaborador/dashboard?empresaId=${empresaId}`);
+                return;
+              }
+            }
+          }
         }
-      } else {
-        setError('Usuário não encontrado no sistema');
+
+        // Se chegou até aqui, o usuário não tem acesso ao sistema de ponto
+        setError('Você não tem permissão para acessar o sistema de ponto ou sua empresa não possui este módulo ativo.');
+        return;
       }
+
+      // Se nenhuma verificação deu certo
+      setError('Usuário não encontrado no sistema. Entre em contato com o administrador para configurar seu acesso.');
+      
     } catch (error) {
       console.error('Erro ao verificar permissões:', error);
-      setError('Erro ao verificar permissões do usuário');
+      setError('Erro ao verificar permissões do usuário. Tente novamente.');
     }
   };
 
@@ -111,7 +164,7 @@ export default function PontoAuthPage() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-      await checkUserPermissions(userCredential.user.email!);
+      await checkUserPermissions(userCredential.user.email!, userCredential.user.uid);
     } catch (error: any) {
       console.error('Erro no login:', error);
       const errorMessage = getErrorMessage(error.code);
@@ -314,6 +367,8 @@ export default function PontoAuthPage() {
           padding: var(--gap-sm);
           border-radius: var(--radius);
           margin-bottom: var(--gap-md);
+          word-wrap: break-word;
+          white-space: pre-wrap;
         }
       `}</style>
 
@@ -365,7 +420,7 @@ export default function PontoAuthPage() {
               disabled={loading}
               style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
             >
-              {loading ? 'Processando...' : 'Entrar no Sistema'}
+              {loading ? 'Verificando acesso...' : 'Entrar no Sistema'}
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: 'var(--gap-md)' }}>
@@ -381,8 +436,12 @@ export default function PontoAuthPage() {
 
             {/* Admin controlled access message */}
             <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
-              <p style={{ marginBottom: 'var(--gap-md)' }}>
-                🔐 Acesso para empresas e colaboradores
+              <p style={{ marginBottom: 'var(--gap-md)', fontSize: '0.9rem', opacity: 0.8 }}>
+                🔐 Acesso para empresas e colaboradores cadastrados
+              </p>
+              <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                Se você é uma empresa, use o email e senha fornecidos pelo administrador.
+                Se você é um colaborador, use suas credenciais de acesso.
               </p>
             </div>
 
