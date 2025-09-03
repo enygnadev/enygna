@@ -2,11 +2,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/src/hooks/useAuth';
+import { useAuth, AuthContext, useAuthData } from '@/src/hooks/useAuth';
 import PlanControlPanel from '@/src/components/PlanControlPanel';
 import ThemeSelector from '@/components/ThemeSelector';
 
-export default function MeuPlanoPage() {
+// Force dynamic rendering to prevent SSR issues
+export const dynamic = 'force-dynamic';
+
+// AuthProvider wrapper component
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authData = useAuthData();
+  return (
+    <AuthContext.Provider value={authData}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function MeuPlanoPageContent() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
@@ -357,5 +370,13 @@ export default function MeuPlanoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MeuPlanoPage() {
+  return (
+    <AuthProvider>
+      <MeuPlanoPageContent />
+    </AuthProvider>
   );
 }
