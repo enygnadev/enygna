@@ -12,7 +12,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  where
+  where,
+  addDoc // Import addDoc
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
@@ -243,6 +244,26 @@ export default function EmpresaManager({
           userId: userCredential.user.uid,
           userCreated: true
         });
+
+        // Criar usuário na coleção users vinculado à empresa
+        const userDocRef = await addDoc(collection(db, 'users'), {
+          email: formData.email,
+          displayName: formData.nome,
+          createdAt: serverTimestamp(),
+          isAdmin: false,
+          hourlyRate: 0,
+          monthlySalary: 0,
+          monthlyBaseHours: 220,
+          lunchBreakMinutes: 0,
+          lunchThresholdMinutes: 360,
+          toleranceMinutes: 0,
+          empresaId: empresaId, // Vincular à empresa criada
+          sistemasAtivos: formData.sistemasAtivos, // Definir sistemas ativos do usuário
+          role: 'empresa', // Definir papel como empresa
+          company: empresaId // Adicionar referência alternativa
+        });
+
+        console.log('Usuário criado na coleção "users" com ID:', userDocRef.id);
 
         // Fazer logout do usuário recém-criado e manter o admin logado
         await auth.signOut();

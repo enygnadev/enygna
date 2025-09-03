@@ -32,6 +32,8 @@ export function useSystemAccess(user: User | null): SystemAccess {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log('Dados do usuário encontrados:', userData);
+          console.log('Email do usuário:', user.email);
+          console.log('UID do usuário:', user.uid);
           
           if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
             console.log('Usuário é admin, concedendo acesso a todos os sistemas');
@@ -44,9 +46,31 @@ export function useSystemAccess(user: User | null): SystemAccess {
           if (userData.sistemasAtivos && userData.sistemasAtivos.length > 0) {
             console.log('Sistemas encontrados no usuário:', userData.sistemasAtivos);
             setSystemsAvailable(userData.sistemasAtivos);
-            setEmpresaId(userData.empresaId || null);
+            setEmpresaId(userData.empresaId || userData.company || null);
             setLoading(false);
             return;
+          }
+
+          // Se tem empresaId, buscar sistemas da empresa
+          if (userData.empresaId || userData.company) {
+            const empresaId = userData.empresaId || userData.company;
+            console.log('Buscando empresa pelo ID:', empresaId);
+            
+            try {
+              const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+              if (empresaDoc.exists()) {
+                const empresaData = empresaDoc.data();
+                console.log('Dados da empresa encontrados:', empresaData);
+                const sistemas = empresaData.sistemasAtivos || [];
+                console.log('Sistemas ativos da empresa:', sistemas);
+                setSystemsAvailable(sistemas);
+                setEmpresaId(empresaId);
+                setLoading(false);
+                return;
+              }
+            } catch (error) {
+              console.error('Erro ao buscar empresa por ID:', error);
+            }
           }
 
           // Verificar empresa do usuário
@@ -96,6 +120,29 @@ export function useSystemAccess(user: User | null): SystemAccess {
           }
         } else {
           console.log('Documento do usuário não encontrado, tentando buscar por email');
+          console.log('Email para busca:', user.email);
+          
+          // Primeiro, tentar buscar na coleção users por email
+          try {
+            const usersQuery = query(collection(db, 'users'), where('email', '==', user.email));
+            const usersSnapshot = await getDocs(usersQuery);
+            
+            if (!usersSnapshot.empty) {
+              const userDoc = usersSnapshot.docs[0];
+              const userData = userDoc.data();
+              console.log('Usuário encontrado por email:', userData);
+              
+              if (userData.sistemasAtivos && userData.sistemasAtivos.length > 0) {
+                console.log('Sistemas encontrados no usuário por email:', userData.sistemasAtivos);
+                setSystemsAvailable(userData.sistemasAtivos);
+                setEmpresaId(userData.empresaId || userData.company || null);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao buscar usuário por email:', error);
+          }
           
           // Se não encontrou o usuário por UID, tentar buscar por email nas coleções de empresas
           const collections = ['empresas', 'ponto-empresas', 'chamados_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
