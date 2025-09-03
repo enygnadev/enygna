@@ -43,7 +43,7 @@ interface Sistema {
 }
 
 interface EmpresaManagerProps {
-  sistema: 'chamados' | 'ponto' | 'frota' | 'financeiro' | 'documentos', 'crm' | 'universal';
+  sistema: 'chamados' | 'ponto' | 'frota' | 'financeiro' | 'documentos' | 'crm' | 'universal';
   allowCreate?: boolean;
   allowEdit?: boolean;
   allowDelete?: boolean;
