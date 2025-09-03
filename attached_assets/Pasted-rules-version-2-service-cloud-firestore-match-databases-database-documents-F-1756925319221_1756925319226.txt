@@ -1,0 +1,310 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Função para verificar se é super admin
+    function isSuperAdmin() {
+      return request.auth != null && (
+        request.auth.token.bootstrapAdmin == true ||
+        request.auth.token.role == 'superadmin' ||
+        request.auth.token.role == 'adminmaster' ||
+        request.auth.uid in ['BOOTSTRAP_ADMIN_UID']
+      );
+    }
+
+    // Função para verificar se é admin
+    function isAdmin() {
+      return request.auth != null && (
+        isSuperAdmin() ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'gestor'
+      );
+    }
+
+    // Função para verificar se é empresa
+    function isEmpresa() {
+      return request.auth != null && request.auth.token.tipo == 'empresa';
+    }
+
+    // Função para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // === REGRAS ESPECÍFICAS PARA ADMIN MASTER ===
+    // Super admins têm acesso total a tudo
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // === COLEÇÕES ADMINISTRATIVAS (APENAS SUPER ADMINS) ===
+    // Usuários - controle total para super admins, leitura própria para outros
+    match /users/{userId} {
+      allow read, write: if isSuperAdmin();
+      allow read, update: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAdmin();
+    }
+
+    // Bootstrap admins - apenas para super admins
+    match /bootstrap_admins/{userId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Configurações do sistema - apenas super admins
+    match /system_settings/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    // Logs do sistema - apenas super admins
+    match /system_logs/{document} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Relatórios do sistema - super admins e admins
+    match /system_reports/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    // Ações administrativas - super admins e admins
+    match /admin_actions/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read, create: if isAdmin();
+    }
+
+    // Notificações administrativas
+    match /admin_notifications/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    // === COLEÇÕES DE EMPRESAS ===
+    // Empresas - super admins têm controle total, empresas podem ler/editar próprios dados
+    match /empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, update: if isAuthenticated() &&
+        (resource.data.email == request.auth.token.email || request.auth.uid == empresaId);
+      allow create: if isAuthenticated() && request.auth.token.tipo == 'empresa';
+
+      // Subcoleções das empresas
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated() &&
+          (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email);
+      }
+    }
+
+    // Companies (alias para empresas)
+    match /companies/{companyId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, update: if isAuthenticated() &&
+        (resource.data.email == request.auth.token.email || request.auth.uid == companyId);
+      allow create: if isAuthenticated();
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    // === COLEÇÕES ESPECÍFICAS DE SISTEMAS ===
+    // Sistema de Chamados
+    match /chamados_empresas/{empresaId} {
+      allow read, write: if request.auth != null &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'] ||
+         resource.data.email == request.auth.token.email);
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'];
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    match /chamados/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /chamados_users/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Sistema Financeiro
+    match /financeiro_empresas/{empresaId} {
+      allow read, write: if request.auth != null &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'] ||
+         resource.data.email == request.auth.token.email);
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'];
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    match /financeiro_users/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /documentos_fiscais/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Sistema de Frota
+    match /frota_empresas/{empresaId} {
+      allow read, write: if request.auth != null &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'] ||
+         resource.data.email == request.auth.token.email);
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'];
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    match /frota_users/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /veiculos/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Sistema de Documentos
+    match /documentos_empresas/{empresaId} {
+      allow read, write: if request.auth != null &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'] ||
+         resource.data.email == request.auth.token.email);
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'adminmaster'];
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated();
+      }
+    }
+
+    match /documentos_users/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /templates/{document} {
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Sistema de Ponto - Regras específicas e detalhadas
+    match /ponto_empresas/{empresaId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && (
+        get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos != null &&
+        'ponto' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos
+      );
+
+      match /{subcollection}/{document} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId
+        );
+      }
+    }
+
+    match /ponto_users/{document} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated();
+    }
+
+    match /sessions/{document} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated();
+    }
+
+    // Regras específicas para colaboradores das empresas (subcoleção)
+    match /empresas/{empresaId}/colaboradores/{colaboradorId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && (
+        get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+        request.auth.uid == colaboradorId
+      );
+
+      match /sessions/{sessionId} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+          request.auth.uid == colaboradorId
+        );
+      }
+    }
+
+    // === COLEÇÕES DE MONITORAMENTO E SEGURANÇA ===
+    match /security_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /system_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /business_alerts/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /security_events/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    match /audit_logs/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAdmin();
+    }
+
+    // === COLEÇÕES DE SESSÕES E PONTOS ===
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
+    }
+
+
+
+    // === TUTORIAL E CONFIGURAÇÕES PESSOAIS ===
+    match /userTutorialStatus/{userId} {
+      allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // === REGRAS ESPECIAIS PARA PLANOS E MONITORAMENTO ===
+    match /planos/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /plano_usage/{document} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // === REGRA PADRÃO PARA OUTRAS COLEÇÕES ===
+    // Acesso básico para usuários autenticados, controle total para super admins
+    match /{collection}/{document} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, create: if isAuthenticated();
+    }
+
+    // === SUBCOLEÇÕES GERAIS ===
+    match /{path=**}/{subcollection}/{document} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, create: if isAuthenticated();
+    }
+  }
+}
