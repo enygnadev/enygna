@@ -92,13 +92,13 @@ export default function DocumentosAuthPage() {
 
       for (const empresaDoc of empresasSnapshot.docs) {
         const empresaData = empresaDoc.data();
-        
+
         // Verificar se é esta empresa e se tem documentos ativo
         if (empresaData.email === email && 
             empresaData.ativo && 
             empresaData.sistemasAtivos && 
             empresaData.sistemasAtivos.includes('documentos')) {
-          
+
           // É empresa com documentos ativo - criar/atualizar perfil
           await setDoc(doc(db, 'documentos_users', user.uid), {
             uid: user.uid,

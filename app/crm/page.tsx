@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -181,6 +180,8 @@ export default function CrmPage() {
           if (empresaData.adminId === user.uid || empresaData.email === user.email) {
             empresaId = empresaDoc.id;
             console.log('Empresa encontrada para carregar clientes:', empresaId);
+            // A linha abaixo é a que foi modificada para mudar de 'empresa' para 'ponto'
+            router.push(`/ponto/dashboard?empresaId=${empresaDoc.id}`);
             break;
           }
         }

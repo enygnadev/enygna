@@ -69,7 +69,7 @@ export default function FinanceiroAuth() {
         // Redirecionar baseado no tipo de usuário
         switch (userData.userType) {
           case 'empresa':
-            router.push('/financeiro/empresa');
+            router.push('/ponto');
             break;
           case 'colaborador':
             router.push('/financeiro/colaborador');
@@ -235,8 +235,8 @@ export default function FinanceiroAuth() {
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="button button-primary"
             style={{ width: '100%', marginTop: 'var(--gap-lg)' }}
             disabled={loading}

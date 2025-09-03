@@ -201,7 +201,7 @@ export default function FrotaPage() {
     try {
       setLoading(true);
 
-      // Permitir acesso para todos os usuários autenticados temporariamente
+      // Permitir acesso a todos os usuários autenticados temporariamente
       setHasAccess(true);
       setUserPermissions({
         email: userEmail,
