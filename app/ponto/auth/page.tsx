@@ -175,41 +175,31 @@ export default function PontoAuthPage() {
         return;
       }
 
-      // 4. Se não encontrou o usuário na coleção 'users', verificar se é uma empresa diretamente
-      // Isso acontece quando uma empresa é criada pelo admin mas o usuário não está na coleção 'users'
-      const empresaDirectQuery = query(empresasRef, where('email', '==', userEmail));
+      // 4. Se não encontrou o usuário na coleção 'users', verificar se é uma empresa diretamente na coleção específica
+      const pontoEmpresasRef = collection(db, 'ponto-empresas');
+      const empresaDirectQuery = query(pontoEmpresasRef, where('email', '==', userEmail));
       const empresaDirectSnapshot = await getDocs(empresaDirectQuery);
 
       if (!empresaDirectSnapshot.empty) {
         const empresaDoc = empresaDirectSnapshot.docs[0];
         const empresaData = empresaDoc.data();
-        const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-        console.log('Empresa encontrada diretamente:', empresaDoc.id);
-        console.log('Sistemas ativos:', sistemasAtivos);
+        console.log('Empresa encontrada diretamente no sistema de ponto:', empresaDoc.id);
 
-        // Verificar se a empresa tem acesso ao sistema de ponto
-        if (sistemasAtivos.includes('ponto')) {
-          console.log('Empresa tem acesso ao sistema de ponto, criando usuário na coleção users');
+        // Criar o documento do usuário na coleção 'users' para futuras consultas
+        const userDocRef = doc(db, 'users', userUid);
+        await setDoc(userDocRef, {
+          email: userEmail,
+          displayName: userEmail || empresaData.nome || userEmail,
+          role: 'admin', // Empresa é sempre admin do próprio sistema
+          empresaId: empresaDoc.id,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp()
+        }, { merge: true });
 
-          // Criar o documento do usuário na coleção 'users' para futuras consultas
-          const userDocRef = doc(db, 'users', user.uid);
-          await setDoc(userDocRef, {
-            email: userEmail,
-            displayName: user.displayName || empresaData.nome || userEmail,
-            role: 'admin', // Empresa é sempre admin do próprio sistema
-            empresaId: empresaDoc.id,
-            createdAt: serverTimestamp(),
-            lastLogin: serverTimestamp()
-          }, { merge: true });
-
-          console.log('Documento do usuário criado, redirecionando para dashboard');
-          router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
-          return;
-        } else {
-          setError('Esta empresa não tem permissão para acessar o sistema de ponto. Entre em contato com o administrador.');
-          return;
-        }
+        console.log('Documento do usuário criado, redirecionando para painel da empresa');
+        router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
+        return;
       }
 
       // Se nenhuma verificação deu certo
