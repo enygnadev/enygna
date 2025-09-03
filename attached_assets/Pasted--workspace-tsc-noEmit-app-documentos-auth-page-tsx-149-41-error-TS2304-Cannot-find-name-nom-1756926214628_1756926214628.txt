@@ -1,0 +1,201 @@
+~/workspace$ tsc --noEmit
+app/documentos/auth/page.tsx:149:41 - error TS2304: Cannot find name 'nome'.
+
+149           nome: colaboradorData.nome || nome || email.split('@')[0],
+                                            ~~~~
+
+app/documentos/auth/page.tsx:185:33 - error TS2304: Cannot find name 'nome'.
+
+185     if (!email || !password || !nome) {
+                                    ~~~~
+
+app/documentos/auth/page.tsx:215:22 - error TS2304: Cannot find name 'nome'.
+
+215         displayName: nome,
+                         ~~~~
+
+app/documentos/auth/page.tsx:252:15 - error TS2304: Cannot find name 'nome'.
+
+252         nome: nome,
+                  ~~~~
+
+app/documentos/auth/page.tsx:266:15 - error TS2304: Cannot find name 'nome'.
+
+266         nome: nome,
+                  ~~~~
+
+app/documentos/page.tsx:3286:45 - error TS2552: Cannot find name 'newFormDat'. Did you mean 'newFormData'?
+
+3286                                 setFormData(newFormDat<ctrl63>a);
+                                                 ~~~~~~~~~~
+
+  app/documentos/page.tsx:3285:39
+    3285                                 const newFormData = { ...formData, [field.name]: maskedValue };
+                                               ~~~~~~~~~~~
+    'newFormData' is declared here.
+
+app/documentos/page.tsx:3286:45 - error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'SetStateAction<Record<string, any>>'.
+
+3286                                 setFormData(newFormDat<ctrl63>a);
+                                                 ~~~~~~~~~~~~~~~~~~~
+
+app/documentos/page.tsx:3286:56 - error TS2304: Cannot find name 'ctrl63'.
+
+3286                                 setFormData(newFormDat<ctrl63>a);
+                                                            ~~~~~~
+
+app/documentos/page.tsx:3286:63 - error TS2304: Cannot find name 'a'.
+
+3286                                 setFormData(newFormDat<ctrl63>a);
+                                                                   ~
+
+app/documentos/page.tsx:3293:56 - error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.
+  No index signature with a parameter of type 'string' was found on type '{}'.
+
+3293                                     const fieldValue = newFormData[templateField.name] || '';
+                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:505:54 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+505                       Sistemas do usuário: {userData.sistemasAtivos?.join(', ') || 'Nenhum'}<br />
+                                                         ~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:6:8 - error TS2307: Cannot find module '@material-ui/core' or its corresponding type declarations.
+
+6 } from '@material-ui/core';
+         ~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:7:23 - error TS2307: Cannot find module '@material-ui/core/TextField' or its corresponding type declarations.
+
+7 import TextField from '@material-ui/core/TextField';
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:8:38 - error TS2307: Cannot find module '@material-ui/core/styles' or its corresponding type declarations.
+
+8 import { makeStyles, useTheme } from '@material-ui/core/styles';
+                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:10:82 - error TS2307: Cannot find module '@material-ui/icons' or its corresponding type declarations.
+
+10 import { PhotoCamera, Delete, Close, Crop, CloudUpload, Send, HelpOutline } from '@material-ui/icons';
+                                                                                    ~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:11:21 - error TS2307: Cannot find module 'react-easy-crop' or its corresponding type declarations.
+
+11 import Cropper from 'react-easy-crop';
+                       ~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:12:26 - error TS2307: Cannot find module './SingnaturePad' or its corresponding type declarations.
+
+12 import SignaturePad from './SingnaturePad';
+                            ~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:13:21 - error TS2307: Cannot find module '@/logic/firebase/db/Colecao' or its corresponding type declarations.
+
+13 import Colecao from '@/logic/firebase/db/Colecao';
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:14:18 - error TS2307: Cannot find module './Item' or its corresponding type declarations.
+
+14 import Item from './Item';
+                    ~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:18:25 - error TS2307: Cannot find module '@/logic/firebase/config/app' or its corresponding type declarations.
+
+18 import { storage } from '@/logic/firebase/config/app';
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:20:31 - error TS2307: Cannot find module './cropUtils' or its corresponding type declarations.
+
+20 import { getCroppedImg } from './cropUtils';
+                                 ~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:23:35 - error TS2307: Cannot find module '@/util/converterParaSGDW' or its corresponding type declarations.
+
+23 import { converterParaSGDW } from '@/util/converterParaSGDW';
+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:25:20 - error TS2307: Cannot find module '@/logic/firebase/config/app' or its corresponding type declarations.
+
+25 import { db } from '@/logic/firebase/config/app';
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:27:31 - error TS7006: Parameter 'theme' implicitly has an 'any' type.
+
+27 const useStyles = makeStyles((theme) => ({
+                                 ~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:574:20 - error TS7006: Parameter 'prev' implicitly has an 'any' type.
+
+574         setNewItem(prev => ({ ...prev, [target]: data.nome }));
+                       ~~~~
+
+attached_assets/ListPost_1756837200801.tsx:806:20 - error TS7006: Parameter 'prev' implicitly has an 'any' type.
+
+806         setNewItem(prev => ({
+                       ~~~~
+
+attached_assets/ListPost_1756837200801.tsx:858:16 - error TS7006: Parameter 'prev' implicitly has an 'any' type.
+
+858     setNewItem(prev => {
+                   ~~~~
+
+attached_assets/ListPost_1756837200801.tsx:878:63 - error TS2731: Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.
+
+878           const input = document.querySelector(`input[name="${field}"]`) as HTMLInputElement;
+                                                                  ~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:1205:28 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1205                 onChange={(e) => handleInputChange(e, field.value)}
+                                ~
+
+attached_assets/ListPost_1756837200801.tsx:1222:26 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1222               onChange={(e) => {
+                              ~
+
+attached_assets/ListPost_1756837200801.tsx:1251:26 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1251               onChange={(e) => handleInputChange(e, 'nomevendedor')}
+                              ~
+
+attached_assets/ListPost_1756837200801.tsx:1279:28 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1279                 onChange={(e) => handleInputChange(e, field.value)}
+                                ~
+
+attached_assets/ListPost_1756837200801.tsx:1295:26 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1295               onChange={(e) => {
+                              ~
+
+attached_assets/ListPost_1756837200801.tsx:1324:26 - error TS7006: Parameter 'e' implicitly has an 'any' type.
+
+1324               onChange={(e) => handleInputChange(e, 'nomeempresa')}
+                              ~
+
+attached_assets/ListPost_1756837200801.tsx:1338:38 - error TS7006: Parameter 'signature' implicitly has an 'any' type.
+
+1338               <SignaturePad onSave={(signature) => setNewItem(prev => ({ ...prev, signature }))} />
+                                          ~~~~~~~~~
+
+attached_assets/ListPost_1756837200801.tsx:1338:63 - error TS7006: Parameter 'prev' implicitly has an 'any' type.
+
+1338               <SignaturePad onSave={(signature) => setNewItem(prev => ({ ...prev, signature }))} />
+                                                                   ~~~~
+
+src/components/ProtectedRoute.tsx:108:58 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+
+108     requiredPermissions.some(permission => hasPermission(permission));
+                                                             ~~~~~~~~~~
+
+
+Found 37 errors in 5 files.
+
+Errors  Files
+     5  app/documentos/auth/page.tsx:149
+     5  app/documentos/page.tsx:3286
+     1  app/sistemas/page.tsx:505
+    25  attached_assets/ListPost_1756837200801.tsx:6
+     1  src/components/ProtectedRoute.tsx:108
