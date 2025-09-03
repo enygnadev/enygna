@@ -10,10 +10,8 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 
 export default function DocumentosAuthPage() {
   const router = useRouter();
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nome, setNome] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -462,37 +460,8 @@ export default function DocumentosAuthPage() {
             <p>Sistema independente de geração de documentos</p>
           </div>
 
-          <div className="tab-buttons">
-            <button
-              className={`tab-button ${isLogin ? 'active' : ''}`}
-              onClick={() => setIsLogin(true)}
-            >
-              Entrar
-            </button>
-            <button
-              className={`tab-button ${!isLogin ? 'active' : ''}`}
-              onClick={() => setIsLogin(false)}
-            >
-              Cadastrar
-            </button>
-          </div>
-
-          <form onSubmit={isLogin ? handleLogin : handleRegister}>
+          <form onSubmit={handleLogin}>
             <div className="stack">
-              {!isLogin && (
-                <div>
-                  <label>Nome *</label>
-                  <input
-                    className="input"
-                    type="text"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Seu nome completo"
-                    required
-                  />
-                </div>
-              )}
-
               <div>
                 <label>Email</label>
                 <input
@@ -528,18 +497,16 @@ export default function DocumentosAuthPage() {
                 className="button button-primary"
                 disabled={loading}
               >
-                {loading ? (isLogin ? 'Entrando...' : 'Cadastrando...') : (isLogin ? 'Entrar' : 'Cadastrar')}
+                {loading ? 'Entrando...' : 'Entrar'}
               </button>
 
-              {isLogin && (
-                <button
-                  type="button"
-                  className="button button-ghost"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Esqueci minha senha
-                </button>
-              )}
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Esqueci minha senha
+              </button>
             </div>
           </form>
         </div>
