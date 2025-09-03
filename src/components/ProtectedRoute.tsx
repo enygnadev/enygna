@@ -107,8 +107,10 @@ export default function ProtectedRoute({
     requiredPermissions.some(permission => {
       // Type guard to ensure permission is a valid key
       const validPermissions = ['frota', 'ponto', 'chamados', 'documentos', 'admin'] as const;
-      if (validPermissions.includes(permission as any)) {
-        return hasPermission(permission as any);
+      type ValidPermission = typeof validPermissions[number];
+      
+      if (validPermissions.includes(permission as ValidPermission)) {
+        return hasPermission(permission as keyof NonNullable<typeof userData>['permissions']);
       }
       return false;
     });
