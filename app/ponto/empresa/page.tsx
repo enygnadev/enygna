@@ -409,9 +409,26 @@ function EmpresaDashboard() {
 
             if (userDocSnap.exists()) {
               const userData = userDocSnap.data() as any;
-              if (["superadmin", "admin", "gestor"].includes(userData.role)) {
-                setMeRole(userData.role);
+              console.log("Dados do usuário encontrados:", userData);
+              
+              // Verifica se o usuário tem role de admin/gestor OU se tem sistema ponto ativo
+              const hasAdminRole = ["superadmin", "admin", "gestor"].includes(userData.role);
+              const hasPontoAccess = userData.sistemasAtivos?.includes('ponto');
+              const isEmpresaType = userData.tipo === 'empresa';
+              
+              console.log("Verificação de acesso:", {
+                hasAdminRole,
+                hasPontoAccess,
+                isEmpresaType,
+                role: userData.role,
+                sistemasAtivos: userData.sistemasAtivos,
+                tipo: userData.tipo
+              });
+              
+              if (hasAdminRole || hasPontoAccess || isEmpresaType) {
+                setMeRole(userData.role || 'admin');
                 setEmpresaId(userData.empresaId);
+                
                 // Carrega a configuração de geofencing da empresa
                 if (userData.empresaId) {
                   const companyDoc = await getDoc(doc(db, "empresas", userData.empresaId));
@@ -423,15 +440,60 @@ function EmpresaDashboard() {
                   }
                 }
               } else {
-                alert("Acesso negado. Papel insuficiente.");
-                window.location.href = "/dashboard";
+                console.log("Acesso negado - critérios não atendidos");
+                alert("Acesso negado. Usuário não tem permissão para acessar o sistema de ponto.");
+                window.location.href = "/ponto/colaborador";
                 return;
               }
             } else {
-              // Se o usuário não existe no 'users', ele não tem permissão explícita
-              alert("Acesso negado. Usuário não configurado.");
-              window.location.href = "/dashboard";
-              return;
+              console.log("Usuário não encontrado na coleção users");
+              // Se o usuário não existe no 'users', verifica se foi criado via admin para empresa
+              // Busca pelo email na coleção de empresas para verificar se é uma empresa do sistema de ponto
+              try {
+                const empresasQuery = query(
+                  collection(db, "empresas"), 
+                  where("email", "==", u.email),
+                  where("sistemasAtivos", "array-contains", "ponto")
+                );
+                const empresasSnap = await getDocs(empresasQuery);
+                
+                if (!empresasSnap.empty) {
+                  const empresaDoc = empresasSnap.docs[0];
+                  const empresaData = empresaDoc.data();
+                  
+                  console.log("Empresa encontrada com sistema de ponto:", empresaDoc.id);
+                  
+                  // Cria documento do usuário
+                  await setDoc(userDocRef, {
+                    email: u.email,
+                    displayName: u.displayName || empresaData.nome || u.email,
+                    role: 'admin',
+                    tipo: 'empresa',
+                    empresaId: empresaDoc.id,
+                    sistemasAtivos: ['ponto'],
+                    createdAt: new Date().toISOString(),
+                    lastLogin: new Date().toISOString()
+                  });
+                  
+                  setMeRole('admin');
+                  setEmpresaId(empresaDoc.id);
+                  
+                  // Carrega configuração de geofencing
+                  if (empresaData.geofencing) {
+                    setCompanyLocation(empresaData.geofencing);
+                  }
+                } else {
+                  console.log("Empresa não encontrada ou sem sistema de ponto");
+                  alert("Acesso negado. Empresa não configurada no sistema de ponto.");
+                  window.location.href = "/dashboard";
+                  return;
+                }
+              } catch (searchError) {
+                console.error("Erro ao buscar empresa:", searchError);
+                alert("Erro ao verificar permissões da empresa.");
+                window.location.href = "/dashboard";
+                return;
+              }
             }
           } catch (error) {
             console.error("Erro ao verificar permissões:", error);
