@@ -80,7 +80,7 @@ export default function PontoAuthPage() {
         // Verificar se a empresa tem acesso ao sistema de ponto
         if (sistemasAtivos.includes('ponto')) {
           console.log('Empresa tem acesso ao sistema de ponto');
-          router.push(`/ponto/dashboard?empresaId=${empresaDoc.id}`);
+          router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
           return;
         } else {
           setError('Esta empresa não tem permissão para acessar o sistema de ponto. Entre em contato com o administrador.');
@@ -161,10 +161,10 @@ export default function PontoAuthPage() {
           if (sistemasAtivos.includes('ponto')) {
             // Redirecionar baseado no papel do usuário
             if (role === 'admin' || role === 'gestor') {
-              router.push(`/ponto/dashboard?empresaId=${empresaId}`);
+              router.push(`/ponto/empresa?empresaId=${empresaId}`);
               return;
             } else if (role === 'colaborador') {
-              router.push(`/colaborador/dashboard?empresaId=${empresaId}`);
+              router.push(`/ponto/colaborador?empresaId=${empresaId}`);
               return;
             }
           }
@@ -204,7 +204,7 @@ export default function PontoAuthPage() {
           }, { merge: true });
 
           console.log('Documento do usuário criado, redirecionando para dashboard');
-          router.push(`/ponto/dashboard?empresaId=${empresaDoc.id}`);
+          router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
           return;
         } else {
           setError('Esta empresa não tem permissão para acessar o sistema de ponto. Entre em contato com o administrador.');
