@@ -80,6 +80,7 @@ service cloud.firestore {
                              request.auth.uid == userId &&
                              hasRequiredFields(['email', 'role']);
       allow read: if isAdmin() && resource.data.role != 'superadmin';
+      allow read: if isAuthenticated() && request.auth.uid == userId; // Permitir ler próprios dados
     }
 
     // Bootstrap admins - ultra restrito
@@ -155,9 +156,10 @@ service cloud.firestore {
     // Empresas principais - validação rigorosa
     match /empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      allow read, update: if isAuthenticated() && 
-                             isCompanyOwnerOrAuthorized(empresaId) &&
-                             hasRequiredFields(['nome', 'email', 'cnpj']);
+      allow read: if isAuthenticated() && isCompanyOwnerOrAuthorized(empresaId);
+      allow update: if isAuthenticated() && 
+                      isCompanyOwnerOrAuthorized(empresaId) &&
+                      hasRequiredFields(['nome', 'email', 'cnpj']);
       allow create: if isAuthenticated() && 
                       isEmpresa() &&
                       hasRequiredFields(['nome', 'email', 'cnpj', 'sistemasAtivos']);
@@ -316,9 +318,10 @@ service cloud.firestore {
     // Sistema de Ponto - Regras específicas e seguras
     match /ponto_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated() && 
-                                   isCompanyOwnerOrAuthorized(empresaId) &&
-                                   hasSystemActive(empresaId, 'ponto');
+      allow read: if isAuthenticated() && isCompanyCollaborator(empresaId);
+      allow write, create: if isAuthenticated() && 
+                             isCompanyOwnerOrAuthorized(empresaId) &&
+                             hasSystemActive(empresaId, 'ponto');
 
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
@@ -345,9 +348,10 @@ service cloud.firestore {
     // Sistema CRM
     match /crm_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated() && 
-                                   isCompanyOwnerOrAuthorized(empresaId) &&
-                                   hasSystemActive(empresaId, 'crm');
+      allow read: if isAuthenticated() && isCompanyCollaborator(empresaId);
+      allow write, create: if isAuthenticated() && 
+                             isCompanyOwnerOrAuthorized(empresaId) &&
+                             hasSystemActive(empresaId, 'crm');
 
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
@@ -382,7 +386,7 @@ service cloud.firestore {
     // ===== PLANOS E COBRANÇA =====
     
     match /planos/{document} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Permitir leitura pública dos planos
       allow write: if isSuperAdmin();
     }
 
@@ -418,7 +422,7 @@ service cloud.firestore {
     // ===== CONFIGURAÇÕES E CACHE =====
     
     match /app_config/{document} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Permitir leitura pública das configurações
       allow write: if isSuperAdmin();
     }
 
@@ -448,7 +452,8 @@ service cloud.firestore {
     match /{collection}/{document} {
       allow read, write: if isSuperAdmin();
       allow read: if isAuthenticated() && 
-                    (collection in ['help_docs', 'faq', 'announcements']);
+                    (collection in ['help_docs', 'faq', 'announcements', 'system_info']);
+      allow read: if collection in ['help_docs', 'faq', 'announcements']; // Permitir leitura pública de docs de ajuda
       allow create: if isAuthenticated() && 
                       (collection in ['feedback', 'support_requests']) &&
                       hasRequiredFields(['userId', 'timestamp']);
