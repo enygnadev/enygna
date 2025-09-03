@@ -5,6 +5,23 @@ import React from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import Link from 'next/link';
 
+interface UserData {
+  uid: string;
+  email: string;
+  nome: string;
+  role: string;
+  tipo: 'colaborador' | 'empresa' | 'adminmaster';
+  empresaId?: string;
+  permissions?: {
+    frota: boolean;
+    ponto: boolean;
+    chamados: boolean;
+    documentos: boolean;
+    admin?: boolean;
+  };
+  ativo: boolean;
+}
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermissions?: string[];
@@ -105,7 +122,7 @@ export default function ProtectedRoute({
 
   // Verificar permissões
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
-    requiredPermissions.some(permission => hasPermission(permission as keyof UserData['permissions']));
+    requiredPermissions.some(permission => hasPermission(permission as any));
 
   const hasRequiredRoles = requiredRoles.length === 0 || 
     requiredRoles.some(role => isRole(role));
