@@ -1,0 +1,363 @@
+~/workspace$ tsc --noEmit
+app/chamados/auth/admin/page.tsx:2:2 - error TS17008: JSX element 'old_str' has no corresponding closing tag.
+
+2 <old_str>'use client';
+   ~~~~~~~
+
+app/chamados/auth/admin/page.tsx:21:3 - error TS1109: Expression expected.
+
+21   const router = useRouter();
+     ~~~~~
+
+app/chamados/auth/admin/page.tsx:23:46 - error TS17008: JSX element 'LoginRole' has no corresponding closing tag.
+
+23   const [activeTab, setActiveTab] = useState<LoginRole>('colaborador');
+                                                ~~~~~~~~~
+
+app/chamados/auth/admin/page.tsx:26:10 - error TS1005: '}' expected.
+
+26     email: '',
+            ~
+
+app/chamados/auth/admin/page.tsx:32:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+32   });
+     ~
+
+app/chamados/auth/admin/page.tsx:37:17 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+37   useEffect(() => {
+                   ~
+
+app/chamados/auth/admin/page.tsx:38:5 - error TS1109: Expression expected.
+
+38     if (!loading && profile) {
+       ~~
+
+app/chamados/auth/admin/page.tsx:39:31 - error TS1005: '}' expected.
+
+39       router.push('/chamados');
+                                 ~
+
+app/chamados/auth/admin/page.tsx:40:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+40     }
+       ~
+
+app/chamados/auth/admin/page.tsx:41:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+41   }, [loading, profile, router]);
+     ~
+
+app/chamados/auth/admin/page.tsx:43:62 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+43   const getRoleFromTab = (tab: LoginRole): ChamadosUserRole => {
+                                                                ~
+
+app/chamados/auth/admin/page.tsx:44:5 - error TS1109: Expression expected.
+
+44     switch (tab) {
+       ~~~~~~
+
+app/chamados/auth/admin/page.tsx:45:7 - error TS1109: Expression expected.
+
+45       case 'empresa':
+         ~~~~
+
+app/chamados/auth/admin/page.tsx:53:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+53     }
+       ~
+
+app/chamados/auth/admin/page.tsx:54:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+54   };
+     ~
+
+app/chamados/auth/admin/page.tsx:56:52 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+56   const handleSubmit = async (e: React.FormEvent) => {
+                                                      ~
+
+app/chamados/auth/admin/page.tsx:57:23 - error TS1005: '}' expected.
+
+57     e.preventDefault();
+                         ~
+
+app/chamados/auth/admin/page.tsx:62:7 - error TS1109: Expression expected.
+
+62       if (authMode === 'login') {
+         ~~
+
+app/chamados/auth/admin/page.tsx:64:9 - error TS1109: Expression expected.
+
+64         const userCredential = await signInWithEmailAndPassword(
+           ~~~~~
+
+app/chamados/auth/admin/page.tsx:76:11 - error TS1109: Expression expected.
+
+76           const role = getRoleFromTab(activeTab);
+             ~~~~~
+
+app/chamados/auth/admin/page.tsx:78:18 - error TS1005: '}' expected.
+
+78             email: formData.email,
+                    ~
+
+app/chamados/auth/admin/page.tsx:85:11 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+85           } as ChamadosUserDoc);
+             ~
+
+app/chamados/auth/admin/page.tsx:86:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+86         }
+           ~
+
+app/chamados/auth/admin/page.tsx:89:7 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+89       } else {
+         ~
+
+app/chamados/auth/admin/page.tsx:91:9 - error TS1109: Expression expected.
+
+91         if (activeTab === 'colaborador' && formData.empresaIdInput && !formData.empresaIdInput.trim()) {
+           ~~
+
+app/chamados/auth/admin/page.tsx:92:69 - error TS1005: '}' expected.
+
+92           setError('ID da empresa é obrigatório para colaboradores');
+                                                                       ~
+
+app/chamados/auth/admin/page.tsx:94:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+94         }
+           ~
+
+app/chamados/auth/admin/page.tsx:105:16 - error TS1005: '}' expected.
+
+105           email: formData.email,
+                   ~
+
+app/chamados/auth/admin/page.tsx:112:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+112         };
+            ~
+
+app/chamados/auth/admin/page.tsx:116:55 - error TS1005: '}' expected.
+
+116           userData.empresaId = userCredential.user.uid; // Empresa usa seu próprio ID
+                                                          ~
+
+app/chamados/auth/admin/page.tsx:118:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+118         } else if (activeTab === 'colaborador') {
+            ~
+
+app/chamados/auth/admin/page.tsx:119:55 - error TS1005: '}' expected.
+
+119           userData.empresaId = formData.empresaIdInput;
+                                                          ~
+
+app/chamados/auth/admin/page.tsx:121:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+121         }
+            ~
+
+app/chamados/auth/admin/page.tsx:135:13 - error TS1005: '}' expected.
+
+135           });
+                ~
+
+app/chamados/auth/admin/page.tsx:136:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+136         }
+            ~
+
+app/chamados/auth/admin/page.tsx:139:7 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+139       }
+          ~
+
+app/chamados/auth/admin/page.tsx:140:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+140     } catch (error: any) {
+        ~
+
+app/chamados/auth/admin/page.tsx:141:52 - error TS1005: '}' expected.
+
+141       console.error('Erro na autenticação:', error);
+                                                       ~
+
+app/chamados/auth/admin/page.tsx:143:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+143     } finally {
+        ~
+
+app/chamados/auth/admin/page.tsx:144:27 - error TS1005: '}' expected.
+
+144       setSubmitting(false);
+                              ~
+
+app/chamados/auth/admin/page.tsx:145:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+145     }
+        ~
+
+app/chamados/auth/admin/page.tsx:146:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+146   };
+      ~
+
+app/chamados/auth/admin/page.tsx:148:59 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+148   const getDefaultPermissions = (role: ChamadosUserRole) => {
+                                                              ~
+
+app/chamados/auth/admin/page.tsx:149:5 - error TS1109: Expression expected.
+
+149     switch (role) {
+        ~~~~~~
+
+app/chamados/auth/admin/page.tsx:150:7 - error TS1109: Expression expected.
+
+150       case 'adminmaster':
+          ~~~~
+
+app/chamados/auth/admin/page.tsx:152:27 - error TS1005: '}' expected.
+
+152           canCreateTickets: true,
+                              ~
+
+app/chamados/auth/admin/page.tsx:158:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+158         };
+            ~
+
+app/chamados/auth/admin/page.tsx:161:27 - error TS1005: '}' expected.
+
+161           canCreateTickets: true,
+                              ~
+
+app/chamados/auth/admin/page.tsx:167:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+167         };
+            ~
+
+app/chamados/auth/admin/page.tsx:170:27 - error TS1005: '}' expected.
+
+170           canCreateTickets: true,
+                              ~
+
+app/chamados/auth/admin/page.tsx:176:9 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+176         };
+            ~
+
+app/chamados/auth/admin/page.tsx:177:5 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+177     }
+        ~
+
+app/chamados/auth/admin/page.tsx:178:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+178   };
+      ~
+
+app/chamados/auth/admin/page.tsx:180:25 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+180   const resetForm = () => {
+                            ~
+
+app/chamados/auth/admin/page.tsx:188:7 - error TS1005: '}' expected.
+
+188     });
+          ~
+
+app/chamados/auth/admin/page.tsx:190:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+190   };
+      ~
+
+app/chamados/auth/admin/page.tsx:192:45 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+192   const handleTabChange = (tab: LoginRole) => {
+                                                ~
+
+app/chamados/auth/admin/page.tsx:193:22 - error TS1005: '}' expected.
+
+193     setActiveTab(tab);
+                         ~
+
+app/chamados/auth/admin/page.tsx:195:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+195   };
+      ~
+
+app/chamados/auth/admin/page.tsx:197:46 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+197   const handleModeChange = (mode: AuthMode) => {
+                                                 ~
+
+app/chamados/auth/admin/page.tsx:198:22 - error TS1005: '}' expected.
+
+198     setAuthMode(mode);
+                         ~
+
+app/chamados/auth/admin/page.tsx:200:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+200   };
+      ~
+
+app/chamados/auth/admin/page.tsx:203:5 - error TS1109: Expression expected.
+
+203     return (
+        ~~~~~~
+
+app/chamados/auth/admin/page.tsx:216:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+216   }
+      ~
+
+app/chamados/auth/admin/page.tsx:502:1 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+502 }</old_str>
+    ~
+
+app/chamados/auth/admin/page.tsx:502:4 - error TS17002: Expected corresponding JSX closing tag for 'AuthMode'.
+
+502 }</old_str>
+       ~~~~~~~
+
+app/chamados/auth/admin/page.tsx:509:3 - error TS1109: Expression expected.
+
+509   const router = useRouter();
+      ~~~~~
+
+app/chamados/auth/admin/page.tsx:511:17 - error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+511   useEffect(() => {
+                    ~
+
+app/chamados/auth/admin/page.tsx:513:26 - error TS1005: '}' expected.
+
+513     router.push('/admin');
+                             ~
+
+app/chamados/auth/admin/page.tsx:514:3 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+514   }, [router]);
+      ~
+
+app/chamados/auth/admin/page.tsx:532:1 - error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+532 }</new_str>
+    ~
+
+app/chamados/auth/admin/page.tsx:533:1 - error TS1005: '</' expected.
+
+533 
+    
+
+
+Found 72 errors in the same file, starting at: app/chamados/auth/admin/page.tsx:2
