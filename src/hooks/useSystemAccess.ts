@@ -31,7 +31,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
         // Verificar se é admin/superadmin (tem acesso a tudo)
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         console.log('Documento do usuário existe?', userDoc.exists());
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log('Dados do usuário encontrados:', userData);
@@ -65,7 +65,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
                 console.log('Dados da empresa encontrados para usuário:', empresaData);
                 const sistemas = empresaData.sistemasAtivos || [];
                 console.log('Sistemas da empresa do usuário:', sistemas);
-                
+
                 // Atualizar o usuário com os sistemas da empresa
                 if (sistemas.length > 0) {
                   setSystemsAvailable(sistemas);
@@ -146,12 +146,12 @@ export function useSystemAccess(user: User | null): SystemAccess {
             }
           }
 
-          // Verificar empresa do usuário
-          const userEmpresaId = userData.empresaId || userData.company;
-          setEmpresaId(userEmpresaId);
+          // Já temos userEmpresaId declarado acima, não precisamos redeclarar
+          setEmpresaId(userData.empresaId || userData.company);
 
-          if (userEmpresaId) {
-            console.log('Buscando empresa:', userEmpresaId);
+          if (userData.empresaId || userData.company) {
+            const empresaIdToSearch = userData.empresaId || userData.company;
+            console.log('Buscando empresa:', empresaIdToSearch);
             // Tentar buscar em diferentes coleções de empresas
             const collections = ['empresas', 'ponto-empresas', 'chamados_empresas', 'financeiro_empresas', 'documentos_empresas', 'crm_empresas'];
 
@@ -159,7 +159,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
 
             for (const collectionName of collections) {
               try {
-                const empresaDoc = await getDoc(doc(db, collectionName, userEmpresaId));
+                const empresaDoc = await getDoc(doc(db, collectionName, empresaIdToSearch));
                 if (empresaDoc.exists()) {
                   const empresaData = empresaDoc.data();
                   const sistemas = empresaData.sistemasAtivos || [];
