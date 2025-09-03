@@ -3191,7 +3191,7 @@ export default function AdminMasterPage() {
           { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
           { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
           { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' },
-          { id: 'sistema-crm', label: 'Sistema CRM', icon: '🎯' }, {/* Adicionada a nova aba */}
+          { id: 'sistema-crm', label: 'Sistema CRM', icon: '🎯' },
           { id: 'cria-contas', label: 'Cria Contas', icon: '➕' },
           { id: 'controle-planos', label: '🎛️ Controle Planos', icon: '💳' },
         ].map(tab => (
