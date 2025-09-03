@@ -38,13 +38,6 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     features: ['custom_reports', 'api_integrations', 'multi_tenant', 'dedicated_support', 'training', 'sla'],
     price: 99.90,
     period: 'month'
-  },
-  permanent: {
-    maxEmployees: 999,
-    maxCompanies: 999,
-    features: ['lifetime_access', 'all_features', 'priority_support', 'unlimited_everything'],
-    price: 2999.99,
-    period: 'free'
   }
 };
 

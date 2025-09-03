@@ -25,7 +25,6 @@ import {
   DocumentoFiscalType 
 } from '@/src/types/financeiro';
 import { useCallback } from 'react'; 
-import EmpresaManager from '@/src/components/EmpresaManager';
 
 interface DashboardStats {
   totalDocumentos: number;
@@ -46,14 +45,12 @@ export default function FinanceiroEmpresaPage() {
     ultimoProcessamento: 'Nunca'
   });
   const [documentos, setDocumentos] = useState<DocumentoFinanceiro[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documentos' | 'empresas' | 'configuracoes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documentos' | 'configuracoes'>('dashboard');
   const [uploading, setUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false); 
   const [recentDocuments, setRecentDocuments] = useState<DocumentoFinanceiro[]>([]); 
 
   const IntlFormat = Intl;
-
-  const userRole = userData?.userType; // Assuming userType reflects the role
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -307,10 +304,9 @@ export default function FinanceiroEmpresaPage() {
         marginBottom: '20px'
       }}>
         {[
-          { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-          { id: 'documentos', label: 'Documentos', icon: '📄' },
-          { id: 'empresas', label: 'Empresas', icon: '🏢' },
-          { id: 'configuracoes', label: 'Configurações', icon: '⚙️' }
+          { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
+          { id: 'documentos', label: '📄 Documentos', icon: '📄' },
+          { id: 'configuracoes', label: '⚙️ Configurações', icon: '⚙️' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -566,31 +562,6 @@ export default function FinanceiroEmpresaPage() {
         </div>
       )}
 
-      {/* Aba Empresas */}
-      {activeTab === 'empresas' && (
-        <div style={{
-          background: 'rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(20px)',
-          padding: '20px',
-          borderRadius: '15px',
-          border: '1px solid rgba(255,255,255,0.2)',
-          color: 'white'
-        }}>
-          <h3 style={{ marginTop: 0 }}>🏢 Gestão de Empresas</h3>
-          <EmpresaManager 
-            sistema="financeiro"
-            allowCreate={(userRole as any) === 'admin' || (userRole as any) === 'superadmin'}
-            allowEdit={(userRole as any) === 'admin' || (userRole as any) === 'superadmin'}
-            allowDelete={(userRole as any) === 'superadmin'}
-            onEmpresaSelect={(empresa) => {
-              console.log('Empresa selecionada para financeiro:', empresa);
-              // Implementar filtros financeiros por empresa
-            }}
-          />
-        </div>
-      )}
-
-      {/* Aba Configurações */}
       {activeTab === 'configuracoes' && (
         <div style={{
           background: 'rgba(255,255,255,0.1)',

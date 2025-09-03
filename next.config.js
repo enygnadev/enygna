@@ -1,16 +1,8 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-
-  // Removido: devIndicators (deprecated no Next.js 15+)
-
-  env: {
-    CUSTOM_PORT: '5000',
-  },
-
-  // Mantido conforme seu projeto
   serverExternalPackages: ['firebase-admin'],
-
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -23,14 +15,14 @@ const nextConfig = {
         module: false,
       };
     }
-
-    // Fix para protobufjs
+    
+    // Fix for protobufjs
     config.resolve.alias = {
       ...config.resolve.alias,
       'protobufjs/minimal': require.resolve('protobufjs/minimal.js'),
     };
-
-    // Ignorar módulos problemáticos no server
+    
+    // Ignore problematic modules
     config.externals = config.externals || [];
     if (isServer) {
       config.externals.push({
@@ -38,7 +30,7 @@ const nextConfig = {
         'bufferutil': 'commonjs bufferutil',
       });
     }
-
+    
     return config;
   },
 };

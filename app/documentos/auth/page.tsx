@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { auth, db } from '@/src/lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
 import ThemeSelector from '@/src/components/ThemeSelector';
 
 export default function DocumentosAuthPage() {
-  const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
+  const [role, setRole] = useState<'empresa' | 'colaborador' | 'adminmaster'>('empresa');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
+  const [empresaId, setEmpresaId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -23,14 +24,21 @@ export default function DocumentosAuthPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setLoading(false);
-      } else {
-        setLoading(false);
+        // Verificar se o usuário tem acesso ao sistema de documentos
+        try {
+          const userDocRef = doc(db, 'documentos_users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            window.location.href = '/documentos';
+          }
+        } catch (error) {
+          console.error('Erro ao verificar usuário:', error);
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,123 +54,18 @@ export default function DocumentosAuthPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Verificar se já existe no documentos_users
-      const existingUserRef = doc(db, 'documentos_users', user.uid);
-      const existingUserDoc = await getDoc(existingUserRef);
+      // Verificar se o usuário existe na coleção de documentos
+      const userDocRef = doc(db, 'documentos_users', user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-      if (existingUserDoc.exists() && existingUserDoc.data()?.isActive) {
-        // Usuário já existe e está ativo - atualizar último login e redirecionar
-        await setDoc(existingUserRef, {
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-
-        router.push('/documentos');
+      if (!userDoc.exists()) {
+        setError('Usuário não tem acesso ao sistema de documentos');
+        await auth.signOut();
         return;
       }
 
-      // Verificar se existe na coleção users principal
-      const mainUserRef = doc(db, 'users', user.uid);
-      const mainUserDoc = await getDoc(mainUserRef);
-
-      if (mainUserDoc.exists()) {
-        const userData = mainUserDoc.data();
-        // Verificar se tem acesso ao sistema de documentos
-        if (userData.permissions?.documentos || userData.sistema === 'documentos' || userData.sistema === 'universal') {
-          // Criar ou atualizar entrada no documentos_users
-          await setDoc(existingUserRef, {
-            uid: user.uid,
-            email: user.email,
-            nome: userData.displayName || user.displayName || email.split('@')[0],
-            role: userData.role || 'colaborador',
-            empresaId: userData.empresaId,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            sistema: 'documentos',
-            permissions: userData.permissions || { documentos: true }
-          }, { merge: true });
-
-          router.push('/documentos');
-          return;
-        }
-      }
-
-      // 2. Verificar se é empresa com sistema documentos ativo
-      const empresasCollection = collection(db, 'empresas');
-      const empresasSnapshot = await getDocs(empresasCollection);
-
-      for (const empresaDoc of empresasSnapshot.docs) {
-        const empresaData = empresaDoc.data();
-
-        // Verificar se é esta empresa e se tem documentos ativo
-        if (empresaData.email === email && 
-            empresaData.ativo && 
-            empresaData.sistemasAtivos && 
-            empresaData.sistemasAtivos.includes('documentos')) {
-
-          // É empresa com documentos ativo - criar/atualizar perfil
-          await setDoc(doc(db, 'documentos_users', user.uid), {
-            uid: user.uid,
-            email: user.email,
-            nome: empresaData.nome,
-            role: 'empresa',
-            empresaId: empresaDoc.id,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            sistema: 'documentos'
-          }, { merge: true });
-
-          console.log('Empresa logada no sistema de documentos:', empresaData.nome);
-          router.push('/documentos');
-          return;
-        }
-      }
-
-      // 3. Verificar se é colaborador em alguma empresa com documentos ativo
-      const todasEmpresas = await getDocs(collection(db, 'empresas'));
-      let colaboradorEmpresaId = null;
-      let colaboradorData = null;
-
-      for (const empresaDoc of todasEmpresas.docs) {
-        const empresaData = empresaDoc.data();
-
-        // Verificar se a empresa tem documentos ativo
-        if (empresaData.ativo && empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('documentos')) {
-          // Verificar se é colaborador nesta empresa
-          const colaboradoresRef = collection(db, 'empresas', empresaDoc.id, 'colaboradores');
-          const colaboradorQuery = query(colaboradoresRef, where('email', '==', email));
-          const colaboradorSnapshot = await getDocs(colaboradorQuery);
-
-          if (!colaboradorSnapshot.empty) {
-            colaboradorEmpresaId = empresaDoc.id;
-            colaboradorData = colaboradorSnapshot.docs[0].data();
-            break;
-          }
-        }
-      }
-
-      if (colaboradorEmpresaId && colaboradorData) {
-        // É colaborador - criar/atualizar perfil no documentos_users
-        await setDoc(doc(db, 'documentos_users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          nome: colaboradorData.nome || nome || email.split('@')[0],
-          role: 'colaborador',
-          empresaId: colaboradorEmpresaId,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-
-        router.push('/documentos');
-        return;
-      }
-
-      // 4. Se chegou até aqui, não tem acesso ao sistema de documentos
-      setError('Este email não tem acesso ao sistema de documentos. Entre em contato com o administrador.');
-      await auth.signOut();
-
+      // Redirecionar para o sistema de documentos
+      window.location.href = '/documentos';
     } catch (error: any) {
       console.error('Erro no login:', error);
       if (error.code === 'auth/user-not-found') {
@@ -171,8 +74,6 @@ export default function DocumentosAuthPage() {
         setError('Senha incorreta');
       } else if (error.code === 'auth/invalid-email') {
         setError('Email inválido');
-      } else if (error.code === 'auth/invalid-credential') {
-        setError('Credenciais inválidas');
       } else {
         setError('Erro ao fazer login. Tente novamente.');
       }
@@ -184,7 +85,12 @@ export default function DocumentosAuthPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !nome) {
-      setError('Preencha todos os campos');
+      setError('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    if (role !== 'adminmaster' && !empresaId) {
+      setError('ID da empresa é obrigatório');
       return;
     }
 
@@ -192,7 +98,7 @@ export default function DocumentosAuthPage() {
     setError(null);
 
     try {
-      // Verificar se o email já está cadastrado
+      // Verificar se o email já está cadastrado no sistema de documentos
       const existingUsers = await getDocs(
         query(
           collection(db, 'documentos_users'),
@@ -201,7 +107,7 @@ export default function DocumentosAuthPage() {
       );
 
       if (!existingUsers.empty) {
-        setError('Este email já está cadastrado. Faça login.');
+        setError('Este email já está cadastrado no sistema de documentos. Faça login.');
         setLoading(false);
         return;
       }
@@ -209,71 +115,38 @@ export default function DocumentosAuthPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Criar perfil na coleção 'users'
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: user.email,
-        displayName: nome,
-        role: 'colaborador',
-        sistema: 'documentos',
-        permissions: {
-          documentos: true
-        },
-        createdAt: new Date().toISOString(),
-        empresaId: null // Empresa será definida posteriormente se necessário
-      });
-
-      // Buscar empresas que tenham documentos ativo
-      const empresasCollection = collection(db, 'empresas');
-      const empresasQuery = query(
-        empresasCollection,
-        where('ativo', '==', true)
-      );
-      const empresasSnapshot = await getDocs(empresasQuery);
-
-      // Filtrar empresas que têm sistema documentos ativo
-      const empresasComDocumentos = empresasSnapshot.docs.filter(doc => {
-        const data = doc.data();
-        return data.sistemasAtivos && data.sistemasAtivos.includes('documentos');
-      });
-
-      if (empresasComDocumentos.length === 0) {
-        setError('Nenhuma empresa com sistema de documentos encontrada. Entre em contato com o administrador.');
-        await auth.signOut();
-        return;
-      }
-
-      // Por padrão, registrar como colaborador na primeira empresa encontrada
-      const primeiraEmpresa = empresasComDocumentos[0];
-
       // Criar perfil na coleção de documentos
       const userData = {
         uid: user.uid,
         email: user.email,
         nome: nome,
-        role: 'colaborador',
-        empresaId: primeiraEmpresa.id,
+        role: role,
+        empresaId: role === 'adminmaster' ? null : empresaId,
         isActive: true,
         createdAt: new Date().toISOString(),
-        createdBy: 'self-registration',
-        lastLogin: new Date().toISOString()
+        createdBy: 'self-registration'
       };
 
       await setDoc(doc(db, 'documentos_users', user.uid), userData);
 
-      // Adicionar como colaborador na empresa
-      await setDoc(doc(db, 'empresas', primeiraEmpresa.id, 'colaboradores', user.uid), {
-        email: user.email,
-        nome: nome,
-        role: 'colaborador',
-        sistema: 'documentos',
-        ativo: true,
-        criadoEm: new Date().toISOString()
-      });
+      // Se for empresa, criar documento da empresa
+      if (role === 'empresa' && empresaId) {
+        const empresaRef = doc(db, 'documentos_empresas', empresaId);
+        const empresaDoc = await getDoc(empresaRef);
+
+        if (!empresaDoc.exists()) {
+          await setDoc(empresaRef, {
+            id: empresaId,
+            nome: nome,
+            adminId: user.uid,
+            createdAt: new Date().toISOString(),
+            isActive: true
+          });
+        }
+      }
 
       // Sucesso - redirecionar
-      router.push('/documentos');
-
+      window.location.href = '/documentos';
     } catch (error: any) {
       console.error('Erro no cadastro:', error);
 
@@ -430,6 +303,30 @@ export default function DocumentosAuthPage() {
           background: var(--color-primary);
           color: white;
         }
+
+        .role-selector {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+
+        .role-option {
+          flex: 1;
+          padding: 0.75rem;
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius);
+          background: var(--color-surface);
+          cursor: pointer;
+          text-align: center;
+          transition: all 0.3s ease;
+          font-size: 0.9rem;
+        }
+
+        .role-option.selected {
+          border-color: var(--color-primary);
+          background: var(--color-primary)10;
+          color: var(--color-primary);
+        }
       `}</style>
 
       {/* Header */}
@@ -461,8 +358,80 @@ export default function DocumentosAuthPage() {
             <p>Sistema independente de geração de documentos</p>
           </div>
 
-          <form onSubmit={handleLogin}>
+          <div className="tab-buttons">
+            <button
+              className={`tab-button ${isLogin ? 'active' : ''}`}
+              onClick={() => setIsLogin(true)}
+            >
+              Entrar
+            </button>
+            <button
+              className={`tab-button ${!isLogin ? 'active' : ''}`}
+              onClick={() => setIsLogin(false)}
+            >
+              Cadastrar
+            </button>
+          </div>
+
+          <form onSubmit={isLogin ? handleLogin : handleRegister}>
             <div className="stack">
+              {!isLogin && (
+                <>
+                  <div>
+                    <label>Tipo de Conta</label>
+                    <div className="role-selector">
+                      <div
+                        className={`role-option ${role === 'empresa' ? 'selected' : ''}`}
+                        onClick={() => setRole('empresa')}
+                      >
+                        🏢 Empresa
+                      </div>
+                      <div
+                        className={`role-option ${role === 'colaborador' ? 'selected' : ''}`}
+                        onClick={() => setRole('colaborador')}
+                      >
+                        👤 Colaborador
+                      </div>
+                      <div
+                        className={`role-option ${role === 'adminmaster' ? 'selected' : ''}`}
+                        onClick={() => setRole('adminmaster')}
+                      >
+                        ⚡ Admin Master
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label>Nome *</label>
+                    <input
+                      className="input"
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Seu nome completo"
+                      required={!isLogin}
+                    />
+                  </div>
+                </>
+              )}
+
+              {role !== 'adminmaster' && (
+                <div>
+                  <label>ID da Empresa *</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={empresaId}
+                    onChange={(e) => setEmpresaId(e.target.value)}
+                    placeholder="ex: empresa123"
+                    required={!isLogin}  
+                  />
+                  <small style={{ color: 'var(--color-textSecondary)' }}>
+                    Identificador único da sua empresa
+                  </small>
+                </div>
+              )}
+
               <div>
                 <label>Email</label>
                 <input
@@ -471,18 +440,6 @@ export default function DocumentosAuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label>Nome</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome completo"
                   required
                 />
               </div>
@@ -510,16 +467,18 @@ export default function DocumentosAuthPage() {
                 className="button button-primary"
                 disabled={loading}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? (isLogin ? 'Entrando...' : 'Cadastrando...') : (isLogin ? 'Entrar' : 'Cadastrar')}
               </button>
 
-              <button
-                type="button"
-                className="button button-ghost"
-                onClick={() => setShowForgotPassword(true)}
-              >
-                Esqueci minha senha
-              </button>
+              {isLogin && (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Esqueci minha senha
+                </button>
+              )}
             </div>
           </form>
         </div>

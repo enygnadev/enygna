@@ -21,7 +21,7 @@ export function useChamadosSessionProfile() {
 
       try {
         // Buscar dados do usuário na coleção específica do sistema de chamados
-        const userDocRef = doc(db, 'chamados_users', user.uid);
+        const userDocRef = doc(db, 'chamados/users', user.uid);
         const snap = await getDoc(userDocRef);
         
         if (snap.exists()) {

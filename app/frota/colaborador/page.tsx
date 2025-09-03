@@ -747,7 +747,7 @@ export default function ColaboradorFrotaPage() {
               >
                 🚪 Sair
               </button>
-              <ThemeSelector />
+              <ThemeSelector size="medium" />
             </div>
           </div>
 

@@ -25,7 +25,7 @@ import {
   doc,
   getDocs,
   getDoc,
-  orderBy, 
+  orderBy,
   query,
   updateDoc,
   setDoc,

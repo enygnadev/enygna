@@ -34,27 +34,6 @@ export default function FrotaAuthPage() {
 
   const checkUserPermissions = async (userEmail: string) => {
     try {
-      // Primeiro, verificar se é um usuário criado através do sistema empresas
-      const empresasRef = collection(db, 'empresas');
-      const empresaQuery = query(empresasRef, where('email', '==', userEmail));
-      const empresaSnapshot = await getDocs(empresaQuery);
-
-      if (!empresaSnapshot.empty) {
-        const empresaData = empresaSnapshot.docs[0].data();
-        const sistemasAtivos = empresaData.sistemasAtivos || [];
-        
-        // Verificar se a empresa tem acesso ao sistema de frota
-        if (sistemasAtivos.includes('frota')) {
-          // Empresa tem acesso somente ao sistema de frota
-          router.push('/frota');
-          return;
-        } else {
-          setError('Esta empresa não tem permissão para acessar o sistema de frota.');
-          return;
-        }
-      }
-
-      // Se não encontrou na coleção empresas, verificar na coleção users (usuários do sistema)
       const usuariosRef = collection(db, 'users');
       const q = query(usuariosRef, where('email', '==', userEmail));
       const querySnapshot = await getDocs(q);
@@ -63,15 +42,14 @@ export default function FrotaAuthPage() {
         const userData = querySnapshot.docs[0].data();
         const role = userData.role?.toLowerCase();
 
-        // Redirecionar baseado no papel do usuário (apenas para usuários administrativos)
-        if (role === 'superadmin' || role === 'adminmaster') {
-          router.push('/admin'); // Super admins vão para o painel master
-        } else if (role === 'admin' || role === 'gestor') {
-          router.push('/frota'); // Admins e gestores vão para o sistema de frota
+        // Redirecionar baseado no papel do usuário
+        if (role === 'superadmin' || role === 'admin' || role === 'gestor') {
+          router.push('/frota');
         } else if (role === 'colaborador') {
-          router.push('/frota/colaborador'); // Colaboradores vão para a área específica
+          // Colaboradores vão direto para a área do motorista
+          router.push('/frota/colaborador');
         } else {
-          setError('Você não tem permissão para acessar o sistema de frota.');
+          setError('Você não tem permissão para acessar o sistema de frota');
         }
       } else {
         setError('Usuário não encontrado no sistema');
@@ -299,7 +277,7 @@ export default function FrotaAuthPage() {
           margin-bottom: var(--gap-md);
         }
 
-
+        
       `}</style>
 
       <div className="auth-container">
@@ -311,7 +289,7 @@ export default function FrotaAuthPage() {
               Sistema de Frota
             </h1>
             <p style={{ color: 'var(--color-textSecondary)' }}>
-              Acesso somente para usuários autorizados
+              Login no Sistema
             </p>
           </div>
 
@@ -364,12 +342,7 @@ export default function FrotaAuthPage() {
               </button>
             </div>
 
-            {/* Admin controlled access message */}
-            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
-              <p style={{ marginBottom: 'var(--gap-md)' }}>
-                🔐 Acesso controlado pelo Admin Master
-              </p>
-            </div>
+            
 
             <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
               <Link href="/sistemas" className="button button-ghost">

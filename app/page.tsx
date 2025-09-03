@@ -436,7 +436,7 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
         </div>
 
         <h1 className="hero-title">
-          <span className="title-line">Transforme sua Empresa</span>
+          <span className="title-line">Transforme sua</span>
           <span className="title-line gradient-text">Gestão Empresarial</span>
           <span className="title-line">com Inteligência</span>
         </h1>
@@ -472,8 +472,68 @@ function HeroSection({ features, onNavigate }: { features: any[]; onNavigate: (s
           </button>
         </div>
 
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1rem',
+            marginTop: '2rem'
+          }}>
+            <Link 
+              href="/sistemas" 
+              className="button button-primary"
+              style={{
+                fontSize: '1.1rem',
+                padding: '1rem 2rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                color: 'white',
+                fontWeight: '600',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s ease',
+                border: 'none'
+              }}
+            >
+              🚀 Acessar Sistema Completo
+            </Link>
 
-
+            <AdminLoginButton 
+              variant="secondary"
+              size="medium"
+              style={{ marginTop: '0.5rem' }}
+            />
+            
+              <a 
+                href="/admin" 
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                👑 Admin Master
+              </a>
+              <a 
+                href="/bootstrap-admin" 
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(45deg, #ef4444, #dc2626)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🚨 Bootstrap Admin (TEMPORÁRIO)
+              </a>
+        </div>
 
         <div className="hero-social-proof">
           <p>Confiado por empresas de todos os portes</p>
@@ -722,67 +782,10 @@ function CallToAction() {
           </p>
         </div>
         <div className="cta-actions">
-          <div style={{
-                display: 'flex',
-                gap: 'clamp(0.75rem, 2vw, 1rem)',
-                flexWrap: 'wrap',
-                justifyContent: 'center'
-              }}>
-                <button 
-                  className="button button-primary"
-                  onClick={() => window.location.href = '/dashboard'}
-                  style={{
-                    padding: 'clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
-                    fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
-                    fontWeight: '700',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 20px rgba(59, 130, 246, 0.3)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 30px rgba(59, 130, 246, 0.4)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.3)';
-                  }}
-                >
-                  🚀 Começar Agora
-                </button>
-
-                <button 
-                  className="button button-outline"
-                  onClick={() => window.location.href = '/empresa/login'}
-                  style={{
-                    padding: 'clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
-                    fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
-                    fontWeight: '700',
-                    borderRadius: '12px',
-                    background: 'transparent',
-                    border: '2px solid #16a34a',
-                    color: '#16a34a',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#16a34a';
-                    e.currentTarget.style.color = '#fff';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#16a34a';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  🏢 Login Empresa
-                </button>
-              </div>
+          <Link href="/sistemas" className="cta-button-large">
+            <span>Iniciar Jornada Premium</span>
+            <div className="button-shine"></div>
+          </Link>
           <div className="cta-guarantee">
             ✅ Garantia de 30 dias • ✅ ROI garantido • ✅ Suporte white-glove
           </div>
@@ -2379,6 +2382,171 @@ function GlobalStyles() {
       }
 
       /* Improved scrolling behavior */
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 100px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* Better touch targets for mobile */
+      @media (pointer: coarse) {
+        .nav-link,
+        .cta-button,
+        .plan-button,
+        .system-thumbnail {
+          min-height: 44px;
+          min-width: 44px;
+        }
+      }
+
+      /* Navigation Dots */
+      .navigation-dots {
+        position: fixed;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 20px 8px;
+        border-radius: 25px;
+        backdrop-filter: blur(10px);
+      }
+
+      .nav-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .nav-dot:hover {
+        background: rgba(255, 255, 255, 0.7);
+        transform: scale(1.2);
+      }
+
+      .nav-dot.active {
+        background: #3b82f6;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        transform: scale(1.3);
+      }
+
+      .nav-dot::before {
+        content: attr(data-label);
+        position: absolute;
+        right: 25px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        pointer-events: none;
+      }
+
+      .nav-dot:hover::before {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(-50%) translateX(-5px);
+      }
+
+      /* Section Indicators */
+      .section-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 40px 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        opacity: 0.6;
+      }
+
+      .section-indicator:hover {
+        opacity: 1;
+        transform: translateY(-5px);
+      }
+
+      .section-indicator span {
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .scroll-arrow {
+        font-size: 1.5rem;
+        animation: bounce-arrow 2s ease-in-out infinite;
+        color: #3b82f6;
+      }
+
+      @keyframes bounce-arrow {
+        0%, 20%, 50%, 80%, 100% {
+          transform: translateY(0);
+        }
+        40% {
+          transform: translateY(-10px);
+        }
+        60% {
+          transform: translateY(-5px);
+        }
+      }
+
+      /* Enhanced Mobile Navigation Dots */
+      @media (max-width: 768px) {
+        .navigation-dots {
+          right: 15px;
+          padding: 15px 6px;
+          gap: 12px;
+        }
+
+        .nav-dot {
+          width: 10px;
+          height: 10px;
+        }
+
+        .nav-dot::before {
+          font-size: 0.75rem;
+          padding: 6px 10px;
+        }
+
+        .section-indicator {
+          padding: 30px 15px;
+        }
+
+        .section-indicator span {
+          font-size: 0.8rem;
+        }
+
+        .scroll-arrow {
+          font-size: 1.2rem;
+        }
+      }
+
+      /* Smooth scrolling enhancements */
       .premium-container {
         overflow-x: hidden;
         scroll-behavior: smooth;
