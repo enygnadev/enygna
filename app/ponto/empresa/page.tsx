@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -32,6 +31,7 @@ import {
   Timestamp,
   serverTimestamp,
   writeBatch,
+  where // Added import for 'where'
 } from "firebase/firestore";
 import {
   format,
@@ -410,12 +410,12 @@ function EmpresaDashboard() {
             if (userDocSnap.exists()) {
               const userData = userDocSnap.data() as any;
               console.log("Dados do usuário encontrados:", userData);
-              
+
               // Verifica se o usuário tem role de admin/gestor OU se tem sistema ponto ativo
               const hasAdminRole = ["superadmin", "admin", "gestor"].includes(userData.role);
               const hasPontoAccess = userData.sistemasAtivos?.includes('ponto');
               const isEmpresaType = userData.tipo === 'empresa';
-              
+
               console.log("Verificação de acesso:", {
                 hasAdminRole,
                 hasPontoAccess,
@@ -425,10 +425,10 @@ function EmpresaDashboard() {
                 tipo: userData.tipo,
                 empresaId: userData.empresaId
               });
-              
+
               if (hasAdminRole || hasPontoAccess || isEmpresaType) {
                 setMeRole(userData.role || 'admin');
-                
+
                 // Priorizar empresaId da URL se existir
                 const fromQS = params.get("empresaId");
                 if (fromQS) {
@@ -436,7 +436,7 @@ function EmpresaDashboard() {
                 } else {
                   setEmpresaId(userData.empresaId);
                 }
-                
+
                 // Carrega a configuração de geofencing da empresa
                 const empresaIdToUse = fromQS || userData.empresaId;
                 if (empresaIdToUse) {
@@ -447,7 +447,7 @@ function EmpresaDashboard() {
                       if (companyData.geofencing) {
                         setCompanyLocation(companyData.geofencing);
                       }
-                      
+
                       // Verificar se a empresa realmente tem sistema ponto ativo
                       const sistemasAtivos = companyData.sistemasAtivos || [];
                       if (!sistemasAtivos.includes('ponto')) {
@@ -473,20 +473,20 @@ function EmpresaDashboard() {
               // Busca pelo email na coleção de empresas para verificar se é uma empresa do sistema de ponto
               try {
                 console.log("Buscando empresa por email:", u.email);
-                
+
                 // Buscar empresa por email
                 const empresasQuery = query(
                   collection(db, "empresas"), 
                   where("email", "==", u.email)
                 );
                 const empresasSnap = await getDocs(empresasQuery);
-                
+
                 if (!empresasSnap.empty) {
                   const empresaDoc = empresasSnap.docs[0];
                   const empresaData = empresaDoc.data();
-                  
+
                   console.log("Empresa encontrada:", empresaDoc.id, empresaData);
-                  
+
                   // Verificar se tem sistema ponto nos sistemas ativos
                   const sistemasAtivos = empresaData.sistemasAtivos || [];
                   if (!sistemasAtivos.includes('ponto')) {
@@ -495,7 +495,7 @@ function EmpresaDashboard() {
                     window.location.href = "/sistemas";
                     return;
                   }
-                  
+
                   // Cria documento do usuário
                   await setDoc(userDocRef, {
                     email: u.email,
@@ -507,13 +507,13 @@ function EmpresaDashboard() {
                     createdAt: new Date().toISOString(),
                     lastLogin: new Date().toISOString()
                   });
-                  
+
                   setMeRole('admin');
-                  
+
                   // Priorizar empresaId da URL se existir
                   const fromQS = params.get("empresaId");
                   setEmpresaId(fromQS || empresaDoc.id);
-                  
+
                   // Carrega configuração de geofencing
                   if (empresaData.geofencing) {
                     setCompanyLocation(empresaData.geofencing);
@@ -744,7 +744,7 @@ function EmpresaDashboard() {
 
       alert("Colaborador adicionado com sucesso!");
       setNewUserEmail("");
-      setNewUserPassword(""); // Senha não é mais necessária no frontend para este modal
+      setNewUserPassword(""); // Senha não é necessária no frontend para este modal
       setNewUserName("");
       setNewUserWorkDays(22);
       setNewUserSalaryType('monthly');

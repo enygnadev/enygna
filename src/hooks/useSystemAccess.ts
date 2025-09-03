@@ -187,7 +187,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
             }
 
             // Remover duplicatas
-            const sistemasUnicos = [...new Set(sistemasEncontrados)];
+            const sistemasUnicos = Array.from(new Set(sistemasEncontrados));
             console.log('Sistemas únicos encontrados:', sistemasUnicos);
             setSystemsAvailable(sistemasUnicos);
           }
@@ -363,7 +363,7 @@ export function useSystemAccess(user: User | null): SystemAccess {
             }
           }
 
-          const sistemasUnicos = [...new Set(sistemasEncontrados)];
+          const sistemasUnicos = Array.from(new Set(sistemasEncontrados));
           console.log('Sistemas encontrados por email:', sistemasUnicos);
           setSystemsAvailable(sistemasUnicos);
           setEmpresaId(empresaEncontrada);

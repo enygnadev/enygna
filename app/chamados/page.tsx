@@ -507,7 +507,10 @@ export default function ChamadosPage() {
 
         {/* Aba Novo Chamado */}
         {activeTab === 'create' && (
-          <TicketForm />
+          <TicketForm onSubmit={async (ticket) => {
+            // Handle ticket submission
+            console.log('Novo chamado:', ticket);
+          }} />
         )}
 
         {/* Aba Empresas */}

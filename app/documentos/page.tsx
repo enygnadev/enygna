@@ -1764,6 +1764,7 @@ Data: ${currentDate}`,
           uf: data.endereco?.state || '',
           cep: data.endereco?.zip || '',
           telefone: data.endereco?.phone || '',
+          email: data.email,
           atividade_principal: data.atividadePrincipal || ''
         };
       }
@@ -1824,29 +1825,29 @@ Data: ${currentDate}`,
   // Funções de validação usando a nova lógica
   const validateCPF = (cpf: string): { valid: boolean; message?: string } => {
     const cpfLimpo = cpf.replace(/\D/g, '');
-    
+
     if (cpfLimpo.length !== 11) {
       return { valid: false, message: 'CPF deve conter exatamente 11 dígitos' };
     }
-    
+
     if (!isValidCpfCnpj(cpfLimpo)) {
       return { valid: false, message: 'CPF inválido' };
     }
-    
+
     return { valid: true };
   };
 
   const validateCNPJ = (cnpj: string): { valid: boolean; message?: string } => {
     const cnpjLimpo = cnpj.replace(/\D/g, '');
-    
+
     if (cnpjLimpo.length !== 14) {
       return { valid: false, message: 'CNPJ deve conter exatamente 14 dígitos' };
     }
-    
+
     if (!isValidCpfCnpj(cnpjLimpo)) {
       return { valid: false, message: 'CNPJ inválido' };
     }
-    
+
     return { valid: true };
   };
 
@@ -1909,7 +1910,7 @@ Data: ${currentDate}`,
 
     try {
       const dadosCEP = await buscarCEP(cep);
-      
+
       if (dadosCEP) {
         const novoFormData = { ...formData };
 
@@ -1940,17 +1941,17 @@ Data: ${currentDate}`,
         }
 
         setFormData(novoFormData);
-        
+
         loadingAlert.innerHTML = '✅ Endereço encontrado!';
         loadingAlert.style.background = '#10b981';
         setTimeout(() => document.body.removeChild(loadingAlert), 2000);
-        
+
         // Focar no campo de número se disponível
         setTimeout(() => {
           const numeroInput = document.querySelector(`input[placeholder*="Número"]`) as HTMLInputElement;
           if (numeroInput) numeroInput.focus();
         }, 500);
-        
+
       } else {
         loadingAlert.innerHTML = '❌ CEP não encontrado';
         loadingAlert.style.background = '#ef4444';
@@ -1984,7 +1985,7 @@ Data: ${currentDate}`,
 
     try {
       const dadosCEP = await buscarCEP(cep);
-      
+
       if (dadosCEP) {
         const novoFormData = { ...formData };
 
@@ -1995,7 +1996,7 @@ Data: ${currentDate}`,
         // Preencher o campo de endereço específico desta seção
         const enderecoFieldName = `${sectionPrefix}_endereco`;
         const numeroAtual = formData[`${sectionPrefix}_numero`] || '';
-        
+
         if (selectedTemplate?.fields.some(field => field.name === enderecoFieldName)) {
           novoFormData[enderecoFieldName] = numeroAtual ? 
             `${dadosCEP.logradouro}, ${numeroAtual}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}` :
@@ -2006,11 +2007,11 @@ Data: ${currentDate}`,
         novoFormData[`${sectionPrefix}_cep_dados`] = JSON.stringify(dadosCEP);
 
         setFormData(novoFormData);
-        
+
         loadingAlert.innerHTML = `✅ Endereço encontrado para ${sectionPrefix}!`;
         loadingAlert.style.background = '#10b981';
         setTimeout(() => document.body.removeChild(loadingAlert), 2000);
-        
+
         // Focar no campo de número específico desta seção
         setTimeout(() => {
           const numeroInput = document.querySelector(`input[value="${numeroAtual}"]`) as HTMLInputElement;
@@ -2018,7 +2019,7 @@ Data: ${currentDate}`,
             numeroInput.focus();
           }
         }, 500);
-        
+
       } else {
         loadingAlert.innerHTML = '❌ CEP não encontrado';
         loadingAlert.style.background = '#ef4444';
@@ -2052,7 +2053,7 @@ Data: ${currentDate}`,
 
     try {
       const dadosCPF = await buscarDadosCPF(cpf);
-      
+
       if (dadosCPF) {
         const novoFormData = { ...formData };
 
@@ -2074,7 +2075,7 @@ Data: ${currentDate}`,
           if (isOutorgante) {
             mapeamento['outorgante_nome'] = dadosCPF.nome;
             mapeamento['outorgante_cpf'] = formatCpfCnpj(cpf);
-            
+
             // Adicionar campos específicos de gênero e nascimento se disponíveis
             if (dadosCPF.genero) {
               const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
@@ -2082,7 +2083,7 @@ Data: ${currentDate}`,
               mapeamento['outorgante_genero'] = generoTexto;
               mapeamento['genero'] = generoTexto;
             }
-            
+
             if (dadosCPF.nascimento) {
               // Converter YYYY-MM-DD para DD/MM/YYYY
               const dataNascimento = new Date(dadosCPF.nascimento);
@@ -2094,13 +2095,13 @@ Data: ${currentDate}`,
           } else if (isProcurador) {
             mapeamento['procurador_nome'] = dadosCPF.nome;
             mapeamento['procurador_cpf'] = formatCpfCnpj(cpf);
-            
+
             if (dadosCPF.genero) {
               const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['procurador_genero'] = generoTexto;
             }
-            
+
             if (dadosCPF.nascimento) {
               const dataNascimento = new Date(dadosCPF.nascimento);
               const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
@@ -2109,13 +2110,13 @@ Data: ${currentDate}`,
           } else if (isContratante) {
             mapeamento['contratante_nome'] = dadosCPF.nome;
             mapeamento['contratante_cnpj_cpf'] = formatCpfCnpj(cpf);
-            
+
             if (dadosCPF.genero) {
               const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['contratante_genero'] = generoTexto;
             }
-            
+
             if (dadosCPF.nascimento) {
               const dataNascimento = new Date(dadosCPF.nascimento);
               const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
@@ -2124,13 +2125,13 @@ Data: ${currentDate}`,
           } else if (isContratado) {
             mapeamento['contratado_nome'] = dadosCPF.nome;
             mapeamento['contratado_cnpj_cpf'] = formatCpfCnpj(cpf);
-            
+
             if (dadosCPF.genero) {
               const generoTexto = dadosCPF.genero === 'M' ? 'masculino' : 
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
               mapeamento['contratado_genero'] = generoTexto;
             }
-            
+
             if (dadosCPF.nascimento) {
               const dataNascimento = new Date(dadosCPF.nascimento);
               const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
@@ -2162,19 +2163,19 @@ Data: ${currentDate}`,
         } else {
           // CPF válido mas sem dados - apenas formatar
           novoFormData[fieldName] = formatCpfCnpj(cpf);
-          
+
           loadingAlert.innerHTML = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
           loadingAlert.style.background = '#f59e0b';
         }
 
         setFormData(novoFormData);
         setTimeout(() => document.body.removeChild(loadingAlert), 4000);
-        
+
       } else {
         loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual necessário';
         loadingAlert.style.background = '#f59e0b';
         setTimeout(() => document.body.removeChild(loadingAlert), 3000);
-        
+
         // Apenas formatar o CPF se não encontrar dados
         const novoFormData = { ...formData };
         novoFormData[fieldName] = formatCpfCnpj(cpf);
@@ -2185,7 +2186,7 @@ Data: ${currentDate}`,
       loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual';
       loadingAlert.style.background = '#f59e0b';
       setTimeout(() => document.body.removeChild(loadingAlert), 3000);
-      
+
       // Formatar o CPF mesmo se der erro na consulta
       const novoFormData = { ...formData };
       novoFormData[fieldName] = formatCpfCnpj(cpf);
@@ -2213,7 +2214,7 @@ Data: ${currentDate}`,
 
     try {
       const dadosCNPJ = await buscarDadosCNPJ(cnpj);
-      
+
       if (dadosCNPJ && dadosCNPJ.razao_social) {
         const novoFormData = { ...formData };
 
@@ -2245,16 +2246,16 @@ Data: ${currentDate}`,
         });
 
         setFormData(novoFormData);
-        
+
         loadingAlert.innerHTML = '✅ Empresa encontrada!';
         loadingAlert.style.background = '#10b981';
         setTimeout(() => document.body.removeChild(loadingAlert), 2000);
-        
+
       } else {
         loadingAlert.innerHTML = '⚠️ CNPJ válido, mas sem dados disponíveis';
         loadingAlert.style.background = '#f59e0b';
         setTimeout(() => document.body.removeChild(loadingAlert), 3000);
-        
+
         // Apenas formatar o CNPJ se não encontrar dados
         const novoFormData = { ...formData };
         novoFormData[fieldName] = formatCpfCnpj(cnpj);
@@ -2265,7 +2266,7 @@ Data: ${currentDate}`,
       loadingAlert.innerHTML = '⚠️ CNPJ válido, preenchimento manual';
       loadingAlert.style.background = '#f59e0b';
       setTimeout(() => document.body.removeChild(loadingAlert), 3000);
-      
+
       // Formatar o CNPJ mesmo se der erro na consulta
       const novoFormData = { ...formData };
       novoFormData[fieldName] = formatCpfCnpj(cnpj);
@@ -2883,7 +2884,7 @@ Data: ${currentDate}`,
       {activeTab === 'templates' && (
         <div className="card">
           <h3>📋 Templates de Documentos</h3>
-          
+
           {(() => {
             // Organizar templates por categoria
             const categorias = {
@@ -2975,7 +2976,7 @@ Data: ${currentDate}`,
                       {categoria === 'Operacional' && '⚙️'} 
                       {categoria}
                     </h4>
-                    
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                       {categoryTemplates.map(template => (
                         <div 
@@ -3091,7 +3092,7 @@ Data: ${currentDate}`,
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div>
                   <h4>📝 Preencher Campos</h4>
-                  
+
                   {/* Renderizar campos organizados por seções individuais */}
                   {(() => {
                     // Organizar campos por categorias específicas e inteligentes
@@ -3100,49 +3101,49 @@ Data: ${currentDate}`,
                         // Pessoas Físicas
                         outorgante: fields.filter(f => f.name.toLowerCase().includes('outorgante')),
                         procurador: fields.filter(f => f.name.toLowerCase().includes('procurador')),
-                        
+
                         // Pessoas/Empresas - Contrato
                         contratante: fields.filter(f => f.name.toLowerCase().includes('contratante')),
                         contratado: fields.filter(f => f.name.toLowerCase().includes('contratado')),
-                        
+
                         // Pessoas - Vendas/Compras
                         vendedor: fields.filter(f => f.name.toLowerCase().includes('vendedor')),
                         comprador: fields.filter(f => f.name.toLowerCase().includes('comprador')),
-                        
+
                         // Pessoas - Locação
                         locador: fields.filter(f => f.name.toLowerCase().includes('locador')),
                         locatario: fields.filter(f => f.name.toLowerCase().includes('locatario') || f.name.toLowerCase().includes('locatário')),
-                        
+
                         // Pessoas - Trabalho
                         empregador: fields.filter(f => f.name.toLowerCase().includes('empregador')),
                         empregado: fields.filter(f => f.name.toLowerCase().includes('empregado')),
-                        
+
                         // Pessoas - Estágio
                         empresa: fields.filter(f => f.name.toLowerCase().includes('empresa') && !f.name.toLowerCase().includes('empregador')),
                         estagiario: fields.filter(f => f.name.toLowerCase().includes('estagiario') || f.name.toLowerCase().includes('estagiário')),
-                        
+
                         // Pessoas - Geral
                         declarante: fields.filter(f => f.name.toLowerCase().includes('declarante')),
                         residente: fields.filter(f => f.name.toLowerCase().includes('residente')),
                         paciente: fields.filter(f => f.name.toLowerCase().includes('paciente')),
                         medico: fields.filter(f => f.name.toLowerCase().includes('medico') || f.name.toLowerCase().includes('médico')),
                         funcionario: fields.filter(f => f.name.toLowerCase().includes('funcionario') || f.name.toLowerCase().includes('funcionário')),
-                        
+
                         // Relacionamentos
                         companheiro1: fields.filter(f => f.name.toLowerCase().includes('companheiro1')),
                         companheiro2: fields.filter(f => f.name.toLowerCase().includes('companheiro2')),
                         testemunha: fields.filter(f => f.name.toLowerCase().includes('testemunha')),
-                        
+
                         // Seguros
                         segurado: fields.filter(f => f.name.toLowerCase().includes('segurado')),
                         seguradora: fields.filter(f => f.name.toLowerCase().includes('seguradora')),
-                        
+
                         // Veículos
                         veiculo: fields.filter(f => f.name.toLowerCase().includes('veiculo') || f.name.toLowerCase().includes('veículo')),
-                        
+
                         // Imóveis/Obras
                         imovel: fields.filter(f => f.name.toLowerCase().includes('imovel') || f.name.toLowerCase().includes('imóvel') || f.name.toLowerCase().includes('obra')),
-                        
+
                         // Objetos/Serviços
                         objeto: fields.filter(f => 
                           f.name.toLowerCase().includes('objeto') ||
@@ -3150,7 +3151,7 @@ Data: ${currentDate}`,
                           f.name.toLowerCase().includes('serviço') ||
                           f.name.toLowerCase().includes('bem')
                         ),
-                        
+
                         // Valores/Financeiro
                         financeiro: fields.filter(f => 
                           f.name.toLowerCase().includes('valor') ||
@@ -3162,7 +3163,7 @@ Data: ${currentDate}`,
                           f.name.toLowerCase().includes('pagamento') ||
                           f.name.toLowerCase().includes('capital')
                         ),
-                        
+
                         // Datas/Prazos
                         temporal: fields.filter(f => 
                           f.name.toLowerCase().includes('data') ||
@@ -3173,14 +3174,14 @@ Data: ${currentDate}`,
                           f.name.toLowerCase().includes('nascimento') ||
                           f.name.toLowerCase().includes('validade')
                         ),
-                        
+
                         // Localização
                         localizacao: fields.filter(f => 
                           f.name.toLowerCase().includes('cidade') ||
                           f.name.toLowerCase().includes('local') ||
                           f.name.toLowerCase().includes('endereco_')
                         ),
-                        
+
                         // Outros
                         outros: fields.filter(f => {
                           const fieldName = f.name.toLowerCase();
@@ -3265,7 +3266,7 @@ Data: ${currentDate}`,
                             onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                           >
                             <option value="">Selecione...</option>
-                            {field.options?.map(option => (
+                            {field.options?.map((option: any) => (
                               <option key={option} value={option}>{option}</option>
                             ))}
                           </select>
@@ -3277,12 +3278,12 @@ Data: ${currentDate}`,
                               value={formData[field.name] || ''}
                               onChange={(e) => {
                                 let value = e.target.value;
-                                
+
                                 // Aplicar máscara durante a digitação
                                 const maskedValue = applyMask(value, field.name);
-                                
+
                                 const newFormData = { ...formData, [field.name]: maskedValue };
-                                setFormData(newFormData);
+                                setFormData(newFormDat<ctrl63>a);
 
                                 // Atualizar preview em tempo real
                                 if (selectedTemplate) {
@@ -3321,7 +3322,7 @@ Data: ${currentDate}`,
 
                                 let isValid = true;
                                 let errorMessage = '';
-                                
+
                                 // Validar e fazer auto-fill por CEP
                                 if (field.name.toLowerCase().includes('cep') && value.replace(/\D/g, '').length >= 8) {
                                   const cepValidation = validateCEP(value);
@@ -3366,7 +3367,7 @@ Data: ${currentDate}`,
                                   e.target.style.borderColor = '#ef4444';
                                   e.target.style.boxShadow = '0 0 0 1px #ef4444';
                                   e.target.title = errorMessage;
-                                  
+
                                   // Mostrar tooltip de erro
                                   const errorTooltip = document.createElement('div');
                                   errorTooltip.innerHTML = errorMessage;
@@ -3451,7 +3452,7 @@ Data: ${currentDate}`,
 
                     const renderSection = (title: string, fields: any[], icon: string, sectionKey: string) => {
                       if (fields.length === 0) return null;
-                      
+
                       // Organizar campos da seção em ordem lógica
                       const fieldOrder = [
                         'cpf', 'cnpj', 'nome', 'razao_social', 'nome_fantasia', 
@@ -3459,11 +3460,11 @@ Data: ${currentDate}`,
                         'cep', 'endereco', 'numero', 'bairro', 'cidade', 'uf', 
                         'telefone', 'email', 'nascimento', 'genero'
                       ];
-                      
+
                       const orderedFields = [...fields].sort((a, b) => {
                         const aOrder = fieldOrder.findIndex(o => a.name.toLowerCase().includes(o));
                         const bOrder = fieldOrder.findIndex(o => b.name.toLowerCase().includes(o));
-                        
+
                         if (aOrder === -1 && bOrder === -1) return 0;
                         if (aOrder === -1) return 1;
                         if (bOrder === -1) return -1;
@@ -3509,7 +3510,7 @@ Data: ${currentDate}`,
                               {orderedFields.length} campos
                             </div>
                           </div>
-                          
+
                           <div style={{ 
                             display: 'grid', 
                             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
@@ -3523,7 +3524,7 @@ Data: ${currentDate}`,
 
                     const renderObjectSection = (title: string, fields: any[], icon: string) => {
                       if (fields.length === 0) return null;
-                      
+
                       return (
                         <div key={title} style={{
                           marginBottom: '2rem',
@@ -3543,7 +3544,7 @@ Data: ${currentDate}`,
                           }}>
                             {icon} {title}
                           </h5>
-                          
+
                           <div style={{ 
                             display: 'grid', 
                             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
@@ -3580,7 +3581,7 @@ Data: ${currentDate}`,
                                     }}
                                   >
                                     <option value="">Selecione...</option>
-                                    {field.options?.map(option => (
+                                    {field.options?.map((option: any) => (
                                       <option key={option} value={option}>{option}</option>
                                     ))}
                                   </select>
@@ -3624,9 +3625,9 @@ Data: ${currentDate}`,
                       estagiario: { title: 'Dados do Estagiário', icon: '🎓', color: '#f97316' },
                       declarante: { title: 'Dados do Declarante', icon: '📝', color: '#8b5cf6' },
                       residente: { title: 'Dados do Residente', icon: '🏘️', color: '#06b6d4' },
-                      paciente: { title: 'Dados do Paciente', icon: '🩺', color: '#10b981' },
-                      medico: { title: 'Dados do Médico', icon: '👨‍⚕️', color: '#0ea5e9' },
-                      funcionario: { title: 'Dados do Funcionário', icon: '👨‍💼', color: '#14b8a6' },
+                      paciente: { title: 'Dados do Paciente', icon: '🩺', color: '#0ea5e9' },
+                      medico: { title: 'Dados do Médico', icon: '👨‍⚕️', color: '#14b8a6' },
+                      funcionario: { title: 'Dados do Funcionário', icon: '👨‍💼', color: '#10b981' },
                       companheiro1: { title: 'Dados do Companheiro 1', icon: '💑', color: '#ec4899' },
                       companheiro2: { title: 'Dados do Companheiro 2', icon: '💏', color: '#be185d' },
                       testemunha: { title: 'Dados das Testemunhas', icon: '👥', color: '#6b7280' },
@@ -3760,7 +3761,7 @@ Data: ${currentDate}`,
                           🖨️ Imprimir
                         </button>
                         <button 
-                          className="button button-outline" 
+                          className="button button-outline"
                           onClick={() => downloadDocument(generatedContent, selectedTemplate.name)}
                         >
                           📥 Download

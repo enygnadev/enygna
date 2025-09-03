@@ -1,4 +1,3 @@
-
 import { db } from './firebase';
 import { doc, updateDoc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
@@ -85,11 +84,11 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
 };
 
 class AutomaticPlanManager {
-  
+
   // Inicializar monitoramento automático
   async initializeAutomaticMonitoring(): Promise<void> {
     console.log('🚀 Inicializando monitoramento automático de planos...');
-    
+
     // Verificar planos a cada hora
     setInterval(() => {
       this.checkAllPlans();
@@ -103,17 +102,17 @@ class AutomaticPlanManager {
   async checkAllPlans(): Promise<void> {
     try {
       console.log('🔍 Verificando status de todos os planos...');
-      
+
       const usersRef = collection(db, 'users');
       const snapshot = await getDocs(usersRef);
-      
+
       for (const userDoc of snapshot.docs) {
         const userData = userDoc.data();
         if (userData.plan && userData.plan !== 'free') {
           await this.checkUserPlan(userDoc.id, userData);
         }
       }
-      
+
       console.log('✅ Verificação de planos concluída');
     } catch (error) {
       console.error('❌ Erro ao verificar planos:', error);
@@ -138,7 +137,7 @@ class AutomaticPlanManager {
       // Verificar se está no período de aviso
       if (planStatus.expiresAt && planStatus.status === 'active') {
         const daysUntilExpiry = Math.ceil((planStatus.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         // Enviar avisos conforme configurado
         if (planConfig.warningDays.includes(daysUntilExpiry)) {
           await this.sendExpirationWarning(userId, daysUntilExpiry, planConfig);
@@ -166,11 +165,13 @@ class AutomaticPlanManager {
   async getPlanStatus(userId: string): Promise<PlanStatus> {
     try {
       const statusDoc = await getDoc(doc(db, 'plan_status', userId));
-      
+
       if (statusDoc.exists()) {
         const data = statusDoc.data();
         return {
-          ...data,
+          planId: data.planId || '',
+          status: data.status || 'active',
+          warningsSent: data.warningsSent || 0,
           expiresAt: data.expiresAt?.toDate(),
           lastPayment: data.lastPayment?.toDate(),
           nextPayment: data.nextPayment?.toDate(),
@@ -209,7 +210,7 @@ class AutomaticPlanManager {
   async activatePlan(userId: string, planId: string, paymentData?: any): Promise<void> {
     try {
       console.log(`🟢 Ativando plano ${planId} para usuário ${userId}`);
-      
+
       const planConfig = PLAN_CONFIGS[planId];
       if (!planConfig) throw new Error('Plano não encontrado');
 
@@ -265,7 +266,7 @@ class AutomaticPlanManager {
   async pausePlan(userId: string, reason: string, manual: boolean = false): Promise<void> {
     try {
       console.log(`⏸️ Pausando plano para usuário ${userId}. Motivo: ${reason}`);
-      
+
       // Atualizar usuário para plano gratuito
       await updateDoc(doc(db, 'users', userId), {
         plan: 'free',
@@ -305,11 +306,11 @@ class AutomaticPlanManager {
     try {
       const planStatus = await this.getPlanStatus(userId);
       const targetPlanId = planId || planStatus.planId;
-      
+
       console.log(`▶️ Reativando plano ${targetPlanId} para usuário ${userId}`);
-      
+
       await this.activatePlan(userId, targetPlanId);
-      
+
       // Log da reativação
       await this.logPlanAction(userId, 'plan_resumed', {
         planId: targetPlanId,
@@ -328,7 +329,7 @@ class AutomaticPlanManager {
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));
       const userData = userDoc.data();
-      
+
       if (userData?.plan === 'permanent') {
         await this.updatePlanStatus(userId, {
           planId: 'permanent',
@@ -344,9 +345,9 @@ class AutomaticPlanManager {
   async handlePlanExpiration(userId: string, planConfig: PlanConfig): Promise<void> {
     try {
       console.log(`⏰ Plano expirado para usuário ${userId}`);
-      
+
       const gracePeriodEnd = new Date(Date.now() + planConfig.gracePeriodDays * 24 * 60 * 60 * 1000);
-      
+
       // Atualizar status para expirado
       await this.updatePlanStatus(userId, {
         status: 'expired',
@@ -364,7 +365,7 @@ class AutomaticPlanManager {
         planId: planConfig.id,
         gracePeriodEnd: gracePeriodEnd.toISOString()
       });
-      
+
     } catch (error) {
       console.error('❌ Erro ao processar expiração:', error);
     }
@@ -374,7 +375,7 @@ class AutomaticPlanManager {
   async sendExpirationWarning(userId: string, daysLeft: number, planConfig: PlanConfig): Promise<void> {
     try {
       console.log(`⚠️ Enviando aviso de expiração para ${userId}. ${daysLeft} dias restantes`);
-      
+
       await this.sendNotification(userId, 'expiration_warning', {
         daysLeft,
         planName: planConfig.name,
@@ -392,7 +393,7 @@ class AutomaticPlanManager {
         daysLeft,
         warningCount: planStatus.warningsSent + 1
       });
-      
+
     } catch (error) {
       console.error('❌ Erro ao enviar aviso:', error);
     }
@@ -434,7 +435,7 @@ class AutomaticPlanManager {
   async canUseFeature(userId: string, feature: string): Promise<boolean> {
     try {
       const planStatus = await this.getPlanStatus(userId);
-      
+
       // Se o plano está pausado, só permite funcionalidades básicas
       if (planStatus.status === 'paused') {
         return ['basic_reports', 'time_tracking'].includes(feature);
@@ -449,7 +450,7 @@ class AutomaticPlanManager {
       const userDoc = await getDoc(doc(db, 'users', userId));
       const userData = userDoc.data();
       const planConfig = PLAN_CONFIGS[userData?.plan || 'free'];
-      
+
       return planConfig?.features.includes(feature) || false;
     } catch (error) {
       console.error('❌ Erro ao verificar funcionalidade:', error);

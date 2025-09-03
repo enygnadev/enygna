@@ -579,9 +579,9 @@ export default function FinanceiroEmpresaPage() {
           <h3 style={{ marginTop: 0 }}>🏢 Gestão de Empresas</h3>
           <EmpresaManager 
             sistema="financeiro"
-            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
-            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
-            allowDelete={userRole === 'superadmin'}
+            allowCreate={(userRole as any) === 'admin' || (userRole as any) === 'superadmin'}
+            allowEdit={(userRole as any) === 'admin' || (userRole as any) === 'superadmin'}
+            allowDelete={(userRole as any) === 'superadmin'}
             onEmpresaSelect={(empresa) => {
               console.log('Empresa selecionada para financeiro:', empresa);
               // Implementar filtros financeiros por empresa

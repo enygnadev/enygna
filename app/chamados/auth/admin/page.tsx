@@ -29,7 +29,7 @@ interface ChamadosUserDoc {
 
 export default function ChamadosAdminAuth() {
   const router = useRouter();
-  const { profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<LoginRole>('colaborador');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [formData, setFormData] = useState({
@@ -42,10 +42,10 @@ export default function ChamadosAdminAuth() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!loading && profile) {
+    if (!loading && user) {
       router.push('/chamados');
     }
-  }, [loading, profile, router]);
+  }, [loading, user, router]);
 
   const getRoleFromTab = (tab: LoginRole): ChamadosUserRole => {
     switch (tab) {
