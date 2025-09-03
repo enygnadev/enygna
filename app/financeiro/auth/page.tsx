@@ -24,7 +24,6 @@ interface AuthFormData {
 }
 
 export default function FinanceiroAuth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -50,28 +49,6 @@ export default function FinanceiroAuth() {
       return false;
     }
 
-    if (!isLogin) {
-      if (formData.password !== formData.confirmPassword) {
-        setError('Senhas não conferem');
-        return false;
-      }
-
-      if (!formData.displayName) {
-        setError('Nome é obrigatório');
-        return false;
-      }
-
-      if (formData.userType === 'empresa' && !formData.cnpj) {
-        setError('CNPJ é obrigatório para empresas');
-        return false;
-      }
-
-      if (formData.userType === 'contador' && !formData.crc) {
-        setError('CRC é obrigatório para contadores');
-        return false;
-      }
-    }
-
     return true;
   };
 
@@ -83,57 +60,31 @@ export default function FinanceiroAuth() {
     setError('');
 
     try {
-      if (isLogin) {
-        // Login
-        const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-        const userDoc = await getDoc(doc(db, 'financeiro_users', userCredential.user.uid));
+      // Login
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const userDoc = await getDoc(doc(db, 'financeiro_users', userCredential.user.uid));
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          // Redirecionar baseado no tipo de usuário
-          switch (userData.userType) {
-            case 'empresa':
-              router.push('/financeiro/empresa');
-              break;
-            case 'colaborador':
-              router.push('/financeiro/colaborador');
-              break;
-            case 'cliente':
-              router.push('/financeiro/cliente');
-              break;
-            case 'contador':
-              router.push('/financeiro/contador');
-              break;
-            default:
-              router.push('/financeiro/dashboard');
-          }
-        } else {
-          setError('Usuário não encontrado no sistema financeiro');
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        // Redirecionar baseado no tipo de usuário
+        switch (userData.userType) {
+          case 'empresa':
+            router.push('/financeiro/empresa');
+            break;
+          case 'colaborador':
+            router.push('/financeiro/colaborador');
+            break;
+          case 'cliente':
+            router.push('/financeiro/cliente');
+            break;
+          case 'contador':
+            router.push('/financeiro/contador');
+            break;
+          default:
+            router.push('/financeiro/dashboard');
         }
       } else {
-        // Registro
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-
-        // Salvar dados do usuário
-        await setDoc(doc(db, 'financeiro_users', userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email: formData.email,
-          displayName: formData.displayName,
-          userType: formData.userType,
-          cnpj: formData.cnpj || null,
-          cpf: formData.cpf || null,
-          crc: formData.crc || null,
-          razaoSocial: formData.razaoSocial || null,
-          nomeFantasia: formData.nomeFantasia || null,
-          createdAt: new Date().toISOString(),
-          isActive: true,
-          permissions: getDefaultPermissions(formData.userType)
-        });
-
-        setSuccess('Conta criada com sucesso! Você será redirecionado...');
-        setTimeout(() => {
-          router.push(`/financeiro/${formData.userType}`);
-        }, 2000);
+        setError('Usuário não encontrado no sistema financeiro');
       }
     } catch (error: any) {
       setError(error.message || 'Erro na autenticação');
@@ -259,40 +210,6 @@ export default function FinanceiroAuth() {
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* Tipo de Usuário (apenas no registro) */}
-          {!isLogin && (
-            <div className="form-section">
-              <label className="label">Tipo de Conta</label>
-              <div className="user-type-grid">
-                {[
-                  { type: 'colaborador', icon: '👤', label: 'Colaborador' },
-                  { type: 'empresa', icon: '🏢', label: 'Empresa' },
-                  { type: 'cliente', icon: '🤝', label: 'Cliente' },
-                  { type: 'contador', icon: '🧮', label: 'Contador' }
-                ].map(({ type, icon, label }) => (
-                  <div
-                    key={type}
-                    className={`user-type-option ${formData.userType === type ? 'selected' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, userType: type as UserType }))}
-                  >
-                    <div style={{ fontSize: '1.5rem', marginBottom: 'var(--gap-xs)' }}>{icon}</div>
-                    <div style={{ fontWeight: '600' }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permissões do tipo selecionado */}
-              <div style={{ marginTop: 'var(--gap-md)' }}>
-                <label className="label">Permissões incluídas:</label>
-                <ul className="permissions-list">
-                  {getDefaultPermissions(formData.userType).map((permission, index) => (
-                    <li key={index}>✓ {permission.replace(/_/g, ' ')}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
           {/* Campos básicos */}
           <div className="form-group">
             <label className="label">Email</label>
@@ -318,122 +235,15 @@ export default function FinanceiroAuth() {
             />
           </div>
 
-          {!isLogin && (
-            <>
-              <div className="form-group">
-                <label className="label">Confirmar Senha</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className="input"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="label">Nome Completo</label>
-                <input
-                  type="text"
-                  name="displayName"
-                  value={formData.displayName}
-                  onChange={handleInputChange}
-                  className="input"
-                  required
-                />
-              </div>
-
-              {/* Campos específicos por tipo */}
-              {formData.userType === 'empresa' && (
-                <div className="form-section">
-                  <h4>Dados da Empresa</h4>
-                  <div className="form-group">
-                    <label className="label">CNPJ</label>
-                    <input
-                      type="text"
-                      name="cnpj"
-                      value={formData.cnpj || ''}
-                      onChange={handleInputChange}
-                      className="input"
-                      placeholder="00.000.000/0000-00"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Razão Social</label>
-                    <input
-                      type="text"
-                      name="razaoSocial"
-                      value={formData.razaoSocial || ''}
-                      onChange={handleInputChange}
-                      className="input"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Nome Fantasia</label>
-                    <input
-                      type="text"
-                      name="nomeFantasia"
-                      value={formData.nomeFantasia || ''}
-                      onChange={handleInputChange}
-                      className="input"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {formData.userType === 'contador' && (
-                <div className="form-section">
-                  <h4>Dados Profissionais</h4>
-                  <div className="form-group">
-                    <label className="label">CRC (Registro no CRC)</label>
-                    <input
-                      type="text"
-                      name="crc"
-                      value={formData.crc || ''}
-                      onChange={handleInputChange}
-                      className="input"
-                      placeholder="CRC/UF 000000"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">CPF</label>
-                    <input
-                      type="text"
-                      name="cpf"
-                      value={formData.cpf || ''}
-                      onChange={handleInputChange}
-                      className="input"
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
           <button 
             type="submit" 
             className="button button-primary"
             style={{ width: '100%', marginTop: 'var(--gap-lg)' }}
             disabled={loading}
           >
-            {loading ? 'Processando...' : (isLogin ? 'Entrar' : 'Criar Conta')}
+            {loading ? 'Processando...' : 'Entrar'}
           </button>
         </form>
-
-        {/* Toggle entre login/registro */}
-        <div className="auth-toggle">
-          <button
-            type="button"
-            onClick={() => setIsLogin(!isLogin)}
-            className="button button-ghost"
-          >
-            {isLogin ? 'Não tem conta? Criar agora' : 'Já tem conta? Fazer login'}
-          </button>
-        </div>
 
         {/* Links úteis */}
         <div style={{ textAlign: 'center', marginTop: 'var(--gap-md)' }}>
