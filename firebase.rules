@@ -201,10 +201,7 @@ service cloud.firestore {
     // Sistema de Ponto
     match /ponto_empresas/{empresaId} {
       allow read, write, create: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated() && 
-        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
-         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
-         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
+      allow read, write, create: if isAuthenticated();
 
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
@@ -252,23 +249,7 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
-    // Sessões de ponto por empresa
-    match /ponto_empresas/{empresaId}/sessions/{sessionId} {
-      allow read, write, create: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated() && 
-        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
-         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
-         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
-    }
-
-    // Colaboradores por empresa
-    match /ponto_empresas/{empresaId}/colaboradores/{colaboradorId} {
-      allow read, write, create: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated() && 
-        (get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
-         get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos != null &&
-         'ponto' in get(/databases/$(database)/documents/empresas/$(empresaId)).data.sistemasAtivos);
-    }
+    
 
     // === TUTORIAL E CONFIGURAÇÕES PESSOAIS ===
     match /userTutorialStatus/{userId} {

@@ -223,7 +223,7 @@ export default function EmpresaManager({
       }
 
       // Criar configurações específicas do sistema
-      await createSystemSpecificData(empresaId);
+      await createSystemSpecificData(empresaId, empresaData); // Passando empresaData
       console.log('Configurações específicas criadas');
 
       // Salvar o usuário admin atual antes de criar novo usuário
@@ -353,7 +353,7 @@ export default function EmpresaManager({
     }
   };
 
-  const createSystemSpecificData = async (empresaId: string) => {
+  const createSystemSpecificData = async (empresaId: string, empresaDataForConfig: any) => { // Recebe empresaData
     try {
       switch (sistema) {
         case 'chamados':
@@ -417,9 +417,9 @@ export default function EmpresaManager({
               intervalo: 60 // minutos
             },
             tolerancia: 15, // minutos
-            geofencing: formData.geofencing,
-            selfieObrigatoria: formData.selfieObrigatoria,
-            notificacaoEmail: formData.notificacaoEmail,
+            geofencing: empresaDataForConfig.configuracoes.geofencing,
+            selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria,
+            notificacaoEmail: empresaDataForConfig.configuracoes.notificacaoEmail,
             jornada: {
               horasDiarias: 8,
               diasSemanais: 5,
@@ -481,13 +481,13 @@ export default function EmpresaManager({
                 case 'ponto':
                   // Criar empresa na coleção específica do ponto
                   await setDoc(doc(db, 'ponto_empresas', empresaId), {
-                    nome: empresaData.nome,
-                    email: empresaData.email,
-                    cnpj: empresaData.cnpj,
-                    telefone: empresaData.telefone,
-                    endereco: empresaData.endereco,
+                    nome: empresaDataForConfig.nome,
+                    email: empresaDataForConfig.email,
+                    cnpj: empresaDataForConfig.cnpj,
+                    telefone: empresaDataForConfig.telefone,
+                    endereco: empresaDataForConfig.endereco,
                     ativo: true,
-                    plano: empresaData.plano,
+                    plano: empresaDataForConfig.plano,
                     sistemasAtivos: ['ponto'],
                     configuracoesPonto: {
                       toleranciaMinutos: 15,
@@ -496,8 +496,8 @@ export default function EmpresaManager({
                         inicio: '09:00',
                         fim: '18:00'
                       },
-                      geofencing: empresaData.configuracoes.geofencing || false,
-                      selfieObrigatoria: empresaData.configuracoes.selfieObrigatoria || false
+                      geofencing: empresaDataForConfig.configuracoes.geofencing || false,
+                      selfieObrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria || false
                     },
                     criadoEm: serverTimestamp()
                   });
@@ -515,12 +515,12 @@ export default function EmpresaManager({
                       domingo: { inicio: '09:00', fim: '12:00', ativo: false }
                     },
                     geofencing: {
-                      ativo: empresaData.configuracoes.geofencing || false,
+                      ativo: empresaDataForConfig.configuracoes.geofencing || false,
                       raio: 100,
                       coordenadas: null
                     },
                     selfie: {
-                      obrigatoria: empresaData.configuracoes.selfieObrigatoria || false,
+                      obrigatoria: empresaDataForConfig.configuracoes.selfieObrigatoria || false,
                       verificacaoFacial: false
                     },
                     criadoEm: serverTimestamp()
@@ -1276,57 +1276,6 @@ export default function EmpresaManager({
                       fontSize: 'clamp(0.8rem, 2vw, 1rem)'
                     }}
                   />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  Plano
-                </label>
-                <select
-                  value={formData.plano}
-                  onChange={(e) => setFormData({...formData, plano: e.target.value as any})}
-                  style={{
-                    width: '100%',
-                    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: 'clamp(6px, 1.5vw, 8px)',
-                    color: 'white',
-                    fontSize: 'clamp(0.8rem, 2vw, 1rem)'
-                  }}
-                >
-                  <option value="free">🆓 Gratuito (30 dias)</option>
-                  <option value="monthly">💼 Mensal (R$ 29,90/mês)</option>
-                  <option value="yearly">📅 Anual (R$ 239,20/ano)</option>
-                  <option value="enterprise">🏢 Enterprise (R$ 99,90/mês)</option>
-                  <option value="permanent">💎 Permanente (R$ 2.999,99)</option>
-                </select>
-
-                {/* Informações do Plano Selecionado */}
-                <div style={{
-                  padding: '1rem',
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: '8px',
-                  marginTop: '0.5rem',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-                    📋 Detalhes do Plano: {
-                      formData.plano === 'free' ? 'Gratuito' :
-                      formData.plano === 'monthly' ? 'Mensal' :
-                      formData.plano === 'yearly' ? 'Anual' :
-                      formData.plano === 'enterprise' ? 'Enterprise' :
-                      'Permanente'
-                    }
-                  </div>
-                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                    {formData.plano === 'free' && '👥 5 funcionários • 🏢 1 empresa • ⏱️ 30 dias de teste'}
-                    {formData.plano === 'monthly' && '👥 50 funcionários • 🏢 1 empresa • 🔄 Renovação mensal'}
-                    {formData.plano === 'yearly' && '👥 50 funcionários • 🏢 1 empresa • 💰 Economia de 33%'}
-                    {formData.plano === 'enterprise' && '👥 999 funcionários • 🏢 10 empresas • 🎯 Suporte dedicado'}
-                    {formData.plano === 'permanent' && '👥 Ilimitado • 🏢 Ilimitado • 💎 Vitalício'}
-                  </div>
                 </div>
               </div>
 
