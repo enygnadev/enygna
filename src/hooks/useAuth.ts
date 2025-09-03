@@ -13,7 +13,7 @@ interface UserData {
   role: string;
   tipo: 'colaborador' | 'empresa' | 'adminmaster';
   empresaId?: string;
-  permissions: {
+  permissions?: {
     frota: boolean;
     ponto: boolean;
     chamados: boolean;
@@ -92,7 +92,7 @@ export const useAuthData = () => {
   }, []);
 
   const hasPermission = (system: keyof UserData['permissions']): boolean => {
-    if (!userData) return false;
+    if (!userData || !userData.permissions) return false;
     return userData.permissions[system] === true;
   };
 

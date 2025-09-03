@@ -272,7 +272,7 @@ export default function SistemasPage() {
           </p>
 
           {/* Sistemas Ativos do Usuário */}
-          {user && userData && userData.permissions && (
+          {user && userData && (
             <div style={{
               marginBottom: 'var(--gap-xl)',
               padding: 'var(--gap-lg)',
@@ -292,11 +292,11 @@ export default function SistemasPage() {
                 {hasPermission('chamados') && <span className="tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>🎫 Chamados</span>}
                 {hasPermission('frota') && <span className="tag" style={{ background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)' }}>🚗 Frota</span>}
                 {hasPermission('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
-                {userData.permissions.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
-                {Object.values(userData.permissions).every(p => !p) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                {userData.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
+                {(!userData.permissions || Object.values(userData.permissions).every(p => !p)) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>
-          )}
+          )}</div>
 
           <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
             <span className="tag">🔐 Segurança Enterprise</span>
