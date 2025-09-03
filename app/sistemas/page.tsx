@@ -462,7 +462,7 @@ export default function SistemasPage() {
           })}
         </div>
 
-        {!loading && !systemsLoading && systemsAvailable && systemsAvailable.length === 0 && (
+        {!loading && !systemsLoading && (!systemsAvailable || systemsAvailable.length === 0) && (
             <div className="card" style={{
               background: 'linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.05))',
               border: '2px dashed rgba(239,68,68,0.3)',
@@ -493,7 +493,10 @@ export default function SistemasPage() {
                     <>
                       Tipo: {userData.tipo || 'Não definido'}<br />
                       Role: {userData.role || 'Não definido'}<br />
-                      Sistemas do usuário: {userData.sistemasAtivos?.join(', ') || 'Nenhum'}
+                      Sistemas do usuário: {userData.sistemasAtivos?.join(', ') || 'Nenhum'}<br />
+                      Sistemas disponíveis: {systemsAvailable?.join(', ') || 'Nenhum'}<br />
+                      Loading: {systemsLoading ? 'Sim' : 'Não'}<br />
+                      User Loading: {loading ? 'Sim' : 'Não'}
                     </>
                   )}
                 </div>

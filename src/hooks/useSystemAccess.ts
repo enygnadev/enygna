@@ -45,13 +45,38 @@ export function useSystemAccess(user: User | null): SystemAccess {
             return;
           }
 
-          // Verificar sistemas ativos diretos no usuário
+          // Verificar sistemas ativos diretos no usuário - PRIMEIRA PRIORIDADE
           if (userData.sistemasAtivos && userData.sistemasAtivos.length > 0) {
             console.log('Sistemas encontrados no usuário:', userData.sistemasAtivos);
             setSystemsAvailable(userData.sistemasAtivos);
             setEmpresaId(userData.empresaId || userData.company || null);
             setLoading(false);
             return;
+          }
+
+          // Se tem empresaId no userData mas não tem sistemas, buscar na empresa
+          const userEmpresaId = userData.empresaId || userData.company;
+          if (userEmpresaId) {
+            console.log('Usuário tem empresaId mas sem sistemas, buscando na empresa:', userEmpresaId);
+            try {
+              const empresaDoc = await getDoc(doc(db, 'empresas', userEmpresaId));
+              if (empresaDoc.exists()) {
+                const empresaData = empresaDoc.data();
+                console.log('Dados da empresa encontrados para usuário:', empresaData);
+                const sistemas = empresaData.sistemasAtivos || [];
+                console.log('Sistemas da empresa do usuário:', sistemas);
+                
+                // Atualizar o usuário com os sistemas da empresa
+                if (sistemas.length > 0) {
+                  setSystemsAvailable(sistemas);
+                  setEmpresaId(userEmpresaId);
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('Erro ao buscar empresa por ID do usuário:', error);
+            }
           }
 
           // Se tem empresaId, buscar sistemas da empresa
