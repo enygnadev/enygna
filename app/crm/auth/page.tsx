@@ -1,78 +1,81 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/src/lib/firebase';
-import { useChamadosSessionProfile } from '@/src/lib/chamadosAuth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import ThemeSelector from '@/src/components/ThemeSelector';
 
-export default function ChamadosAuthPage() {
+export default function CrmAuthPage() {
   const router = useRouter();
-  const { loading, profile } = useChamadosSessionProfile();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Redirecionar se já estiver logado
   useEffect(() => {
-    if (!loading && profile) {
-      router.push('/chamados');
-    }
-  }, [loading, profile, router]);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Usuário já logado, verificar permissões
+        await checkUserPermissions(user.email!);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const checkUserPermissions = async (userEmail: string) => {
     try {
-      // Primeiro verificar na coleção users (sistema geral)
-      const usersRef = doc(db, 'users', auth.currentUser?.uid || '');
-      const usersSnapshot = await getDoc(usersRef);
+      // Primeiro, verificar se é um usuário criado através do sistema empresas
+      const empresasRef = collection(db, 'empresas');
+      const empresaQuery = query(empresasRef, where('email', '==', userEmail));
+      const empresaSnapshot = await getDocs(empresaQuery);
 
-      if (usersSnapshot.exists()) {
-        const userData = usersSnapshot.data();
-        const role = userData.role?.toLowerCase();
-
-        if (role === 'superadmin' || role === 'admin' || role === 'adminmaster') {
-          router.push('/chamados/admin');
+      if (!empresaSnapshot.empty) {
+        const empresaData = empresaSnapshot.docs[0].data();
+        const sistemasAtivos = empresaData.sistemasAtivos || [];
+        
+        // Verificar se a empresa tem acesso ao sistema de CRM
+        if (sistemasAtivos.includes('crm')) {
+          // Empresa tem acesso somente ao sistema de CRM
+          router.push('/crm');
+          return;
+        } else {
+          setError('Esta empresa não tem permissão para acessar o sistema de CRM.');
           return;
         }
       }
 
-      // Verificar se o usuário já existe no sistema
-      if (auth.currentUser?.uid) {
-        const chamadosUserRef = doc(db, 'chamados_users', auth.currentUser.uid);
-        const chamadosUserSnap = await getDoc(chamadosUserRef);
+      // Se não encontrou na coleção empresas, verificar na coleção users (usuários do sistema)
+      const usuariosRef = collection(db, 'users');
+      const q = query(usuariosRef, where('email', '==', userEmail));
+      const querySnapshot = await getDocs(q);
 
-        if (chamadosUserSnap.exists()) {
-          const userData = chamadosUserSnap.data();
-          const role = userData.role?.toLowerCase();
+      if (!querySnapshot.empty) {
+        const userData = querySnapshot.docs[0].data();
+        const role = userData.role?.toLowerCase();
 
-          // Redirecionar baseado no papel do usuário
-          if (role === 'adminmaster' || role === 'admin') {
-            router.push('/chamados/admin');
-          } else if (role === 'colaborador') {
-            router.push('/chamados');
-          } else {
-            router.push('/chamados');
-          }
+        // Redirecionar baseado no papel do usuário (apenas para usuários administrativos)
+        if (role === 'superadmin' || role === 'adminmaster') {
+          router.push('/admin'); // Super admins vão para o painel master
+        } else if (role === 'admin' || role === 'gestor') {
+          router.push('/crm'); // Admins e gestores vão para o sistema de CRM
+        } else if (role === 'colaborador') {
+          router.push('/crm/colaborador'); // Colaboradores vão para a área específica
         } else {
-          // Usuário não encontrado no sistema de chamados
-          setError('Usuário não autorizado para este sistema. Contate o administrador.');
+          setError('Você não tem permissão para acessar o sistema de CRM.');
         }
       } else {
-        // Se não houver UID, significa que o usuário não está autenticado corretamente
-        setError('Erro de autenticação. Por favor, tente fazer login novamente.');
+        setError('Usuário não encontrado no sistema');
       }
     } catch (error) {
       console.error('Erro ao verificar permissões:', error);
@@ -80,30 +83,32 @@ export default function ChamadosAuthPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
       setError('Preencha todos os campos');
       return;
     }
 
-    setSubmitting(true);
-    setError('');
+    setLoading(true);
+    setError(null);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        formData.email, 
-        formData.password
-      );
-
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
       await checkUserPermissions(userCredential.user.email!);
     } catch (error: any) {
       console.error('Erro no login:', error);
       const errorMessage = getErrorMessage(error.code);
       setError(errorMessage);
+
+      // Notificação adicional para credenciais inválidas
+      if (error.code === 'auth/invalid-credential') {
+        setTimeout(() => {
+          setError('💡 Dica: Verifique se você digitou o email e a senha corretamente. Se esqueceu sua senha, use a opção "Esqueci minha senha".');
+        }, 3000);
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -115,7 +120,7 @@ export default function ChamadosAuthPage() {
     }
 
     setResetLoading(true);
-    setError('');
+    setError(null);
 
     try {
       await sendPasswordResetEmail(auth, resetEmail);
@@ -130,11 +135,11 @@ export default function ChamadosAuthPage() {
   const getErrorMessage = (errorCode: string) => {
     switch (errorCode) {
       case 'auth/user-not-found':
-        return 'Usuário não encontrado. Contate o administrador.';
+        return 'Usuário não encontrado';
       case 'auth/wrong-password':
         return 'Senha incorreta';
       case 'auth/invalid-credential':
-        return '🚫 Credenciais inválidas. Contate o administrador se necessário.';
+        return '🚫 Credenciais inválidas. Verifique seu email e senha.';
       case 'auth/email-already-in-use':
         return 'Este email já está em uso';
       case 'auth/weak-password':
@@ -151,22 +156,6 @@ export default function ChamadosAuthPage() {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
-
-  if (loading) {
-    return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <div>Carregando...</div>
-        </div>
-      </div>
-    );
-  }
 
   if (showForgotPassword) {
     return (
@@ -222,7 +211,7 @@ export default function ChamadosAuthPage() {
                 Recuperar Senha
               </h1>
               <p style={{ color: 'var(--color-textSecondary)' }}>
-                Sistema de Chamados
+                Sistema de CRM
               </p>
             </div>
 
@@ -261,7 +250,7 @@ export default function ChamadosAuthPage() {
                   type="button"
                   onClick={() => {
                     setShowForgotPassword(false);
-                    setError('');
+                    setError(null);
                     setResetSuccess(false);
                   }}
                   className="button button-ghost"
@@ -316,9 +305,9 @@ export default function ChamadosAuthPage() {
         <div className="auth-card">
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎫</div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏢</div>
             <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
-              Sistema de Chamados
+              Sistema de CRM
             </h1>
             <p style={{ color: 'var(--color-textSecondary)' }}>
               Acesso somente para usuários autorizados
@@ -327,7 +316,7 @@ export default function ChamadosAuthPage() {
 
           {error && <div className="error-message">{error}</div>}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleLogin}>
             <div className="form-group">
               <label htmlFor="email">Email *</label>
               <input
@@ -357,10 +346,10 @@ export default function ChamadosAuthPage() {
             <button
               type="submit"
               className="button button-primary"
-              disabled={submitting}
+              disabled={loading}
               style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
             >
-              {submitting ? 'Processando...' : 'Entrar no Sistema'}
+              {loading ? 'Processando...' : 'Entrar no Sistema'}
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: 'var(--gap-md)' }}>
@@ -374,17 +363,14 @@ export default function ChamadosAuthPage() {
               </button>
             </div>
 
-            <div style={{ 
-              textAlign: 'center', 
-              paddingTop: 'var(--gap-md)', 
-              borderTop: '1px solid var(--color-border)',
-              fontSize: '0.9rem',
-              color: 'var(--color-textSecondary)'
-            }}>
+            {/* Admin controlled access message */}
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
               <p style={{ marginBottom: 'var(--gap-md)' }}>
                 🔐 Acesso controlado pelo Admin Master
               </p>
+            </div>
 
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
               <Link href="/sistemas" className="button button-ghost">
                 ← Voltar aos Sistemas
               </Link>

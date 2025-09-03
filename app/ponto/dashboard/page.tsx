@@ -25,7 +25,7 @@ import {
   doc,
   getDocs,
   getDoc,
-  orderBy, 
+  orderBy,
   query,
   updateDoc,
   setDoc,
@@ -266,7 +266,7 @@ type S = {
 /** =============================================================
  * Dashboard da Empresa (multitenant) - COMPONENTE INTERNO
  * ============================================================= */
-function EmpresaDashboard() {
+function PontoDashboard() {
   const params = useSearchParams();
 
   const [empresaId, setEmpresaId] = useState<string | null>(null);
@@ -1305,7 +1305,7 @@ function EmpresaDashboard() {
             ))}
           </select>
           <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
-            Dica: também funciona acessar <code>/empresa/dashboard?empresaId=&lt;id&gt;</code>
+            Dica: também funciona acessar <code>/ponto/dashboard?empresaId=&lt;id&gt;</code>
           </div>
         </div>
       )}
@@ -2508,10 +2508,10 @@ function EmpresaDashboard() {
 /** =============================================================
  * COMPONENTE PRINCIPAL COM SUSPENSE
  * ============================================================= */
-export default function EmpresaDashboardPage() {
+export default function PontoDashboardPage() {
   return (
     <Suspense fallback={<div>Carregando...</div>}>
-      <EmpresaDashboard />
+      <PontoDashboard />
     </Suspense>
   );
 }

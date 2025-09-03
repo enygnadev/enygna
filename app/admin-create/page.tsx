@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -287,7 +286,7 @@ export default function CreateAccount() {
 
   return (
     <div className="container">
-      <Tutorial 
+      <Tutorial
         steps={homeTutorialSteps}
         tutorialKey="home"
         onComplete={() => console.log('Tutorial home completado')}

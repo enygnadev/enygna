@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -33,7 +32,7 @@ export default function ProtectedRoute({
             min-height: 100vh;
             background: var(--color-background);
           }
-          
+
           .spinner {
             width: 60px;
             height: 60px;
@@ -43,13 +42,13 @@ export default function ProtectedRoute({
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
           }
-          
+
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
         `}</style>
-        
+
         <div className="loading-container">
           <div style={{ textAlign: 'center' }}>
             <div className="spinner"></div>
@@ -71,7 +70,7 @@ export default function ProtectedRoute({
             min-height: 100vh;
             background: var(--color-background);
           }
-          
+
           .auth-card {
             text-align: center;
             background: var(--color-surface);
@@ -105,7 +104,17 @@ export default function ProtectedRoute({
 
   // Verificar permissões
   const hasRequiredPermissions = requiredPermissions.length === 0 || 
-    requiredPermissions.some(permission => hasPermission(permission as any));
+    requiredPermissions.some(permission => {
+      // Type guard to ensure permission is a valid key
+      const validPermissions = ['frota', 'ponto', 'chamados', 'documentos', 'admin'] as const;
+      type ValidPermission = typeof validPermissions[number];
+      
+      if (validPermissions.includes(permission as ValidPermission)) {
+        // Force type assertion to bypass TypeScript inference issue
+        return (hasPermission as any)(permission);
+      }
+      return false;
+    });
 
   const hasRequiredRoles = requiredRoles.length === 0 || 
     requiredRoles.some(role => isRole(role));
@@ -121,7 +130,7 @@ export default function ProtectedRoute({
             min-height: 100vh;
             background: var(--color-background);
           }
-          
+
           .access-card {
             text-align: center;
             background: var(--color-surface);

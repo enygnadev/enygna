@@ -33,15 +33,21 @@ import { backupService } from '@/lib/backupService';
 import { cacheService } from '@/lib/cache';
 import { realTimeMonitoring } from '@/lib/realTimeMonitoring';
 import { advancedAnalytics } from '@/lib/advancedAnalytics';
+import EmpresaManager from '@/src/components/EmpresaManager';
+import PlanControlPanel from '@/src/components/PlanControlPanel';
+import { useRouter } from 'next/navigation'; // Importar useRouter
 
 // ==================== INTERFACES ====================
 interface Company {
   id: string;
   name: string;
+  nome?: string; // Campo para nome em português
   email: string;
   createdAt: any;
-  plan: string;
+  criadoEm?: any; // Campo para data de criação em português
+  plan?: string; // Campo para plano
   active: boolean;
+  ativo?: boolean; // Campo para status ativo em português
   employees: number;
   monthlyRevenue: number;
   lastActivity: any;
@@ -63,6 +69,8 @@ interface Company {
     nextBilling: any;
     features: string[];
   };
+  sistemasAtivos?: string[]; // Campo adicionado para sistemas ativos
+  plano?: string; // Campo para plano caso subscription não esteja preenchido
 }
 
 interface Employee {
@@ -179,6 +187,11 @@ interface SecurityEvent {
   userId?: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   details?: any;
+  type?: string;
+  description?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: any;
 }
 
 interface RealTimeMetrics {
@@ -189,6 +202,9 @@ interface RealTimeMetrics {
   averageResponseTime?: number;
   health?: { status: string; checks: any[] };
   lastUpdate?: Date;
+  startTime?: number;
+  lastUpdated?: Date;
+  uptime?: number;
 }
 
 interface IntelligenceData {
@@ -243,7 +259,7 @@ const adminTutorialSteps = [
     placement: 'top' as const
   },
   {
-    id: 'intelligence-center',
+    id: 'notifications-section',
     title: 'Central de Inteligência 🔔',
     content: 'Receba alertas críticos, notificações de segurança e monitore todas as atividades suspeitas.',
     target: '.notifications-section',
@@ -338,13 +354,9 @@ function SuperAdminCreateForm() {
       setCreatePassword('');
       setCreateName('');
 
-      // Fazer logout do usuário recém-criado para não interferir na sessão atual
-      await signOut(auth);
-
-      // Relogar o admin atual (você)
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Fazer logout apenas do usuário recém-criado, mantendo admin logado
+      // Não fazer reload da página para manter o admin no painel
+      console.log('Super Admin criado com sucesso, mantendo sessão do admin atual');
 
     } catch (error: any) {
       console.error('Erro ao criar super admin:', error);
@@ -379,9 +391,9 @@ function SuperAdminCreateForm() {
         padding: '2rem',
         border: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <h4 style={{ 
-          margin: '0 0 1.5rem 0', 
-          fontSize: '1.3rem', 
+        <h4 style={{
+          margin: '0 0 1.5rem 0',
+          fontSize: '1.3rem',
           fontWeight: '700',
           color: '#ffffff'
         }}>
@@ -530,9 +542,9 @@ function SuperAdminCreateForm() {
         padding: '2rem',
         border: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <h4 style={{ 
-          margin: '0 0 1.5rem 0', 
-          fontSize: '1.3rem', 
+        <h4 style={{
+          margin: '0 0 1.5rem 0',
+          fontSize: '1.3rem',
           fontWeight: '700',
           color: '#ffffff'
         }}>
@@ -608,12 +620,18 @@ function SuperAdminCreateForm() {
   );
 }
 
+// Componente Principal do Painel Admin
 export default function AdminMasterPage() {
+  const router = useRouter(); // Inicializa o router
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTutorial, setShowTutorial] = useState(false);
+  const [selectedUserEmail, setSelectedUserEmail] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [searchingUser, setSearchingUser] = useState(false);
+
 
   // Estados dos dados
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -633,6 +651,15 @@ export default function AdminMasterPage() {
   const [intelligenceData, setIntelligenceData] = useState<IntelligenceData>({});
   const [threatLevel, setThreatLevel] = useState<'low' | 'medium' | 'high' | 'critical'>('low');
 
+  // Estados para métricas de segurança
+  const [securityMetrics, setSecurityMetrics] = useState({
+    failedLogins: 0,
+    suspiciousActivities: 0,
+    securityAlerts: 0,
+    blockedIPs: 0,
+    lastUpdated: new Date()
+  });
+
   // Estados de controle
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState(new Date());
@@ -642,6 +669,7 @@ export default function AdminMasterPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [error, setError] = useState('');
 
   // Estados de modais
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -650,6 +678,8 @@ export default function AdminMasterPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showEmpresaModal, setShowEmpresaModal] = useState(false); // Estado para o modal de criação de empresa
+  const [selectedSistema, setSelectedSistema] = useState<string>(''); // Estado para sistema selecionado no modal
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -666,57 +696,261 @@ export default function AdminMasterPage() {
   const [createAdminError, setCreateAdminError] = useState('');
   const [createAdminSuccess, setCreateAdminSuccess] = useState('');
 
+  // Estados para criação de empresa
+  const [creatingEmpresa, setCreatingEmpresa] = useState(false);
+  const [createEmpresaError, setCreateEmpresaError] = useState<string | null>(null);
+  const [createEmpresaSuccess, setCreateEmpresaSuccess] = useState<string | null>(null);
+  const [empresas, setEmpresas] = useState<Company[]>([]);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
+
+  // Mock function for EmpresaData (replace with actual data structure if needed)
+  interface EmpresaData extends Company {}
+
+  // Função para obter o nome da coleção com base no sistema
+  const getCollectionName = (sistema: string) => {
+    switch (sistema) {
+      case 'frota': return 'frota-empresas';
+      case 'financeiro': return 'financeiro-empresas';
+      case 'chamados': return 'chamados-empresas';
+      case 'crm': return 'crm-empresas';
+      case 'documentos': return 'documentos-empresas';
+      case 'ponto': return 'ponto-empresas';
+      case 'universal': return 'empresas';
+      default: return 'empresas';
+    }
+  };
+
+  // Mock function for creating company (replace with actual implementation)
+  const [creationStatus, setCreationStatus] = useState<{ success: boolean, message: string } | null>(null);
+
+  // Mock function for handling company creation
+  const createEmpresa = async (empresaData: any) => {
+    try {
+      setCreatingEmpresa(true);
+      setCreateEmpresaError(null);
+      setCreateEmpresaSuccess(null);
+
+      // Gerar ID único para a empresa
+      const empresaId = `empresa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Gerar UID para a empresa (usado para autenticação)
+      const empresaUID = `uid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Adicionar UID aos dados da empresa
+      empresaData.uid = empresaUID;
+
+      console.log('Criando empresa no sistema:', selectedSistema);
+      console.log('Collection:', getCollectionName(selectedSistema));
+      console.log('Empresa ID:', empresaId);
+      console.log('Empresa UID:', empresaUID);
+      console.log('Dados da empresa:', empresaData);
+
+      // 1. Se for sistema universal, criar na coleção 'empresas'
+      if (selectedSistema === 'universal') {
+        await setDoc(doc(db, 'empresas', empresaId), {
+          ...empresaData,
+          criadoEm: serverTimestamp(),
+          atualizadoEm: serverTimestamp()
+        });
+        console.log('Empresa criada na coleção principal: empresas');
+      } else {
+        // 2. Para sistemas específicos, criar APENAS na coleção específica
+        await setDoc(doc(db, getCollectionName(selectedSistema), empresaId), {
+          ...empresaData,
+          tipo: `empresa_${selectedSistema}`,
+          criadoEm: serverTimestamp(),
+          atualizadoEm: serverTimestamp()
+        });
+        console.log('Empresa criada na coleção específica:', getCollectionName(selectedSistema));
+      }
+
+      // 3. SEMPRE criar documento na coleção 'users' para autenticação
+      await setDoc(doc(db, 'users', empresaData.uid), {
+        createdAt: new Date().toISOString(),
+        displayName: empresaData.nome || "",
+        email: empresaData.email,
+        hourlyRate: 0,
+        isAdmin: true, // Empresa é sempre admin do próprio sistema
+        lunchBreakMinutes: 0,
+        lunchThresholdMinutes: 360,
+        monthlyBaseHours: 220,
+        monthlySalary: 0,
+        toleranceMinutes: 0,
+        role: 'admin', // Papel da empresa
+        empresaId: empresaId, // ID da empresa criada
+        sistemasAtivos: empresaData.sistemasAtivos || [selectedSistema], // Sistemas que tem acesso
+        tipo: 'empresa', // Identifica que é uma empresa
+        ativo: true,
+        plano: empresaData.plano || 'free'
+      });
+      console.log('Documento criado na coleção users para empresa:', empresaData.email);
+
+      setCreateEmpresaSuccess('Empresa criada com sucesso!');
+      // Recarregar a lista de empresas
+      await loadEmpresas(); 
+
+    } catch (error: any) {
+      console.error('Erro ao criar empresa:', error);
+      setCreateEmpresaError(error.message || 'Falha ao criar empresa');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao criar empresa.');
+      }
+    } finally {
+      setCreatingEmpresa(false);
+    }
+  };
+
+
   // Hook para carregar dados iniciais e configurar o listener de autenticação
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        setUser(user); // Define o usuário logado
+
         try {
-          // Busca o documento do usuário logado
-          const userSnap = await getDoc(docRef(db, "users", user.uid));
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            if (userData.role === "superadmin") {
-              setIsSuperAdmin(true);
-              setUser(user);
+          // 1. Verificar se o usuário é uma empresa (e bloquear acesso)
+          const empresasRef = collection(db, 'empresas');
+          const empresaQuery = query(empresasRef, where('email', '==', user.email));
+          const empresaSnapshot = await getDocs(empresaQuery);
 
-              await loadAllData();
-              initializeIntelligenceCenter(); // Centralizar inicialização
+          if (!empresaSnapshot.empty) {
+            // Verificar se é um admin tentando criar empresa
+            const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+            let isAdminUser = false;
 
-              // Verifica status do tutorial
-              const tutorialSnap = await getDoc(
-                docRef(db, "userTutorialStatus", user.uid)
-              );
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              isAdminUser = userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin;
+            } else if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
+              isAdminUser = true;
+            }
 
-              if (
-                !tutorialSnap.exists() ||
-                !tutorialSnap.data()?.adminDashboardCompleted
-              ) {
-                setShowTutorial(true);
-              }
+            // Se for admin, permitir acesso ao painel admin
+            if (isAdminUser) {
+              console.log('Admin detectado, mantendo acesso ao painel:', {
+                email: user.email,
+                uid: user.uid
+              });
             } else {
-              setIsSuperAdmin(false);
+              // É uma empresa, bloquear acesso ao admin
+              console.log('Acesso negado para usuário:', {
+                email: user.email,
+                uid: user.uid,
+                isEmpresa: true
+              });
+              setTimeout(() => {
+                const empresaData = empresaSnapshot.docs[0].data();
+                const sistemasAtivos = empresaData.sistemasAtivos || [];
+
+                // Redirecionar para o primeiro sistema ativo da empresa
+                if (sistemasAtivos.includes('frota')) {
+                  window.location.href = '/frota';
+                } else if (sistemasAtivos.includes('chamados')) {
+                  window.location.href = '/chamados';
+                } else if (sistemasAtivos.includes('financeiro')) {
+                  window.location.href = '/financeiro';
+                } else if (sistemasAtivos.includes('documentos')) {
+                  window.location.href = '/documentos';
+                } else if (sistemasAtivos.includes('ponto')) {
+                  window.location.href = '/ponto/empresa';
+                } else {
+                  window.location.href = '/sistemas';
+                }
+              }, 1000);
+              setLoading(false);
+              return;
             }
           }
-        } catch (error) {
-          console.error("Erro ao verificar permissões:", error);
-          setIsSuperAdmin(false);
+
+          // 2. Verificar se é um admin/superadmin (usuário do sistema)
+          const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+          let isAdminAccess = false;
+
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data() as any;
+            if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+              isAdminAccess = true;
+            }
+          } else {
+            // Se o usuário não existe em 'users', verificar se é um email de desenvolvimento
+            if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
+              isAdminAccess = true;
+              // Criar o documento do usuário se não existir
+              await setDoc(doc(db, 'users', user.uid), {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || user.email?.split('@')[0],
+                role: 'superadmin',
+                bootstrapAdmin: true,
+                createdAt: serverTimestamp(),
+                isActive: true,
+                permissions: ['all'],
+                masterAccess: true,
+                systemOwner: true,
+                totalControl: true
+              });
+            }
+          }
+
+          setIsSuperAdmin(isAdminAccess);
+
+          if (isAdminAccess) {
+            console.log('Carregando dados do admin para:', user.email);
+            await loadAllData();
+            initializeIntelligenceCenter(); // Centralizar inicialização
+          } else {
+            console.log('Acesso negado para usuário:', user.email);
+            setError('❌ Acesso negado. Você não tem permissão para acessar o painel administrativo.');
+            setLoading(false);
+            // Redirecionar para página de login se não for admin
+            router.push('/admin/auth');
+          }
+
+          // Verifica status do tutorial
+          try {
+            const tutorialSnap = await getDoc(
+              docRef(db, "userTutorialStatus", user.uid)
+            );
+
+            if (
+              !tutorialSnap.exists() ||
+              !tutorialSnap.data()?.adminDashboardCompleted
+            ) {
+              setShowTutorial(true);
+            }
+          } catch (tutorialError) {
+            console.log('Erro ao carregar tutorial, continuando...');
+            setShowTutorial(true);
+          }
+
+        } catch (error: any) {
+          console.error('Erro ao verificar permissões:', error);
+          if (error?.code === 'permission-denied') {
+            console.warn('Permissão negada ao verificar acesso inicial.');
+            // Redirecionar para página de login em caso de erro de permissão
+            router.push('/admin/auth');
+          } else {
+            router.push('/admin/auth');
+          }
         }
       } else {
         setUser(null);
         setIsSuperAdmin(false);
+        // Redirecionar para página de login se não estiver autenticado
+        router.push('/admin/auth');
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
 
   // Função para carregar todos os dados necessários
   const loadAllData = async () => {
     try {
       await Promise.all([
-        loadCompanies(),
+        loadEmpresas(), // Renomeado de loadCompanies para loadEmpresas
         loadEmployees(),
         loadAnalytics(),
         loadNotifications(),
@@ -724,59 +958,49 @@ export default function AdminMasterPage() {
         loadSystemLogs(),
         loadReports()
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
+
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar dados globais.');
+        // Você pode optar por definir estados padrão ou exibir uma mensagem de erro mais específica
+        setError('Permissão negada para carregar dados essenciais.');
+        // Resetar estados de dados para evitar exibir dados incorretos
+        setCompanies([]);
+        setEmployees([]);
+        setAnalytics(null);
+        setNotifications([]);
+      } else {
+        setError('Erro ao carregar dados do sistema');
+      }
     }
   };
 
-  // Carregar dados de empresas
-  const loadCompanies = async () => {
+  // Carregar dados de empresas (renomeado de loadCompanies)
+  const loadEmpresas = async () => {
     try {
-      const companiesRef = collection(db, 'companies');
-      const snapshot = await getDocs(companiesRef);
+      setLoadingEmpresas(true);
+      console.log('Carregando empresas...');
+      console.log('Carregando empresas do sistema:', selectedSistema, 'Collection:', getCollectionName(selectedSistema));
 
-      const companiesData = await Promise.all(
-        snapshot.docs.map(async (doc) => {
-          const data = doc.data();
+      const empresasRef = collection(db, getCollectionName(selectedSistema));
+      const snapshot = await getDocs(empresasRef);
 
-          const employeesRef = collection(db, 'users');
-          const employeesQuery = query(employeesRef, where('company', '==', doc.id));
-          const employeesSnapshot = await getDocs(employeesQuery);
+      const empresasList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as EmpresaData[];
 
-          const monthlyRevenue = employeesSnapshot.size * (data.plan === 'premium' ? 99.90 : data.plan === 'enterprise' ? 199.90 : 49.90);
-
-          return {
-            id: doc.id,
-            name: data.name || 'Empresa sem nome',
-            email: data.email || '',
-            createdAt: data.createdAt,
-            plan: data.plan || 'basic',
-            active: data.active !== false,
-            employees: employeesSnapshot.size,
-            monthlyRevenue,
-            lastActivity: data.lastActivity,
-            address: data.address,
-            cnpj: data.cnpj,
-            phone: data.phone,
-            settings: {
-              geofencing: data.geofencing || false,
-              requireSelfie: data.requireSelfie || false,
-              emailNotifications: data.emailNotifications || true,
-              workingHours: data.workingHours || { start: '08:00', end: '18:00' }
-            },
-            subscription: {
-              plan: data.plan || 'basic',
-              status: data.subscriptionStatus || 'active',
-              nextBilling: data.nextBilling,
-              features: data.features || []
-            }
-          } as Company;
-        })
-      );
-
-      setCompanies(companiesData.sort((a, b) => b.monthlyRevenue - a.monthlyRevenue));
-    } catch (error) {
+      console.log(`Carregadas ${empresasList.length} empresas do sistema ${selectedSistema}`);
+      setEmpresas(empresasList);
+    } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
+      setError('Erro ao carregar empresas');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar empresas.');
+      }
+    } finally {
+      setLoadingEmpresas(false);
     }
   };
 
@@ -795,13 +1019,15 @@ export default function AdminMasterPage() {
           let companyName = 'Empresa não encontrada';
           if (data.company) {
             try {
-              const companyRef = docRef(db, "companies", data.company);
-              const companyDoc = await getDoc(companyRef);
+              const companyDoc = await getDoc(docRef(db, "companies", data.company));
               if (companyDoc.exists()) {
                 companyName = companyDoc.data().name || 'Empresa sem nome';
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error("Error fetching user document:", error);
+              if (error?.code === 'permission-denied') {
+                console.warn('Permissão negada ao buscar dados da empresa do funcionário.');
+              }
             }
           }
 
@@ -835,8 +1061,11 @@ export default function AdminMasterPage() {
 
               punctualityScore = Math.max(60, 100 - (Math.random() * 40));
               attendanceScore = Math.max(70, 100 - (Math.random() * 30));
-            } catch (error) {
+            } catch (error: any) {
               console.error('Erro ao calcular métricas:', error);
+              if (error?.code === 'permission-denied') {
+                console.warn('Permissão negada ao calcular métricas de funcionário.');
+              }
             }
           }
 
@@ -870,8 +1099,11 @@ export default function AdminMasterPage() {
       );
 
       setEmployees(employeesData.filter(Boolean) as Employee[]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar funcionários:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar funcionários.');
+      }
     }
   };
 
@@ -918,8 +1150,11 @@ export default function AdminMasterPage() {
           activityTrend: Array.from({length: 7}, () => Math.floor(Math.random() * 1000))
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao calcular analytics:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao calcular analytics.');
+      }
     }
   };
 
@@ -980,8 +1215,11 @@ export default function AdminMasterPage() {
       } else {
         setNotifications(notificationsData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar notificações:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar notificações.');
+      }
     }
   };
 
@@ -1020,8 +1258,11 @@ export default function AdminMasterPage() {
       } else {
         setSystemSettings(defaultSettings);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar configurações:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar configurações.');
+      }
     }
   };
 
@@ -1038,8 +1279,11 @@ export default function AdminMasterPage() {
       }));
 
       setSystemLogs(logsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar logs:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar logs.');
+      }
     }
   };
 
@@ -1056,8 +1300,11 @@ export default function AdminMasterPage() {
       }));
 
       setReports(reportsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar relatórios:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar relatórios.');
+      }
     }
   };
 
@@ -1078,8 +1325,11 @@ export default function AdminMasterPage() {
       // Carregar dados de auditoria
       await loadAuditTrail();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao inicializar Central de Inteligência:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao inicializar Central de Inteligência.');
+      }
     }
   };
 
@@ -1111,26 +1361,26 @@ export default function AdminMasterPage() {
       ));
 
       const allAlerts = [
-        ...securityAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'security' as const, 
+        ...securityAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'security' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         })),
-        ...systemAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'system' as const, 
+        ...systemAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'system' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         })),
-        ...businessAlerts.docs.map(doc => ({ 
-          id: doc.id, 
-          type: 'business' as const, 
+        ...businessAlerts.docs.map(doc => ({
+          id: doc.id,
+          type: 'business' as const,
           severity: doc.data().severity || 'medium' as const,
           timestamp: doc.data().timestamp || new Date(),
-          ...doc.data() 
+          ...doc.data()
         }))
       ];
 
@@ -1150,57 +1400,76 @@ export default function AdminMasterPage() {
         setThreatLevel('low');
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar alertas:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar alertas.');
+      }
     }
   };
 
   // Iniciar monitoramento em tempo real
   const startRealTimeMonitoring = () => {
-    // Atualizar métricas a cada 30 segundos
+    // Métricas de sistema
     const metricsInterval = setInterval(async () => {
       try {
+        // Atualizar métricas de sistema
         const systemMetrics = await realTimeMonitoring.getSystemMetrics();
         const healthCheck = await monitoringService.getHealthCheckResults();
 
-        setRealTimeMetrics({
+        setRealTimeMetrics(prev => ({
+          ...prev,
           ...systemMetrics,
           health: healthCheck,
           lastUpdate: new Date()
-        });
+        }));
 
         setSystemHealth(healthCheck);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao atualizar métricas:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao atualizar métricas.');
+        }
       }
     }, 30000);
 
-    // Monitorar eventos de segurança em tempo real
+    // Eventos de segurança - consulta mais simples
     const securityInterval = setInterval(async () => {
       try {
+        // Buscar apenas eventos recentes sem filtros complexos
         const recentEvents = await getDocs(query(
           collection(db, 'security_events'),
-          where('timestamp', '>=', new Date(Date.now() - 5 * 60 * 1000)), // Últimos 5 min
-          orderBy('timestamp', 'desc')
+          limit(5)
         ));
 
-        const events = recentEvents.docs.map(doc => ({
-          id: doc.id,
-          userId: doc.data().userId || '',
-          type: doc.data().type || 'suspicious_activity',
-          severity: doc.data().severity || 'medium',
-          description: doc.data().description || '',
-          ipAddress: doc.data().ipAddress || '',
-          userAgent: doc.data().userAgent || '',
-          timestamp: doc.data().timestamp || new Date(),
-          metadata: doc.data().metadata || {},
-          ...doc.data()
-        } as SecurityEvent));
-        setSecurityEvents(prev => [...events, ...prev.slice(0, 100)]);
+        if (!recentEvents.empty) {
+          const events = recentEvents.docs.map(doc => ({
+            id: doc.id,
+            userId: doc.data().userId || '',
+            type: doc.data().type || 'info',
+            severity: doc.data().severity || 'low',
+            description: doc.data().description || '',
+            ipAddress: doc.data().ipAddress || '',
+            userAgent: doc.data().userAgent || '',
+            timestamp: doc.data().timestamp || new Date(),
+            metadata: doc.data().metadata || {},
+            ...doc.data()
+          } as SecurityEvent));
 
-      } catch (error) {
+          setSecurityEvents(prev => {
+            const newEvents = events.filter(event =>
+              !prev.some(existingEvent => existingEvent.id === event.id)
+            );
+            return [...newEvents, ...prev.slice(0, 20)];
+          });
+        }
+
+      } catch (error: any) {
         console.error('Erro ao monitorar segurança:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao monitorar segurança.');
+        }
       }
     }, 60000);
 
@@ -1211,46 +1480,62 @@ export default function AdminMasterPage() {
     };
   };
 
-  // Carregar métricas de segurança
+  // Carregar métricas de segurança - versão simplificada
   const loadSecurityMetrics = async () => {
     try {
-      const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-      // Tentativas de login falhadas
-      const failedLogins = await getDocs(query(
+      // Usar consultas simples sem filtros complexos
+      const allEvents = await getDocs(query(
         collection(db, 'security_events'),
-        where('event', '==', 'failed_login'),
-        where('timestamp', '>=', last24Hours)
+        limit(100)
       ));
 
-      // Acessos suspeitos
-      const suspiciousAccess = await getDocs(query(
-        collection(db, 'security_events'),
-        where('severity', 'in', ['high', 'critical']),
-        where('timestamp', '>=', last24Hours)
-      ));
+      if (!allEvents.empty) {
+        const events = allEvents.docs.map(doc => doc.data());
+        const last24Hours = Date.now() - (24 * 60 * 60 * 1000);
 
-      // Violações de geofencing
-      const geofenceViolations = await getDocs(query(
-        collection(db, 'geofence_violations'),
-        where('timestamp', '>=', last24Hours)
-      ));
+        // Filtrar no cliente para evitar índices complexos
+        const recentEvents = events.filter(event => {
+          const eventTime = event.timestamp?.toDate?.()?.getTime?.() ||
+                           event.timestamp?.getTime?.() ||
+                           Date.now();
+          return eventTime > last24Hours;
+        });
 
-      setIntelligenceData({
-        security: {
-          failedLogins: failedLogins.docs.length,
-          suspiciousAccess: suspiciousAccess.docs.length,
-          geofenceViolations: geofenceViolations.docs.length,
-          totalEvents: failedLogins.docs.length + suspiciousAccess.docs.length + geofenceViolations.docs.length
-        },
-        trends: {
-          securityTrend: suspiciousAccess.docs.length > 10 ? 'increasing' : 'stable',
-          threatLevel: suspiciousAccess.docs.length > 20 ? 'high' : 'low'
-        }
-      });
+        const failedLogins = recentEvents.filter(e => e.type === 'login_attempt').length;
+        const suspiciousActivities = recentEvents.filter(e => e.type === 'suspicious_activity').length;
+        const securityAlerts = recentEvents.filter(e => e.severity === 'critical').length;
 
-    } catch (error) {
+        setSecurityMetrics({
+          failedLogins,
+          suspiciousActivities,
+          securityAlerts,
+          blockedIPs: 0,
+          lastUpdated: new Date()
+        });
+      } else {
+        // Valores padrão se não há eventos
+        setSecurityMetrics({
+          failedLogins: 0,
+          suspiciousActivities: 0,
+          securityAlerts: 0,
+          blockedIPs: 0,
+          lastUpdated: new Date()
+        });
+      }
+
+    } catch (error: any) {
       console.error('Erro ao carregar métricas de segurança:', error);
+      // Definir valores padrão em caso de erro
+      setSecurityMetrics({
+        failedLogins: 0,
+        suspiciousActivities: 0,
+        securityAlerts: 0,
+        blockedIPs: 0,
+        lastUpdated: new Date()
+      });
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar métricas de segurança.');
+      }
     }
   };
 
@@ -1272,8 +1557,11 @@ export default function AdminMasterPage() {
 
       setAuditTrail(auditData);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar trilha de auditoria:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao carregar trilha de auditoria.');
+      }
     }
   };
 
@@ -1290,8 +1578,11 @@ export default function AdminMasterPage() {
       // Remover da lista local
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao resolver alerta:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao resolver alerta.');
+      }
     }
   };
 
@@ -1299,11 +1590,11 @@ export default function AdminMasterPage() {
   const toggleCompanyStatus = async (companyId: string, currentStatus: boolean) => {
     try {
       const companyRef = doc(db, 'companies', companyId);
-      await updateDoc(companyRef, { 
+      await updateDoc(companyRef, {
         active: !currentStatus,
         lastModified: serverTimestamp()
       });
-      await loadCompanies();
+      await loadEmpresas(); // Usar loadEmpresas
 
       // Log da ação
       await addDoc(collection(db, 'admin_actions'), {
@@ -1312,8 +1603,11 @@ export default function AdminMasterPage() {
         targetId: companyId,
         timestamp: serverTimestamp()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao alterar status da empresa:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao alterar status da empresa.');
+      }
     }
   };
 
@@ -1358,9 +1652,12 @@ export default function AdminMasterPage() {
 
       await loadAllData();
       alert('✅ Empresa excluída permanentemente com sucesso.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir empresa:', error);
       alert('❌ Erro ao excluir empresa. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao excluir empresa.');
+      }
     }
   };
 
@@ -1384,9 +1681,12 @@ export default function AdminMasterPage() {
 
       await loadEmployees();
       alert('✅ Usuário promovido a Administrador com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao promover usuário:', error);
       alert('❌ Erro ao promover usuário. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao promover usuário.');
+      }
     }
   };
 
@@ -1411,8 +1711,11 @@ export default function AdminMasterPage() {
 
       await loadEmployees();
       alert('✅ Funcionário suspenso com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao suspender funcionário:', error);
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao suspender funcionário.');
+      }
     }
   };
 
@@ -1444,7 +1747,7 @@ export default function AdminMasterPage() {
           reportData.data = {
             totalEmployees: employees.length,
             activeEmployees: employees.filter(e => e.active).length,
-            averageProductivity: employees.reduce((sum, e) => sum + e.metrics.productivity, 0) / employees.length,
+            averageProductivity: employees.length > 0 ? employees.reduce((sum, e) => sum + e.metrics.productivity, 0) / employees.length : 0,
             employees: employees.map(e => ({
               name: e.name,
               company: e.companyName,
@@ -1460,6 +1763,81 @@ export default function AdminMasterPage() {
             topCompanies: analytics?.topCompanies || []
           };
           break;
+        case 'crm':
+          // Relatório específico do sistema CRM
+          const empresasCrm = companies.filter(c => c.sistemasAtivos?.includes('crm'));
+          reportData.data = {
+            totalEmpresas: empresasCrm.length,
+            empresasAtivas: empresasCrm.filter(c => c.active || c.ativo).length,
+            totalClientes: 0, // Será implementado com consulta real ao Firestore
+            clientesAtivos: 0,
+            vendasFechadas: 0,
+            faturamentoTotal: 0,
+            ticketMedio: 0,
+            taxaConversao: 0,
+            empresas: empresasCrm.map(c => ({
+              id: c.id,
+              nome: c.name || c.nome,
+              email: c.email,
+              plano: c.subscription?.plan || c.plano,
+              ativo: c.active || c.ativo,
+              receita: c.monthlyRevenue,
+              criadoEm: c.createdAt || c.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
+        case 'ponto':
+          // Relatório específico do sistema de ponto
+          const empresasPonto = empresas.filter(e => e.sistemasAtivos?.includes('ponto'));
+          reportData.data = {
+            totalEmpresas: empresasPonto.length,
+            empresasAtivas: empresasPonto.filter(e => e.ativo).length,
+            totalColaboradores: 0, // Será implementado com consulta real
+            registrosPonto: 0,
+            horasTrabalho: 0,
+            produtividade: 0,
+            empresas: empresasPonto.map(e => ({
+              id: e.id,
+              nome: e.nome,
+              email: e.email,
+              plano: e.plano,
+              ativo: e.ativo,
+              criadoEm: e.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
+        case 'chamados':
+          // Relatório específico do sistema de chamados
+          const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
+          reportData.data = {
+            totalEmpresas: empresasChamados.length,
+            empresasAtivas: empresasChamados.filter(e => e.ativo).length,
+            totalTickets: 0, // Será implementado com consulta real
+            ticketsAbertos: 0,
+            ticketsResolvidos: 0,
+            tempoMedioResolucao: 0,
+            empresas: empresasChamados.map(e => ({
+              id: e.id,
+              nome: e.nome,
+              email: e.email,
+              plano: e.plano,
+              ativo: e.ativo,
+              criadoEm: e.criadoEm
+            })),
+            periodo: {
+              inicio: startOfMonth(new Date()),
+              fim: endOfMonth(new Date())
+            }
+          };
+          break;
       }
 
       const reportRef = await addDoc(collection(db, 'system_reports'), reportData);
@@ -1469,9 +1847,12 @@ export default function AdminMasterPage() {
 
       await loadReports();
       alert(`✅ Relatório de ${reportType} gerado com sucesso!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
       alert('❌ Erro ao gerar relatório. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao gerar relatório.');
+      }
     }
   };
 
@@ -1494,9 +1875,12 @@ export default function AdminMasterPage() {
       });
 
       alert('✅ Configurações atualizadas com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar configurações:', error);
       alert('❌ Erro ao atualizar configurações. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao atualizar configurações.');
+      }
     }
   };
 
@@ -1522,6 +1906,75 @@ export default function AdminMasterPage() {
           data = systemLogs;
           filename = 'system_logs.json';
           break;
+        case 'reports':
+          data = reports;
+          filename = 'relatorios.json';
+          break;
+        case 'ponto':
+          // Exportar dados específicos do sistema de ponto
+          const empresasPonto = empresas.filter(e => e.sistemasAtivos?.includes('ponto'));
+          data = {
+            empresas: empresasPonto,
+            estatisticas: {
+              totalEmpresas: empresasPonto.length,
+              empresasAtivas: empresasPonto.filter(e => e.ativo).length,
+              totalColaboradores: 0, // Implementar consulta real
+              registrosPonto: 0,
+              horasTrabalho: 0,
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'ponto',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_ponto_dados.json';
+          break;
+        case 'chamados':
+          // Exportar dados específicos do sistema de chamados
+          const empresasChamados = empresas.filter(e => e.sistemasAtivos?.includes('chamados'));
+          data = {
+            empresas: empresasChamados,
+            estatisticas: {
+              totalEmpresas: empresasChamados.length,
+              empresasAtivas: empresasChamados.filter(e => e.ativo).length,
+              totalTickets: 0, // Implementar consulta real
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'chamados',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_chamados_dados.json';
+          break;
+        case 'crm':
+          const empresasCrm = companies.filter(c => c.sistemasAtivos?.includes('crm'));
+          data = {
+            empresas: empresasCrm.map(c => ({
+              id: c.id,
+              nome: c.name || c.nome,
+              email: c.email,
+              plano: c.subscription?.plan || c.plano,
+              ativo: c.active || c.ativo,
+              receita: c.monthlyRevenue,
+            })),
+            estatisticas: {
+              totalEmpresas: empresasCrm.length,
+              empresasComCRMAtivo: empresasCrm.filter(c => c.active || c.ativo).length,
+              receitaTotalCRM: empresasCrm.reduce((sum, c) => sum + c.monthlyRevenue, 0),
+              dataExportacao: new Date().toISOString()
+            },
+            configuracoes: {
+              sistema: 'crm',
+              versao: '1.0.0',
+              exportadoPor: user?.email || 'admin'
+            }
+          };
+          filename = 'sistema_crm_dados.json';
+          break;
       }
 
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1533,9 +1986,12 @@ export default function AdminMasterPage() {
       URL.revokeObjectURL(url);
 
       alert(`✅ Dados de ${dataType} exportados com sucesso!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao exportar dados:', error);
       alert('❌ Erro ao exportar dados. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao exportar dados.');
+      }
     }
   };
 
@@ -1578,9 +2034,16 @@ export default function AdminMasterPage() {
 
   const handleTutorialComplete = async () => {
     if (user) {
-      await updateDoc(doc(db, 'userTutorialStatus', user.uid), {
-        adminDashboardCompleted: true,
-      });
+      try {
+        await updateDoc(doc(db, 'userTutorialStatus', user.uid), {
+          adminDashboardCompleted: true,
+        });
+      } catch (error: any) {
+        console.error('Erro ao marcar tutorial como completo:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao marcar tutorial como completo.');
+        }
+      }
     }
     setShowTutorial(false);
   };
@@ -1594,42 +2057,189 @@ export default function AdminMasterPage() {
       try {
         await signOut(auth);
         window.location.href = '/';
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao fazer logout:', error);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao fazer logout.');
+        }
       }
     }
   };
 
-  // Verificação de acesso
+  // Verificação de acesso (mantida para consistência, mas a lógica principal está no useEffect inicial)
   const checkSuperAdminAccess = async () => {
     if (user) {
       try {
+        // Verificar documento do usuário
         const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+        let hasAccess = false;
+
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          // Bootstrap admin tem controle total
-          const isBootstrap = userData.bootstrapAdmin === true;
-          const isSuperAdmin = userData.role === 'superadmin';
-          setIsSuperAdmin(isBootstrap || isSuperAdmin);
-        } else {
-          setIsSuperAdmin(false);
+          hasAccess = userData.bootstrapAdmin === true ||
+                     userData.role === 'superadmin' ||
+                     userData.role === 'adminmaster';
         }
-      } catch (error) {
+
+        // Emails de desenvolvimento têm acesso automático
+        if (user.email === 'enygnadev@gmail.com' || user.email === 'enygna@enygna.com') {
+          hasAccess = true;
+        }
+
+        setIsSuperAdmin(hasAccess);
+      } catch (error: any) {
         console.error('Erro ao verificar acesso super admin:', error);
         setIsSuperAdmin(false);
+        if (error?.code === 'permission-denied') {
+          console.warn('Permissão negada ao verificar acesso super admin.');
+        }
       }
     }
   };
 
   // Lógica de inicialização e carregamento
   useEffect(() => {
-    checkSuperAdminAccess();
-    if (isSuperAdmin) {
-      loadAllData();
-      initializeIntelligenceCenter();
-    }
-  }, [user, isSuperAdmin]);
+    // Esta função de verificação de acesso já está integrada no useEffect principal acima.
+    // Mantido aqui apenas para referência, mas a lógica ativa está no `onAuthStateChanged`.
+    // checkSuperAdminAccess();
+    // if (isSuperAdmin) {
+    //   loadAllData();
+    //   initializeIntelligenceCenter();
+    // }
+  }, [user, isSuperAdmin]); // Dependências mantidas, mas o efeito primário está no hook de autenticação.
 
+  // Função para login de admin
+  const handleAdminLogin = async () => {
+    if (!loginEmail || !loginPassword) {
+      setLoginError('Email e senha são obrigatórios.');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      // O onAuthStateChanged irá lidar com o redirecionamento
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      if (error.code === 'auth/user-not-found') {
+        setLoginError('Usuário não encontrado.');
+      } else if (error.code === 'auth/wrong-password') {
+        setLoginError('Senha incorreta.');
+      } else if (error.code === 'auth/invalid-email') {
+        setLoginError('Email inválido.');
+      } else {
+        setLoginError('Erro no login. Tente novamente.');
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Função para criar admin
+  const handleCreateAdmin = async () => {
+    if (!createAdminEmail || !createAdminPassword) {
+      setCreateAdminError('Email e senha são obrigatórios.');
+      return;
+    }
+
+    if (createAdminPassword.length < 6) {
+      setCreateAdminError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setCreateAdminLoading(true);
+    setCreateAdminError('');
+    setCreateAdminSuccess('');
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, createAdminEmail, createAdminPassword);
+      const newUser = userCredential.user;
+
+      await updateProfile(newUser, {
+        displayName: createAdminEmail.split('@')[0]
+      });
+
+      await setDoc(doc(db, 'users', newUser.uid), {
+        uid: newUser.uid,
+        email: createAdminEmail,
+        displayName: createAdminEmail.split('@')[0],
+        role: 'superadmin',
+        createdAt: serverTimestamp(),
+        createdBy: user?.uid,
+        isActive: true,
+        permissions: ['all'],
+        lastLogin: null
+      });
+
+      await addDoc(collection(db, 'admin_actions'), {
+        adminId: user?.uid,
+        action: 'admin_created',
+        targetEmail: createAdminEmail,
+        targetUid: newUser.uid,
+        timestamp: serverTimestamp(),
+        severity: 'critical'
+      });
+
+      setCreateAdminSuccess(`✅ Administrador criado com sucesso!\n📧 Email: ${createAdminEmail}\n🔑 UID: ${newUser.uid}`);
+      setCreateAdminEmail('');
+      setCreateAdminPassword('');
+
+      // Não fazer signOut do admin atual quando criando empresa
+      // O admin deve permanecer logado no painel
+      console.log('Admin criado com sucesso, mantendo sessão atual');
+
+    } catch (error: any) {
+      console.error('Erro ao criar admin:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setCreateAdminError('❌ Este email já está em uso.');
+      } else if (error.code === 'auth/invalid-email') {
+        setCreateAdminError('❌ Email inválido.');
+      } else if (error.code === 'auth/weak-password') {
+        setCreateAdminError('❌ Senha muito fraca.');
+      } else {
+        setCreateAdminError(`❌ Erro: ${error.message}`);
+      }
+    } finally {
+      setCreateAdminLoading(false);
+    }
+  };
+
+  // Função para buscar usuário
+  const searchUser = async () => {
+    if (!selectedUserEmail) return;
+
+    setSearchingUser(true);
+    setSelectedUser(null); // Limpa o usuário anterior
+
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', selectedUserEmail));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        setSelectedUser({
+          uid: snapshot.docs[0].id,
+          ...userData
+        });
+      } else {
+        alert('Usuário não encontrado.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar usuário:', error);
+      alert('Erro ao buscar usuário. Tente novamente.');
+      if (error?.code === 'permission-denied') {
+        console.warn('Permissão negada ao buscar usuário.');
+      }
+    } finally {
+      setSearchingUser(false);
+    }
+  };
+
+  // --- RENDERIZAÇÃO CONDICIONAL ---
 
   if (loading) {
     return (
@@ -1668,57 +2278,103 @@ export default function AdminMasterPage() {
           animation: 'float 8s ease-in-out infinite reverse'
         }}></div>
 
-        <div style={{
-          width: '120px',
-          height: '120px',
-          border: '8px solid rgba(255,255,255,0.1)',
-          borderTop: '8px solid #ffffff',
-          borderRadius: '50%',
-          animation: 'luxurySpin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite',
-          filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.3))'
-        }}></div>
-
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          background: 'rgba(255,255,255,0.05)',
-          borderRadius: '32px',
-          backdropFilter: 'blur(30px)',
-          border: '2px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
-          maxWidth: '500px'
-        }}>
-          <h2 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: '800', 
-            marginBottom: '1rem', 
-            background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+        {error ? (
+          // Mostrar mensagem de erro quando acesso negado
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem',
+            background: 'rgba(239,68,68,0.1)',
+            borderRadius: '32px',
+            backdropFilter: 'blur(30px)',
+            border: '2px solid rgba(239,68,68,0.3)',
+            maxWidth: '600px'
           }}>
-            👑 Inicializando Painel Master
-          </h2>
-          <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500' }}>
-            Preparando controle administrativo supremo...
-          </p>
-          <div style={{ 
-            marginTop: '2rem',
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '0.5rem'
-          }}>
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} style={{
-                width: '12px',
-                height: '12px',
-                background: 'rgba(255,255,255,0.7)',
-                borderRadius: '50%',
-                animation: `pulse 2s infinite ${i * 0.2}s`
-              }}></div>
-            ))}
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
+            <h2 style={{
+              fontSize: '2rem',
+              fontWeight: '800',
+              marginBottom: '1rem',
+              color: '#fca5a5'
+            }}>
+              ACESSO NEGADO
+            </h2>
+            <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500', marginBottom: '2rem' }}>
+              {error}
+            </p>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#fca5a5',
+                  borderRadius: '50%',
+                  animation: `pulse 1.5s infinite ${i * 0.3}s`
+                }}></div>
+              ))}
+            </div>
+            <p style={{ fontSize: '0.9rem', opacity: 0.7, marginTop: '1rem' }}>
+              Redirecionando automaticamente...
+            </p>
           </div>
-        </div>
+        ) : (
+          // Loading normal
+          <>
+            <div style={{
+              width: '120px',
+              height: '120px',
+              border: '8px solid rgba(255,255,255,0.1)',
+              borderTop: '8px solid #ffffff',
+              borderRadius: '50%',
+              animation: 'luxurySpin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite',
+              filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.3))'
+            }}></div>
+
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '32px',
+              backdropFilter: 'blur(30px)',
+              border: '2px solid rgba(255,255,255,0.1)',
+              maxWidth: '500px'
+            }}>
+              <h2 style={{
+                fontSize: '2.5rem',
+                fontWeight: '800',
+                marginBottom: '1rem',
+                background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+              }}>
+                👑 Inicializando Painel Master
+              </h2>
+              <p style={{ opacity: 0.9, fontSize: '1.2rem', fontWeight: '500' }}>
+                Preparando controle administrativo supremo...
+              </p>
+              <div style={{
+                marginTop: '2rem',
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}>
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} style={{
+                    width: '12px',
+                    height: '12px',
+                    background: 'rgba(255,255,255,0.7)',
+                    borderRadius: '50%',
+                    animation: `pulse 2s infinite ${i * 0.2}s`
+                  }}></div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <style jsx>{`
           @keyframes luxurySpin {
@@ -1739,537 +2395,284 @@ export default function AdminMasterPage() {
     );
   }
 
-  // Função para login de admin (definida sempre para manter consistência)
-  const handleAdminLogin = async () => {
-      try {
-        setLoginLoading(true);
-        setLoginError('');
-
-        if (!loginEmail || !loginPassword) {
-          setLoginError('Por favor, preencha email e senha.');
-          return;
-        }
-
-        // Fazer login com Firebase Auth
-        const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-        const user = userCredential.user;
-
-        // Verificar se é um bootstrap admin
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data().bootstrapAdmin) {
-            // É um bootstrap admin, forçar refresh do token
-            await user.getIdToken(true);
-            window.location.reload();
-            return;
-          }
-        } catch (docError) {
-          console.error('Erro ao verificar documento do usuário:', docError);
-        }
-
-        // Aguardar um momento para o estado atualizar
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-
-      } catch (error: any) {
-        console.error('Erro no login admin:', error);
-        if (error.code === 'auth/user-not-found') {
-          setLoginError('❌ Usuário admin não encontrado. Use /bootstrap-admin primeiro.');
-        } else if (error.code === 'auth/wrong-password') {
-          setLoginError('❌ Senha incorreta. Tente a senha que você usou no bootstrap.');
-        } else if (error.code === 'auth/invalid-email') {
-          setLoginError('❌ Email inválido. Use o email que você criou no bootstrap.');
-        } else if (error.code === 'auth/invalid-credential') {
-          setLoginError('❌ Credenciais inválidas. Verifique email e senha do bootstrap admin.');
-        } else if (error.code === 'auth/too-many-requests') {
-          setLoginError('❌ Muitas tentativas. Aguarde alguns minutos.');
-        } else {
-          setLoginError(`❌ Erro: ${error.message || 'Verifique suas credenciais'}`);
-        }
-      } finally {
-        setLoginLoading(false);
-      }
-    };
-
-  // Função para criar novo admin
-  const handleCreateAdmin = async () => {
-    if (!createAdminEmail || !createAdminPassword) {
-      setCreateAdminError('❌ Por favor, preencha email e senha.');
-      return;
-    }
-
-    if (createAdminPassword.length < 6) {
-      setCreateAdminError('❌ A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-
-    setCreateAdminLoading(true);
-    setCreateAdminError('');
-    setCreateAdminSuccess('');
-
-    try {
-      // Criar usuário no Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, createAdminEmail, createAdminPassword);
-      const newUser = userCredential.user;
-
-      // Criar documento no Firestore com role superadmin
-      await setDoc(doc(db, 'users', newUser.uid), {
-        uid: newUser.uid,
-        email: createAdminEmail,
-        displayName: createAdminEmail.split('@')[0],
-        role: 'superadmin',
-        createdAt: serverTimestamp(),
-        createdBy: 'system',
-        isActive: true,
-        permissions: ['all'],
-        lastLogin: null
-      });
-
-      setCreateAdminSuccess(`✅ Admin criado com sucesso!\n📧 Email: ${createAdminEmail}\n🔐 Senha: ${createAdminPassword}`);
-      setCreateAdminEmail('');
-      setCreateAdminPassword('');
-
-      // Fazer logout do usuário recém-criado para não interferir na sessão
-      await signOut(auth);
-
-    } catch (error: any) {
-      console.error('Erro ao criar admin:', error);
-      
-      if (error.code === 'auth/email-already-in-use') {
-        setCreateAdminError('❌ Este email já está em uso. Escolha outro email.');
-      } else if (error.code === 'auth/invalid-email') {
-        setCreateAdminError('❌ Email inválido. Verifique o formato do email.');
-      } else if (error.code === 'auth/weak-password') {
-        setCreateAdminError('❌ Senha muito fraca. Use uma senha mais forte.');
-      } else {
-        setCreateAdminError(`❌ Erro: ${error.message || 'Falha desconhecida'}`);
-      }
-    } finally {
-      setCreateAdminLoading(false);
-    }
-  };
-
-  // Se não for super admin, mostrar tela de login para admin
+  // Se o usuário não for super admin, mostrar tela de login/acesso restrito
   if (!isSuperAdmin) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        color: 'white',
-        position: 'relative'
-      }}>
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
-          animation: 'pulse 4s ease-in-out infinite alternate'
-        }}></div>
+      <>
+        <div
+          style={{
+            minHeight: '100vh',
+            background:
+              'linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            color: 'white',
+            position: 'relative',
+          }}
+        >
+          {/* overlay decorativo */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'radial-gradient(circle at 20% 50%, rgba(239,68,68,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(220,38,38,0.3) 0%, transparent 50%)',
+              animation: 'pulse 4s ease-in-out infinite alternate',
+            }}
+          />
 
-        <div style={{
-          textAlign: 'center',
-          padding: '4rem',
-          background: 'rgba(0,0,0,0.4)',
-          borderRadius: '32px',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(255,255,255,0.1)',
-          maxWidth: '600px',
-          position: 'relative',
-          zIndex: 10,
-          boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
-        }}>
-          <div style={{ 
-            fontSize: '5rem', 
-            marginBottom: '2rem',
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
-          }}>🚫</div>
-
-          <h1 style={{ 
-            fontSize: '3rem', 
-            fontWeight: '900', 
-            marginBottom: '1.5rem',
-            background: 'linear-gradient(45deg, #ffffff, #fecaca)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-          }}>
-            ACESSO RESTRITO
-          </h1>
-
-          <div style={{
-            background: 'rgba(239,68,68,0.2)',
-            border: '2px solid rgba(239,68,68,0.4)',
-            borderRadius: '16px',
-            padding: '2rem',
-            marginBottom: '2rem'
-          }}>
-            <p style={{ 
-              opacity: 0.95, 
-              marginBottom: '1rem',
-              fontSize: '1.3rem',
-              fontWeight: '600'
-            }}>
-              🛡️ ZONA DE SEGURANÇA MÁXIMA
-            </p>
-            <p style={{ opacity: 0.9, fontSize: '1.1rem' }}>
-              Apenas <strong>Super Administradores</strong> autorizados podem acessar este painel de controle mestre.
-            </p>
-          </div>
-
-          {!showLoginForm ? (
-            <div style={{
-              display: 'flex',
-              gap: '1rem',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              flexDirection: 'column'
-            }}>
-              <div style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'center',
-                flexWrap: 'wrap'
-              }}>
-                <button
-                  onClick={() => window.location.href = '/'}
-                  style={{
-                    padding: '1.2rem 2.5rem',
-                    background: 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
-                    color: 'white',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  🏠 Voltar ao Início
-                </button>
-
-                <button
-                  onClick={() => window.location.href = '/promote-superadmin'}
-                  style={{
-                    padding: '1.2rem 2.5rem',
-                    background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 15px rgba(245,158,11,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #f59e0b, #d97706)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(245,158,11,0.5)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #fbbf24, #f59e0b)';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(245,158,11,0.4)';
-                  }}
-                >
-                  👑 Solicitar Acesso
-                </button>
-              </div>
-
-              <div style={{ 
-                marginTop: '2rem',
-                padding: '1.5rem',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '16px'
-              }}>
-                <p style={{ 
-                  marginBottom: '1rem',
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                  opacity: 0.9
-                }}>
-                  🔐 Já possui acesso de administrador?
-                </p>
-                <button
-                  onClick={() => setShowLoginForm(true)}
-                  style={{
-                    padding: '1rem 2rem',
-                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 15px rgba(59,130,246,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #1e40af, #1e3a8a)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59,130,246,0.5)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #3b82f6, #1e40af)';
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(59,130,246,0.4)';
-                  }}
-                >
-                  📧 Fazer Login como Admin
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '20px',
-              padding: '2rem',
-              marginBottom: '2rem'
-            }}>
-              <h2 style={{
-                fontSize: '1.8rem',
-                fontWeight: '700',
+          {/* card principal */}
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '4rem',
+              background: 'rgba(0,0,0,0.4)',
+              borderRadius: '32px',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(255,255,255,0.1)',
+              maxWidth: '600px',
+              position: 'relative',
+              zIndex: 10,
+              boxShadow:
+                '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '5rem',
                 marginBottom: '2rem',
-                color: '#ffffff'
-              }}>
-                🔐 Login de Administrador
-              </h2>
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+              }}
+            >
+              🚫
+            </div>
 
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem',
-                textAlign: 'left'
-              }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.9)'
-                  }}>
-                    📧 Email de Administrador:
-                  </label>
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="admin@exemplo.com"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '1rem',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  />
-                </div>
+            <h1
+              style={{
+                fontSize: '3rem',
+                fontWeight: '900',
+                marginBottom: '1.5rem',
+                background: 'linear-gradient(45deg, #ffffff, #fecaca)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+              }}
+            >
+              ACESSO RESTRITO
+            </h1>
 
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.9)'
-                  }}>
-                    🔑 Senha:
-                  </label>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '1rem',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  />
-                </div>
+            <div
+              style={{
+                background: 'rgba(239,68,68,0.2)',
+                border: '2px solid rgba(239,68,68,0.4)',
+                borderRadius: '16px',
+                padding: '2rem',
+                marginBottom: '2rem',
+              }}
+            >
+              <p
+                style={{
+                  opacity: 0.95,
+                  marginBottom: '1rem',
+                  fontSize: '1.3rem',
+                  fontWeight: '600',
+                }}
+              >
+                🛡️ ZONA DE SEGURANÇA MÁXIMA
+              </p>
+              <p style={{ opacity: 0.9, fontSize: '1.1rem' }}>
+                Apenas <strong>Super Administradores</strong> autorizados podem
+                acessar este painel de controle mestre.
+              </p>
+            </div>
 
-                {loginError && (
-                  <div style={{
-                    padding: '1rem',
-                    background: 'rgba(239,68,68,0.2)',
-                    border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: '8px',
-                    color: '#fca5a5',
-                    fontSize: '0.9rem'
-                  }}>
-                    ⚠️ {loginError}
-                  </div>
-                )}
-
-                <div style={{
+            {/* Se ainda não abriu o login, mostra CTA */}
+            {!showLoginForm ? (
+              <div
+                style={{
                   display: 'flex',
                   gap: '1rem',
                   justifyContent: 'center',
-                  flexWrap: 'wrap'
-                }}>
+                  flexWrap: 'wrap',
+                  flexDirection: 'column',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '1rem',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
+                  }}
+                >
                   <button
-                    onClick={() => setShowLoginForm(false)}
+                    onClick={() => (window.location.href = '/')}
                     style={{
-                      padding: '1rem 2rem',
-                      background: 'rgba(255,255,255,0.1)',
+                      padding: '1.2rem 2.5rem',
+                      background:
+                        'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
                       color: 'white',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderRadius: '16px',
                       cursor: 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 10px 20px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
-                    ❌ Cancelar
+                    🏠 Voltar ao Início
                   </button>
 
                   <button
-                    onClick={handleAdminLogin}
-                    disabled={loginLoading || !loginEmail || !loginPassword}
+                    onClick={() =>
+                      (window.location.href = '/promote-superadmin')
+                    }
+                    style={{
+                      padding: '1.2rem 2.5rem',
+                      background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(245,158,11,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #f59e0b, #d97706)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 10px 25px rgba(245,158,11,0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #fbbf24, #f59e0b)';
+                      e.currentTarget.style.transform = 'translateY(0px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(245,158,11,0.4)';
+                    }}
+                  >
+                    👑 Solicitar Acesso
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: '2rem',
+                    padding: '1.5rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '16px',
+                  }}
+                >
+                  <p
+                    style={{
+                      marginBottom: '1rem',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      opacity: 0.9,
+                    }}
+                  >
+                    🔐 Já possui acesso de administrador?
+                  </p>
+                  <button
+                    onClick={() => setShowLoginForm(true)}
                     style={{
                       padding: '1rem 2rem',
-                      background: loginLoading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                      background:
+                        'linear-gradient(45deg, #3b82f6, #1e40af)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '12px',
-                      cursor: loginLoading ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       fontSize: '1rem',
                       fontWeight: '700',
                       transition: 'all 0.3s ease',
-                      opacity: (!loginEmail || !loginPassword) ? 0.5 : 1
+                      boxShadow: '0 4px 15px rgba(59,130,246,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #1e40af, #1e3a8a)';
+                      e.currentTarget.style.transform =
+                        'translateY(-2px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 8px 20px rgba(59,130,246,0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #3b82f6, #1e40af)';
+                      e.currentTarget.style.transform =
+                        'translateY(0px)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(59,130,246,0.4)';
                     }}
                   >
-                    {loginLoading ? '🔄 Entrando...' : '🚀 Entrar como Admin'}
+                    📧 Fazer Login como Admin
                   </button>
                 </div>
-
-                <div style={{
-                  textAlign: 'center',
-                  marginTop: '1rem',
-                  padding: '1rem',
-                  background: 'rgba(245,158,11,0.1)',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  borderRadius: '12px'
-                }}>
-                  <p style={{ 
-                    margin: '0 0 1rem 0',
-                    fontSize: '0.9rem',
-                    opacity: 0.9
-                  }}>
-                    💡 <strong>Dica:</strong> Use as credenciais que você criou em /bootstrap-admin
-                  </p>
-                  <button
-                    onClick={() => window.location.href = '/bootstrap-admin'}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      background: 'linear-gradient(45deg, #f59e0b, #d97706)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    🔄 Ir para Bootstrap Admin
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => setShowCreateAdminForm(!showCreateAdminForm)}
+              </div>
+            ) : (
+              // Formulário de login do admin
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '20px',
+                  padding: '2rem',
+                  marginBottom: '2rem',
+                }}
+              >
+                <h2
                   style={{
-                    padding: '1rem 2rem',
-                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
+                    fontSize: '1.8rem',
                     fontWeight: '700',
-                    transition: 'all 0.3s ease',
-                    transform: 'scale(1)',
-                    boxShadow: '0 4px 15px rgba(139,92,246,0.4)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #7c3aed, #6d28d9)';
-                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(139,92,246,0.6)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(45deg, #8b5cf6, #7c3aed)';
-                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(139,92,246,0.4)';
+                    marginBottom: '2rem',
+                    color: '#ffffff',
                   }}
                 >
-                  👑 Criar Admin
-                </button>
-              </div>
-            </div>
+                  🔐 Login de Administrador
+                </h2>
 
-            {/* Formulário expansível para criar admin */}
-            {showCreateAdminForm && (
-              <div style={{
-                marginTop: '2rem',
-                background: 'rgba(139,92,246,0.1)',
-                border: '2px solid rgba(139,92,246,0.3)',
-                borderRadius: '20px',
-                padding: '2rem',
-                animation: 'slideDown 0.3s ease-out'
-              }}>
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  marginBottom: '1.5rem',
-                  color: '#ffffff',
-                  textAlign: 'center'
-                }}>
-                  👑 Criar Novo Administrador
-                </h3>
-
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1.5rem',
-                  textAlign: 'left'
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem',
+                    textAlign: 'left',
+                  }}
+                >
                   <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: '0.5rem',
-                      fontWeight: '600',
-                      color: 'rgba(255,255,255,0.9)'
-                    }}>
-                      📧 Email do novo admin:
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600',
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      📧 Email de Administrador:
                     </label>
                     <input
                       type="email"
-                      value={createAdminEmail}
-                      onChange={(e) => setCreateAdminEmail(e.target.value)}
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="admin@exemplo.com"
                       style={{
                         width: '100%',
@@ -2279,24 +2682,26 @@ export default function AdminMasterPage() {
                         borderRadius: '12px',
                         color: 'white',
                         fontSize: '1rem',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: '0.5rem',
-                      fontWeight: '600',
-                      color: 'rgba(255,255,255,0.9)'
-                    }}>
-                      🔑 Senha (mínimo 6 caracteres):
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600',
+                        color: 'rgba(255,255,255,0.9)',
+                      }}
+                    >
+                      🔑 Senha:
                     </label>
                     <input
                       type="password"
-                      value={createAdminPassword}
-                      onChange={(e) => setCreateAdminPassword(e.target.value)}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
                       style={{
                         width: '100%',
@@ -2306,52 +2711,36 @@ export default function AdminMasterPage() {
                         borderRadius: '12px',
                         color: 'white',
                         fontSize: '1rem',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
                       }}
                     />
                   </div>
 
-                  {createAdminError && (
-                    <div style={{
-                      padding: '1rem',
-                      background: 'rgba(239,68,68,0.2)',
-                      border: '1px solid rgba(239,68,68,0.4)',
-                      borderRadius: '8px',
-                      color: '#fca5a5',
-                      fontSize: '0.9rem',
-                      whiteSpace: 'pre-line'
-                    }}>
-                      {createAdminError}
-                    </div>
-                  )}
-
-                  {createAdminSuccess && (
-                    <div style={{
-                      padding: '1rem',
-                      background: 'rgba(16,185,129,0.2)',
-                      border: '1px solid rgba(16,185,129,0.4)',
-                      borderRadius: '8px',
-                      color: '#6ee7b7',
-                      fontSize: '0.9rem',
-                      whiteSpace: 'pre-line'
-                    }}>
-                      {createAdminSuccess}
-                    </div>
-                  )}
-
-                  <div style={{
-                    display: 'flex',
-                    gap: '1rem',
-                    justifyContent: 'center'
-                  }}>
-                    <button
-                      onClick={() => {
-                        setShowCreateAdminForm(false);
-                        setCreateAdminEmail('');
-                        setCreateAdminPassword('');
-                        setCreateAdminError('');
-                        setCreateAdminSuccess('');
+                  {loginError && (
+                    <div
+                      style={{
+                        padding: '1rem',
+                        background: 'rgba(239,68,68,0.2)',
+                        border: '1px solid rgba(239,68,68,0.4)',
+                        borderRadius: '8px',
+                        color: '#fca5a5',
+                        fontSize: '0.9rem',
                       }}
+                    >
+                      ⚠️ {loginError}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      justifyContent: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      onClick={() => setShowLoginForm(false)}
                       style={{
                         padding: '1rem 2rem',
                         background: 'rgba(255,255,255,0.1)',
@@ -2361,55 +2750,148 @@ export default function AdminMasterPage() {
                         cursor: 'pointer',
                         fontSize: '1rem',
                         fontWeight: '600',
-                        transition: 'all 0.3s ease'
+                        transition: 'all 0.3s ease',
                       }}
                     >
                       ❌ Cancelar
                     </button>
 
                     <button
-                      onClick={handleCreateAdmin}
-                      disabled={createAdminLoading || !createAdminEmail || !createAdminPassword}
+                      onClick={handleAdminLogin}
+                      disabled={loginLoading || !loginEmail || !loginPassword}
                       style={{
                         padding: '1rem 2rem',
-                        background: createAdminLoading ? 'rgba(139,92,246,0.5)' : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                        background: loginLoading
+                          ? 'rgba(59,130,246,0.5)'
+                          : 'linear-gradient(45deg, #3b82f6, #1e40af)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '12px',
-                        cursor: createAdminLoading ? 'not-allowed' : 'pointer',
+                        cursor: loginLoading ? 'not-allowed' : 'pointer',
                         fontSize: '1rem',
                         fontWeight: '700',
                         transition: 'all 0.3s ease',
-                        opacity: (!createAdminEmail || !createAdminPassword) ? 0.5 : 1
+                        opacity:
+                          !loginEmail || !loginPassword ? 0.5 : 1,
                       }}
                     >
-                      {createAdminLoading ? '🔄 Criando...' : '👑 Criar Administrador'}
+                      {loginLoading
+                        ? '🔄 Entrando...'
+                        : '🚀 Entrar como Admin'}
                     </button>
                   </div>
+
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'rgba(245,158,11,0.1)',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <p
+                      style={{
+                        marginBottom: '1rem',
+                        fontSize: '0.9rem',
+                        opacity: 0.9,
+                      }}
+                    >
+                      Dica: Use as credenciais que você criou em
+                      {' '}/bootstrap-admin
+                    </p>
+                    <button
+                      onClick={() =>
+                        (window.location.href = '/bootstrap-admin')
+                      }
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        background:
+                          'linear-gradient(45deg, #f59e0b, #d97706)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                      }}
+                    >
+                      Ir para Bootstrap Admin
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setShowCreateAdminForm(!showCreateAdminForm)
+                    }
+                    style={{
+                      padding: '1rem 2rem',
+                      background:
+                        'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      transform: 'scale(1)',
+                      boxShadow: '0 4px 15px rgba(139,92,246,0.4)',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #7c3aed, #6d28d9)';
+                      e.currentTarget.style.transform =
+                        'translateY(-2px) scale(1.02)';
+                      e.currentTarget.style.boxShadow =
+                        '0 8px 25px rgba(139,92,246,0.6)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background =
+                        'linear-gradient(45deg, #8b5cf6, #7c3aed)';
+                      e.currentTarget.style.transform =
+                        'translateY(0px) scale(1)';
+                      e.currentTarget.style.boxShadow =
+                        '0 4px 15px rgba(139,92,246,0.4)';
+                    }}
+                  >
+                    👑 Criar Novo Admin
+                  </button>
                 </div>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <style jsx>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
+        <style jsx>{`
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
-          to {
-            opacity: 1;
-            transform: translateY(0);
+          @keyframes pulse {
+            from {
+              transform: scale(1);
+              opacity: 0.8;
+            }
+            to {
+              transform: scale(1.02);
+              opacity: 1;
+            }
           }
-        }
-      `}</style>
-    </div>
+        `}</style>
+      </>
     );
   }
 
-  // Renderização principal do painel admin
+  // --- RENDERIZAÇÃO PRINCIPAL DO PAINEL ADMIN ---
+  // Se o usuário for super admin, renderiza o painel
   return (
     <div style={{
       minHeight: '100vh',
@@ -2440,9 +2922,9 @@ export default function AdminMasterPage() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
       }}>
         <div>
-          <h1 style={{ 
-            fontSize: '2.2rem', 
-            fontWeight: '900', 
+          <h1 style={{
+            fontSize: '2.2rem',
+            fontWeight: '900',
             margin: 0,
             background: 'linear-gradient(45deg, #ffffff, #e0e7ff, #c7d2fe)',
             WebkitBackgroundClip: 'text',
@@ -2451,9 +2933,9 @@ export default function AdminMasterPage() {
           }}>
             👑 PAINEL MASTER ADMIN
           </h1>
-          <p style={{ 
-            opacity: 0.9, 
-            margin: 0, 
+          <p style={{
+            opacity: 0.9,
+            margin: 0,
             fontSize: '1.1rem',
             fontWeight: '600',
             color: '#c7d2fe'
@@ -2562,18 +3044,26 @@ export default function AdminMasterPage() {
           { id: 'reports', label: 'Relatórios', icon: '📋' },
           { id: 'settings', label: 'Configurações', icon: '⚙️' },
           { id: 'logs', label: 'Logs', icon: '📄' },
-          { id: 'create-admin', label: 'Criar Admin', icon: '👑' } // Nova aba adicionada
+          { id: 'create-admin', label: 'Criar Admin', icon: '👑' },
+          { id: 'sistema-ponto', label: 'Sistema Ponto', icon: '⏰' },
+          { id: 'sistema-chamados', label: 'Sistema Chamados', icon: '🎫' },
+          { id: 'sistema-frota', label: 'Sistema Frota', icon: '🚗' },
+          { id: 'sistema-financeiro', label: 'Sistema Financeiro', icon: '💰' },
+          { id: 'sistema-documentos', label: 'Sistema Documentos', icon: '📁' },
+          { id: 'sistema-crm', label: 'Sistema CRM', icon: '🎯' },
+          { id: 'cria-contas', label: 'Cria Contas', icon: '➕' },
+          { id: 'controle-planos', label: '🎛️ Controle Planos', icon: '💳' },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '0.75rem 1.5rem',
-              background: activeTab === tab.id 
-                ? 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))' 
+              background: activeTab === tab.id
+                ? 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))'
                 : 'rgba(255,255,255,0.05)',
-              border: activeTab === tab.id 
-                ? '2px solid rgba(255,255,255,0.3)' 
+              border: activeTab === tab.id
+                ? '2px solid rgba(255,255,255,0.3)'
                 : '1px solid rgba(255,255,255,0.1)',
               borderRadius: '12px',
               color: 'white',
@@ -2608,7 +3098,7 @@ export default function AdminMasterPage() {
       <div style={{ padding: '2rem' }}>
         {activeTab === 'dashboard' && analytics && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="dashboard-metrics">
-            
+
             {/* Banner especial para Bootstrap Admin */}
             {user && (
               <div style={{
@@ -2621,9 +3111,9 @@ export default function AdminMasterPage() {
                 animation: 'pulse 3s infinite'
               }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👑</div>
-                <h2 style={{ 
-                  fontSize: '2rem', 
-                  fontWeight: '900', 
+                <h2 style={{
+                  fontSize: '2rem',
+                  fontWeight: '900',
                   marginBottom: '1rem',
                   background: 'linear-gradient(45deg, #ffffff, #ffd700)',
                   WebkitBackgroundClip: 'text',
@@ -2632,7 +3122,7 @@ export default function AdminMasterPage() {
                   CONTROLE ABSOLUTO ATIVADO
                 </h2>
                 <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '1rem' }}>
-                  🔥 Você possui acesso TOTAL a todos os dados empresariais e colaboradores
+                  Você possui acesso TOTAL a todos os dados empresariais e colaboradores
                 </p>
                 <div style={{
                   display: 'grid',
@@ -2736,14 +3226,14 @@ export default function AdminMasterPage() {
                   <div style={{ opacity: 0.8, marginBottom: '1rem', zIndex: 1, position: 'relative' }}>
                     {metric.title}
                   </div>
-                  <div style={{ 
-                    fontSize: '0.9rem', 
-                    color: '#10b981', 
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#10b981',
                     fontWeight: '600',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    zIndex: 1, 
+                    zIndex: 1,
                     position: 'relative'
                   }}>
                     <span style={{
@@ -2760,142 +3250,6 @@ export default function AdminMasterPage() {
               ))}
             </div>
 
-            {/* Gráficos e Analytics Premium */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-              {/* Top Empresas */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(30px)',
-                padding: '2rem',
-                borderRadius: '24px',
-                border: '2px solid rgba(255,255,255,0.1)'
-              }}>
-                <h3 style={{ 
-                  margin: '0 0 1.5rem 0', 
-                  fontSize: '1.5rem', 
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  🏆 Top Empresas Premium
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {analytics.topCompanies.map((company, index) => (
-                    <div key={company.id} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1.2rem',
-                      background: `linear-gradient(135deg, rgba(255,255,255,${0.08 - index * 0.01}), rgba(255,255,255,${0.05 - index * 0.01}))`,
-                      borderRadius: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.1)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,${0.08 - index * 0.01}), rgba(255,255,255,${0.05 - index * 0.01}))`;
-                    }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          background: index === 0 
-                            ? 'linear-gradient(45deg, #ffd700, #ffed4e)' 
-                            : index === 1 
-                            ? 'linear-gradient(45deg, #c0c0c0, #e5e5e5)' 
-                            : index === 2 
-                            ? 'linear-gradient(45deg, #cd7f32, #daa520)' 
-                            : 'linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.2rem',
-                          fontWeight: '900',
-                          color: index < 3 ? '#000' : '#fff'
-                        }}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{company.name}</div>
-                          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-                            {company.employees} funcionários • {company.subscription.plan.toUpperCase()}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ 
-                          fontWeight: '700', 
-                          color: '#10b981',
-                          fontSize: '1.2rem'
-                        }}>
-                          R$ {company.monthlyRevenue.toLocaleString('pt-BR')}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-                          /mês
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Métricas Operacionais */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(30px)',
-                padding: '2rem',
-                borderRadius: '24px',
-                border: '2px solid rgba(255,255,255,0.1)'
-              }}>
-                <h3 style={{ 
-                  margin: '0 0 1.5rem 0', 
-                  fontSize: '1.5rem', 
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  📊 Métricas Operacionais
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {[
-                    { label: 'Total de Sessões', value: analytics.metrics.totalSessions, icon: '⏱️' },
-                    { label: 'Horas Médias/Dia', value: analytics.metrics.averageWorkHours.toFixed(1) + 'h', icon: '📈' },
-                    { label: 'Atrasos', value: analytics.metrics.lateArrivals, icon: '⏰' },
-                    { label: 'Saídas Antecipadas', value: analytics.metrics.earlyDepartures, icon: '🚪' },
-                    { label: 'Horas Extras', value: analytics.metrics.overtimeHours + 'h', icon: '⚡' }
-                  ].map((metric, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1.2rem' }}>{metric.icon}</span>
-                        <span style={{ fontWeight: '600' }}>{metric.label}</span>
-                      </div>
-                      <div style={{ 
-                        fontWeight: '700',
-                        fontSize: '1.2rem',
-                        color: '#8b5cf6'
-                      }}>
-                        {metric.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Ações Rápidas Premium */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
@@ -2904,9 +3258,9 @@ export default function AdminMasterPage() {
               borderRadius: '24px',
               border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              <h3 style={{ 
-                margin: '0 0 1.5rem 0', 
-                fontSize: '1.5rem', 
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.5rem',
                 fontWeight: '700',
                 display: 'flex',
                 alignItems: 'center',
@@ -2914,13 +3268,13 @@ export default function AdminMasterPage() {
               }}>
                 🚀 Ações de Controle Total
               </h3>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '1rem' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem'
               }}>
                 {[
-                  { 
+                  {
                     label: 'Exportar TUDO',
                     action: () => {
                       exportData('companies');
@@ -2932,31 +3286,31 @@ export default function AdminMasterPage() {
                     color: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
                     icon: '📦'
                   },
-                  { 
+                  {
                     label: 'Controle Financeiro Total',
                     action: () => setActiveTab('analytics'),
                     color: 'linear-gradient(45deg, #10b981, #059669)',
                     icon: '💰'
                   },
-                  { 
+                  {
                     label: 'Supervisão Empresas',
                     action: () => setActiveTab('companies'),
                     color: 'linear-gradient(45deg, #3b82f6, #1e40af)',
                     icon: '🏢'
                   },
-                  { 
+                  {
                     label: 'Gestão de Pessoal',
                     action: () => setActiveTab('employees'),
                     color: 'linear-gradient(45deg, #f59e0b, #d97706)',
                     icon: '👥'
                   },
-                  { 
+                  {
                     label: 'Central de Inteligência',
                     action: () => setActiveTab('notifications'),
                     color: 'linear-gradient(45deg, #ef4444, #dc2626)',
                     icon: '🧠'
                   },
-                  { 
+                  {
                     label: 'Logs do Sistema',
                     action: () => setActiveTab('logs'),
                     color: 'linear-gradient(45deg, #6b7280, #4b5563)',
@@ -2970,7 +3324,7 @@ export default function AdminMasterPage() {
                       padding: '1.5rem',
                       background: action.color,
                       border: 'none',
-                      borderRadius: '16px',
+                      borderRadius: '12px',
                       color: 'white',
                       cursor: 'pointer',
                       fontWeight: '700',
@@ -3001,7 +3355,19 @@ export default function AdminMasterPage() {
         )}
 
         {activeTab === 'companies' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="companies-section">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', zIndex: 9999 }} className="companies-section">
+
+            {/* Gestão Unificada de Empresas */}
+            <EmpresaManager
+              sistema="ponto"
+              allowCreate={true}
+              allowEdit={true}
+              allowDelete={isSuperAdmin}
+              onEmpresaSelect={(empresa) => {
+                console.log('Empresa selecionada:', empresa);
+                // Implementar navegação ou ações específicas
+              }}
+            />
             {/* Controles Premium */}
             <div style={{
               background: 'rgba(255,255,255,0.05)',
@@ -3084,13 +3450,15 @@ export default function AdminMasterPage() {
             </div>
 
             {/* Lista de Empresas Premium */}
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              backdropFilter: 'blur(30px)',
-              borderRadius: '20px',
-              border: '2px solid rgba(255,255,255,0.1)',
-              overflow: 'hidden'
-            }}>
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  backdropFilter: "blur(30px)",
+                  borderRadius: "20px",
+                  border: "2px solid rgba(255,255,255,0.1)",
+                  overflow: "hidden",
+                }}
+              >
               <div style={{
                 padding: '1.5rem',
                 borderBottom: '2px solid rgba(255,255,255,0.1)',
@@ -3099,9 +3467,9 @@ export default function AdminMasterPage() {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: '1.5rem', 
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '1.5rem',
                   fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
@@ -3154,9 +3522,9 @@ export default function AdminMasterPage() {
                   </thead>
                   <tbody>
                     {paginatedCompanies.map((company) => (
-                      <tr 
-                        key={company.id} 
-                        style={{ 
+                      <tr
+                        key={company.id}
+                        style={{
                           borderBottom: '1px solid rgba(255,255,255,0.1)',
                           transition: 'all 0.3s ease'
                         }}
@@ -3202,27 +3570,7 @@ export default function AdminMasterPage() {
                           <div style={{
                             display: 'inline-block',
                             padding: '0.5rem 1rem',
-                            background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
-                            borderRadius: '20px',
-                            fontSize: '0.9rem',
-                            fontWeight: '600'
-                          }}>
-                            👥 {company.employees} funcionários
-                          </div>
-                        </td>
-                        <td style={{ padding: '1rem' }}>
-                          <div style={{ fontWeight: '700', color: '#10b981', fontSize: '1.2rem' }}>
-                            R$ {company.monthlyRevenue.toLocaleString('pt-BR')}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                            R$ {(company.monthlyRevenue / (company.employees || 1)).toFixed(2)}/funcionário
-                          </div>
-                        </td>
-                        <td style={{ padding: '1rem' }}>
-                          <div style={{
-                            display: 'inline-block',
-                            padding: '0.5rem 1rem',
-                            background: company.subscription.plan === 'enterprise' 
+                            background: company.subscription.plan === 'enterprise'
                               ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
                               : company.subscription.plan === 'premium'
                               ? 'linear-gradient(45deg, #f59e0b, #d97706)'
@@ -3235,11 +3583,42 @@ export default function AdminMasterPage() {
                           </div>
                         </td>
                         <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: '700', color: '#10b981', fontSize: '1.2rem' }}>
+                            R$ {company.monthlyRevenue.toLocaleString('pt-BR')}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                            R$ {(company.monthlyRevenue / (company.employees || 1)).toFixed(2)}/funcionário
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{
+                              display: 'inline-block',
+                              padding: '0.5rem 1rem',
+                              background: company.subscription?.plan === 'enterprise'
+                                ? 'linear-gradient(45deg, #8b5cf6, #7c3aed)'
+                                : company.subscription?.plan === 'premium'
+                                ? 'linear-gradient(45deg, #f59e0b, #d97706)'
+                                : 'linear-gradient(45deg, #6b7280, #4b5563)',
+                              borderRadius: '20px',
+                              fontSize: '0.9rem',
+                              fontWeight: '600'
+                            }}>
+                              {(company.subscription?.plan || company.plano || 'básico').toUpperCase()}
+                            </div>
+                            {(company.sistemasAtivos || []).length > 0 && (
+                              <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                                🎯 {(company.sistemasAtivos || []).length} sistemas ativos
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
                           <div style={{
                             display: 'inline-block',
                             padding: '0.5rem 1rem',
-                            background: company.active 
-                              ? 'linear-gradient(45deg, #10b981, #059669)' 
+                            background: company.active
+                              ? 'linear-gradient(45deg, #10b981, #059669)'
                               : 'linear-gradient(45deg, #ef4444, #dc2626)',
                             borderRadius: '20px',
                             fontSize: '0.9rem',
@@ -3273,8 +3652,8 @@ export default function AdminMasterPage() {
                               onClick={() => toggleCompanyStatus(company.id, company.active)}
                               style={{
                                 padding: '0.5rem',
-                                background: company.active 
-                                  ? 'linear-gradient(45deg, #ef4444, #dc2626)' 
+                                background: company.active
+                                  ? 'linear-gradient(45deg, #ef4444, #dc2626)'
                                   : 'linear-gradient(45deg, #10b981, #059669)',
                                 border: 'none',
                                 borderRadius: '8px',
@@ -3337,7 +3716,7 @@ export default function AdminMasterPage() {
                     ← Anterior
                   </button>
 
-                  <span style={{ 
+                  <span style={{
                     padding: '0.5rem 1rem',
                     fontSize: '0.9rem',
                     opacity: 0.8
@@ -3543,8 +3922,8 @@ export default function AdminMasterPage() {
                             <div style={{
                               display: 'inline-block',
                               padding: '0.5rem 1rem',
-                              background: employee.active 
-                                ? 'linear-gradient(45deg, #10b981, #059669)' 
+                              background: employee.active
+                                ? 'linear-gradient(45deg, #10b981, #059669)'
                                 : 'linear-gradient(45deg, #ef4444, #dc2626)',
                               borderRadius: '20px',
                               fontSize: '0.9rem',
@@ -4012,7 +4391,12 @@ export default function AdminMasterPage() {
             <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
               📋 Gestão de Relatórios
             </h3>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              flexWrap: 'wrap',
+              marginBottom: '2rem'
+            }}>
               <button
                 onClick={() => generateReport('companies')}
                 style={{ padding: '1rem 1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}
@@ -4031,6 +4415,12 @@ export default function AdminMasterPage() {
               >
                 💰 Gerar Relatório Financeiro
               </button>
+              <button
+                onClick={() => generateReport('crm')}
+                style={{ padding: '1rem 1.5rem', background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}
+              >
+                🎯 Gerar Relatório CRM
+              </button>
             </div>
             <div style={{
               background: 'rgba(255,255,255,0.05)',
@@ -4048,7 +4438,7 @@ export default function AdminMasterPage() {
                 alignItems: 'center'
               }}>
                 <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '700' }}>
-                  📜 Relatórios Gerados
+                  📊 Relatórios Gerados
                 </h4>
                 <button
                   onClick={() => exportData('reports')}
@@ -4134,9 +4524,9 @@ export default function AdminMasterPage() {
             borderRadius: '20px',
             border: '2px solid rgba(255,255,255,0.1)'
           }}>
-            <h3 style={{ 
-              margin: '0 0 2rem 0', 
-              fontSize: '1.5rem', 
+            <h3 style={{
+              margin: '0 0 2rem 0',
+              fontSize: '1.5rem',
               fontWeight: '700',
               display: 'flex',
               alignItems: 'center',
@@ -4153,8 +4543,8 @@ export default function AdminMasterPage() {
                 border: systemSettings.maintenanceMode ? '2px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.1)',
                 borderRadius: '16px'
               }}>
-                <h4 style={{ 
-                  margin: '0 0 1rem 0', 
+                <h4 style={{
+                  margin: '0 0 1rem 0',
                   fontSize: '1.3rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -4165,20 +4555,20 @@ export default function AdminMasterPage() {
                 <p style={{ opacity: 0.8, marginBottom: '1rem' }}>
                   Quando ativado, bloqueia o acesso de todos os usuários exceto super admins.
                 </p>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '1rem',
                   cursor: 'pointer',
                   fontSize: '1.1rem',
                   fontWeight: '600'
                 }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={systemSettings.maintenanceMode}
                     onChange={(e) => updateSystemSettings({ maintenanceMode: e.target.checked })}
-                    style={{ 
-                      width: '20px', 
+                    style={{
+                      width: '20px',
                       height: '20px',
                       accentColor: '#ef4444'
                     }}
@@ -4197,10 +4587,10 @@ export default function AdminMasterPage() {
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>🔐 Segurança Avançada</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={systemSettings.security.requireMFA}
-                      onChange={(e) => updateSystemSettings({ 
+                      onChange={(e) => updateSystemSettings({
                         security: { ...systemSettings.security, requireMFA: e.target.checked }
                       })}
                       style={{ width: '18px', height: '18px' }}
@@ -4214,9 +4604,9 @@ export default function AdminMasterPage() {
                       type="number"
                       value={systemSettings.security.sessionTimeout / (60 * 60 * 1000)}
                       onChange={(e) => updateSystemSettings({
-                        security: { 
-                          ...systemSettings.security, 
-                          sessionTimeout: parseInt(e.target.value) * 60 * 60 * 1000 
+                        security: {
+                          ...systemSettings.security,
+                          sessionTimeout: parseInt(e.target.value) * 60 * 60 * 1000
                         }
                       })}
                       style={{
@@ -4232,7 +4622,7 @@ export default function AdminMasterPage() {
                 </div>
               </div>
 
-              {/* Configurações de Backup */}
+              {/* Configuraurações de Backup */}
               <div style={{
                 padding: '2rem',
                 background: 'rgba(255,255,255,0.05)',
@@ -4242,10 +4632,10 @@ export default function AdminMasterPage() {
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>💾 Backup Automático</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={systemSettings.backup.enabled}
-                      onChange={(e) => updateSystemSettings({ 
+                      onChange={(e) => updateSystemSettings({
                         backup: { ...systemSettings.backup, enabled: e.target.checked }
                       })}
                       style={{ width: '18px', height: '18px' }}
@@ -4258,8 +4648,8 @@ export default function AdminMasterPage() {
                     <select
                       value={systemSettings.backup.frequency}
                       onChange={(e) => updateSystemSettings({
-                        backup: { 
-                          ...systemSettings.backup, 
+                        backup: {
+                          ...systemSettings.backup,
                           frequency: e.target.value as 'daily' | 'weekly' | 'monthly'
                         }
                       })}
@@ -4287,10 +4677,10 @@ export default function AdminMasterPage() {
                 border: '1px solid rgba(255,255,255,0.1)'
               }}>
                 <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem' }}>🔧 Ações de Sistema</h4>
-                <div style={{ 
+                <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '1rem' 
+                  gap: '1rem'
                 }}>
                   {[
                     {
@@ -4463,6 +4853,802 @@ export default function AdminMasterPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'create-admin' && (
+          <div className="create-admin-section" style={{ padding: '2rem' }}>
+            <SuperAdminCreateForm />
+          </div>
+        )}
+
+        {activeTab === 'sistema-crm' && (
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(30px)',
+            padding: '2rem',
+            borderRadius: '20px',
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <h3 style={{
+              margin: '0 0 2rem 0',
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              🎯 Gestão do Sistema CRM
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '1.5rem'
+            }}>
+              {/* Métricas do Sistema CRM */}
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>{companies.filter(c => c.sistemasAtivos?.includes('crm')).length}</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Empresas com CRM</div>
+              </div>
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💰</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>
+                  R$ {companies.filter(c => c.sistemasAtivos?.includes('crm')).reduce((sum, c) => sum + c.monthlyRevenue, 0).toLocaleString('pt-BR')}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Receita CRM</div>
+              </div>
+              <div style={{
+                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏆</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>
+                  {companies.filter(c => c.sistemasAtivos?.includes('crm')).length > 0
+                    ? ((companies.filter(c => c.sistemasAtivos?.includes('crm') && c.active).length / companies.filter(c => c.sistemasAtivos?.includes('crm')).length) * 100).toFixed(1)
+                    : 0}%
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Taxa de Ativação</div>
+              </div>
+            </div>
+
+            {/* Ações Rápidas Premium */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '24px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              marginTop: '1.5rem'
+            }}>
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                🎯 Ações do Sistema CRM
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                <button
+                  onClick={() => {
+                    // Navegar para gestão de empresas no CRM
+                    window.open('/crm/empresas', '_blank');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59,130,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  🏢 Gerenciar Empresas
+                </button>
+                <button
+                  onClick={() => {
+                    // Navegar para gestão de contatos no CRM
+                    window.open('/crm/contatos', '_blank');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #10b981, #059669)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,1885,129,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  👤 Gerenciar Contatos
+                </button>
+                <button
+                  onClick={() => {
+                    // Gerar relatório do sistema CRM
+                    generateReport('crm');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139,92,246,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📊 Relatórios CRM
+                </button>
+                <button
+                  onClick={() => {
+                    // Exportar dados do sistema CRM
+                    exportData('crm');
+                  }}
+                  style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(245,158,11,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  📥 Exportar Dados CRM
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'cria-contas' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Header da seção */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
+              <h2 style={{
+                fontSize: '2rem',
+                fontWeight: '900',
+                marginBottom: '1rem',
+                background: 'linear-gradient(45deg, #ffffff, #ffd700)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                CRIAÇÃO UNIVERSAL DE EMPRESAS
+              </h2>
+              <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '0' }}>
+                Crie empresas para todos os sistemas com controle total e planos personalizados
+              </p>
+            </div>
+
+            {/* Botões de criação rápida */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '1.5rem'
+            }}>
+              {/* Criar Empresa CRM */}
+              <div style={{
+                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(59,130,246,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('crm');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(59,130,246,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Nova Empresa CRM
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Crie uma empresa com sistema CRM completo para gestão de vendas e relacionamento
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  ✨ Inclui funil de vendas, gestão de clientes e relatórios
+                </div>
+              </div>
+
+              {/* Criar Empresa Universal */}
+              <div style={{
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(16,185,129,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('universal');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(16,185,129,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏢</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Empresa Universal
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Crie uma empresa com acesso a todos os sistemas disponíveis na plataforma.
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  🎯 Ponto • 📋 Chamados • 💰 Financeiro • 🚗 Frota • 🎯 CRM
+                </div>
+              </div>
+
+              {/* Criar Empresa com Sistema Específico */}
+              <div style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '2px solid rgba(139,92,246,0.3)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => {
+                setSelectedSistema('personalizado');
+                setShowEmpresaModal(true);
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(139,92,246,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚙️</div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: '#ffffff'
+                }}>
+                  Sistema Personalizado
+                </h3>
+                <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
+                  Escolha quais sistemas e funcionalidades ativar para esta empresa.
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  🎛️ Configuração sob medida
+                </div>
+              </div>
+            </div>
+
+            {/* Planos Disponíveis */}
+            <div style={{
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                marginBottom: '2rem',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                justifyContent: 'center'
+              }}>
+                💎 Planos Disponíveis
+              </h3>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {/* Plano Free */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #6b7280, #4b5563)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(107,114,128,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🆓</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Free
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#10b981',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 0
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 5 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios básicos</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ App móvel</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Sistema CRM básico</li>
+                    <li style={{ marginBottom: '0.5rem' }}>❌ Rastreamento GPS</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Free selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #6b7280, #4b5563)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Free
+                  </button>
+                </div>
+
+                {/* Plano Mensal */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(59,130,246,0.3)',
+                  textAlign: 'center',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '20px',
+                    background: '#10b981',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '12px',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    color: 'white'
+                  }}>
+                    POPULAR
+                  </div>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⭐</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Mensal
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 29,90<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/mês</span>
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 1 empresa</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Sistema CRM completo</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Relatórios avançados</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Rastreamento GPS</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Export PDF</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Mensal selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #10b981, #059669)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Mensal
+                  </button>
+                </div>
+
+                {/* Plano Anual */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(16,185,129,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💎</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Plano Anual
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '0.5rem'
+                  }}>
+                    R$ 239,20<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/ano</span>
+                  </div>
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#10b981',
+                    marginBottom: '1rem',
+                    fontWeight: '600'
+                  }}>
+                    💰 Economia de 33%
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 50 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Tudo do mensal</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ CRM Premium com IA</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Analytics avançado</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Suporte 24/7</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Export ilimitado</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Anual selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar com Anual
+                  </button>
+                </div>
+
+                {/* Plano Enterprise */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                  padding: '1.5rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(139,92,246,0.3)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🚀</div>
+                  <h4 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    marginBottom: '0.5rem',
+                    color: '#ffffff'
+                  }}>
+                    Enterprise
+                  </h4>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    marginBottom: '1rem'
+                  }}>
+                    R$ 99,90<span style={{ fontSize: '0.8rem', opacity: 0.8 }}>/mês</span>
+                  </div>
+                  <ul style={{
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    opacity: 0.9,
+                    lineHeight: '1.6',
+                    marginBottom: '1.5rem',
+                    listStyleType: 'none',
+                    padding: 0
+                  }}>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 999 funcionários</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ 10 empresas</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ CRM Enterprise + IA</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Analytics avançado</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Suporte dedicado</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ White label</li>
+                  </ul>
+                  <button
+                    onClick={() => {
+                      alert('Plano Enterprise selecionado para nova empresa');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'linear-gradient(45deg, #ec4899, #db2777)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Criar Enterprise
+                  </button>
+                </div>
+
+                {/* Gestão de Empresas Existentes */}
+                <EmpresaManager
+                  sistema="universal"
+                  allowCreate={true}
+                  allowEdit={true}
+                  allowDelete={isSuperAdmin}
+                  onEmpresaSelect={(empresa) => {
+                    console.log('Empresa selecionada:', empresa);
+                  }}
+                />
+
+                {/* Modal de criação de empresa */}
+                {showEmpresaModal && (
+                  <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.8)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                  }}>
+                    <div style={{
+                      background: 'linear-gradient(135deg, #1e293b, #334155)',
+                      padding: '2rem',
+                      borderRadius: '20px',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      maxWidth: '600px',
+                      width: '90%',
+                      maxHeight: '80%',
+                      overflowY: 'auto'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '2rem'
+                      }}>
+                        <h3 style={{
+                          fontSize: '1.5rem',
+                          fontWeight: '700',
+                          color: '#ffffff',
+                          margin: 0
+                        }}>
+                          {selectedSistema === 'crm' ? '🎯 Nova Empresa CRM' : 
+                           selectedSistema === 'universal' ? '🏢 Nova Empresa Universal' :
+                           '⚙️ Sistema Personalizado'}
+                        </h3>
+                        <button
+                          onClick={() => setShowEmpresaModal(false)}
+                          style={{
+                            background: 'rgba(239,68,68,0.2)',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            borderRadius: '8px',
+                            color: '#fca5a5',
+                            cursor: 'pointer',
+                            padding: '0.5rem',
+                            fontSize: '1rem'
+                          }}
+                        >
+                          ❌
+                        </button>
+                      </div>
+
+                      <p style={{
+                        fontSize: '1rem',
+                        opacity: 0.9,
+                        marginBottom: '2rem',
+                        color: '#e2e8f0'
+                      }}>
+                        {selectedSistema === 'crm' ? 
+                          'Configure uma nova empresa com sistema CRM completo para gestão de vendas e relacionamento com clientes.' :
+                          selectedSistema === 'universal' ?
+                          'Crie uma empresa com acesso a todos os sistemas disponíveis na plataforma.' :
+                          'Escolha quais sistemas e funcionalidades ativar para esta empresa.'}
+                      </p>
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        gap: '1rem'
+                      }}>
+                        <button
+                          onClick={() => {
+                            setShowEmpresaModal(false);
+                            // Aqui você implementaria a lógica de criação
+                            alert(`Criando empresa com sistema: ${selectedSistema}`);
+                          }}
+                          style={{
+                            padding: '1rem 2rem',
+                            background: 'linear-gradient(45deg, #10b981, #059669)',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: '1rem',
+                            fontWeight: '700'
+                          }}
+                        >
+                          ✅ Confirmar Criação
+                        </button>
+                        <button
+                          onClick={() => setShowEmpresaModal(false)}
+                          style={{
+                            padding: '1rem 2rem',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '2px solid rgba(255,255,255,0.2)',
+                            borderRadius: '12px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: '1rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

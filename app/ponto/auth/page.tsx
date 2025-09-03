@@ -1,109 +1,224 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import { auth, db } from '@/src/lib/firebase';
+import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  signOut
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/src/lib/firebase';
-import { useChamadosSessionProfile } from '@/src/lib/chamadosAuth';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp
+} from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
-export default function ChamadosAuthPage() {
+export default function PontoAuthPage() {
   const router = useRouter();
-  const { loading, profile } = useChamadosSessionProfile();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Redirecionar se já estiver logado
   useEffect(() => {
-    if (!loading && profile) {
-      router.push('/chamados');
-    }
-  }, [loading, profile, router]);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Usuário já logado, verificar permissões
+        await checkUserPermissions(user.email!, user.uid);
+      }
+    });
 
-  const checkUserPermissions = async (userEmail: string) => {
+    return () => unsubscribe();
+  }, []);
+
+  const checkUserPermissions = async (userEmail: string, userUid: string) => {
     try {
-      // Primeiro verificar na coleção users (sistema geral)
-      const usersRef = doc(db, 'users', auth.currentUser?.uid || '');
-      const usersSnapshot = await getDoc(usersRef);
+      console.log('Verificando permissões para:', userEmail);
 
-      if (usersSnapshot.exists()) {
-        const userData = usersSnapshot.data();
+      // 1. Primeiro verificar se é superadmin/adminmaster
+      const userDocRef = doc(db, 'users', userUid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
         const role = userData.role?.toLowerCase();
 
-        if (role === 'superadmin' || role === 'admin' || role === 'adminmaster') {
-          router.push('/chamados/admin');
+        if (role === 'superadmin' || role === 'adminmaster') {
+          console.log('Usuario é super admin, redirecionando para /admin');
+          router.push('/admin');
           return;
         }
       }
 
-      // Verificar se o usuário já existe no sistema
-      if (auth.currentUser?.uid) {
-        const chamadosUserRef = doc(db, 'chamados_users', auth.currentUser.uid);
-        const chamadosUserSnap = await getDoc(chamadosUserRef);
+      // 2. Verificar se é uma empresa na coleção 'empresas' (sistema universal)
+      const empresasRef = collection(db, 'empresas');
+      const empresaQuery = query(empresasRef, where('email', '==', userEmail));
+      const empresaSnapshot = await getDocs(empresaQuery);
 
-        if (chamadosUserSnap.exists()) {
-          const userData = chamadosUserSnap.data();
-          const role = userData.role?.toLowerCase();
+      if (!empresaSnapshot.empty) {
+        const empresaDoc = empresaSnapshot.docs[0];
+        const empresaData = empresaDoc.data();
+        const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-          // Redirecionar baseado no papel do usuário
-          if (role === 'adminmaster' || role === 'admin') {
-            router.push('/chamados/admin');
-          } else if (role === 'colaborador') {
-            router.push('/chamados');
-          } else {
-            router.push('/chamados');
-          }
+        console.log('Empresa encontrada:', empresaDoc.id);
+        console.log('Sistemas ativos:', sistemasAtivos);
+
+        // Verificar se a empresa tem acesso ao sistema de ponto
+        if (sistemasAtivos.includes('ponto')) {
+          console.log('Empresa tem acesso ao sistema de ponto');
+          router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
+          return;
         } else {
-          // Usuário não encontrado no sistema de chamados
-          setError('Usuário não autorizado para este sistema. Contate o administrador.');
+          setError('Esta empresa não tem permissão para acessar o sistema de ponto. Entre em contato com o administrador.');
+          return;
         }
-      } else {
-        // Se não houver UID, significa que o usuário não está autenticado corretamente
-        setError('Erro de autenticação. Por favor, tente fazer login novamente.');
       }
+
+      // 3. Verificar se é um usuário comum na coleção 'users'
+      const usuariosRef = collection(db, 'users');
+      const usuarioQuery = query(usuariosRef, where('email', '==', userEmail));
+      const usuarioSnapshot = await getDocs(usuarioQuery);
+
+      if (!usuarioSnapshot.empty) {
+        const userData = usuarioSnapshot.docs[0].data();
+        const role = userData.role?.toLowerCase();
+        const empresaId = userData.empresaId;
+        const sistemasAtivos = userData.sistemasAtivos || [];
+        const tipoUsuario = userData.tipo; // 'empresa' ou 'colaborador'
+
+        console.log('Usuário encontrado:', {
+          role,
+          empresaId,
+          sistemasAtivos,
+          tipo: tipoUsuario,
+          email: userEmail
+        });
+
+        // Verificar se tem acesso ao sistema de ponto
+        if (sistemasAtivos.includes('ponto')) {
+          // Se é uma empresa (criada via admin), sempre direciona para painel da empresa
+          if (tipoUsuario === 'empresa' || role === 'admin' || role === 'gestor') {
+            console.log('Redirecionando empresa/admin para painel da empresa');
+            router.push(`/ponto/empresa?empresaId=${empresaId}`);
+            return;
+          } else if (role === 'colaborador') {
+            console.log('Redirecionando colaborador para painel do colaborador');
+            router.push(`/ponto/colaborador?empresaId=${empresaId}`);
+            return;
+          }
+        }
+
+        // Se tem empresaId mas não tem ponto nos sistemas ativos, verificar na empresa
+        if (empresaId) {
+          try {
+            // Buscar na coleção geral de empresas
+            const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+            if (empresaDoc.exists()) {
+              const dadosEmpresa = empresaDoc.data();
+              console.log('Empresa encontrada em empresas:', dadosEmpresa);
+
+              // Verificar se tem sistema ponto ativo na empresa
+              if (dadosEmpresa.sistemasAtivos?.includes('ponto')) {
+                console.log('Sistema de ponto encontrado na empresa, redirecionando...');
+                
+                // Redirecionar baseado no papel do usuário
+                if (role === 'admin' || role === 'gestor' || tipoUsuario === 'empresa') {
+                  router.push(`/ponto/empresa?empresaId=${empresaId}`);
+                  return;
+                } else if (role === 'colaborador') {
+                  router.push(`/ponto/colaborador?empresaId=${empresaId}`);
+                  return;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao buscar empresa:', error);
+          }
+        }
+
+        // Se chegou até aqui, o usuário não tem acesso ao sistema de ponto
+        setError('Você não tem permissão para acessar o sistema de ponto ou sua empresa não possui este módulo ativo.');
+        return;
+      }
+
+      // 4. Se não encontrou o usuário na coleção 'users', verificar se é uma empresa diretamente na coleção específica
+      const pontoEmpresasRef = collection(db, 'ponto-empresas');
+      const empresaDirectQuery = query(pontoEmpresasRef, where('email', '==', userEmail));
+      const empresaDirectSnapshot = await getDocs(empresaDirectQuery);
+
+      if (!empresaDirectSnapshot.empty) {
+        const empresaDoc = empresaDirectSnapshot.docs[0];
+        const empresaData = empresaDoc.data();
+
+        console.log('Empresa encontrada diretamente no sistema de ponto:', empresaDoc.id);
+
+        // Criar o documento do usuário na coleção 'users' para futuras consultas
+        const userDocRef = doc(db, 'users', userUid);
+        await setDoc(userDocRef, {
+          email: userEmail,
+          displayName: empresaData.nome || userEmail,
+          role: 'admin', // Empresa é sempre admin do próprio sistema
+          empresaId: empresaDoc.id,
+          sistemasAtivos: ['ponto'],
+          tipo: 'empresa',
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+
+        console.log('Documento do usuário criado, redirecionando para painel da empresa');
+        router.push(`/ponto/empresa?empresaId=${empresaDoc.id}`);
+        return;
+      }
+
+      // Se nenhuma verificação deu certo
+      setError('Usuário não encontrado no sistema. Entre em contato com o administrador para configurar seu acesso.');
+
     } catch (error) {
       console.error('Erro ao verificar permissões:', error);
-      setError('Erro ao verificar permissões do usuário');
+      setError('Erro ao verificar permissões do usuário. Tente novamente.');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
       setError('Preencha todos os campos');
       return;
     }
 
-    setSubmitting(true);
-    setError('');
+    setLoading(true);
+    setError(null);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        formData.email, 
-        formData.password
-      );
-
-      await checkUserPermissions(userCredential.user.email!);
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      await checkUserPermissions(userCredential.user.email!, userCredential.user.uid);
     } catch (error: any) {
       console.error('Erro no login:', error);
       const errorMessage = getErrorMessage(error.code);
       setError(errorMessage);
+
+      // Notificação adicional para credenciais inválidas
+      if (error.code === 'auth/invalid-credential') {
+        setTimeout(() => {
+          setError('💡 Dica: Verifique se você digitou o email e a senha corretamente. Se esqueceu sua senha, use a opção "Esqueci minha senha".');
+        }, 3000);
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -115,7 +230,7 @@ export default function ChamadosAuthPage() {
     }
 
     setResetLoading(true);
-    setError('');
+    setError(null);
 
     try {
       await sendPasswordResetEmail(auth, resetEmail);
@@ -130,11 +245,11 @@ export default function ChamadosAuthPage() {
   const getErrorMessage = (errorCode: string) => {
     switch (errorCode) {
       case 'auth/user-not-found':
-        return 'Usuário não encontrado. Contate o administrador.';
+        return 'Usuário não encontrado';
       case 'auth/wrong-password':
         return 'Senha incorreta';
       case 'auth/invalid-credential':
-        return '🚫 Credenciais inválidas. Contate o administrador se necessário.';
+        return '🚫 Credenciais inválidas. Verifique seu email e senha.';
       case 'auth/email-already-in-use':
         return 'Este email já está em uso';
       case 'auth/weak-password':
@@ -151,22 +266,6 @@ export default function ChamadosAuthPage() {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
-
-  if (loading) {
-    return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <div>Carregando...</div>
-        </div>
-      </div>
-    );
-  }
 
   if (showForgotPassword) {
     return (
@@ -222,7 +321,7 @@ export default function ChamadosAuthPage() {
                 Recuperar Senha
               </h1>
               <p style={{ color: 'var(--color-textSecondary)' }}>
-                Sistema de Chamados
+                Sistema de Ponto
               </p>
             </div>
 
@@ -261,7 +360,7 @@ export default function ChamadosAuthPage() {
                   type="button"
                   onClick={() => {
                     setShowForgotPassword(false);
-                    setError('');
+                    setError(null);
                     setResetSuccess(false);
                   }}
                   className="button button-ghost"
@@ -309,6 +408,8 @@ export default function ChamadosAuthPage() {
           padding: var(--gap-sm);
           border-radius: var(--radius);
           margin-bottom: var(--gap-md);
+          word-wrap: break-word;
+          white-space: pre-wrap;
         }
       `}</style>
 
@@ -316,18 +417,18 @@ export default function ChamadosAuthPage() {
         <div className="auth-card">
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎫</div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🕒</div>
             <h1 style={{ color: 'var(--color-text)', marginBottom: '0.5rem' }}>
-              Sistema de Chamados
+              Sistema de Ponto
             </h1>
             <p style={{ color: 'var(--color-textSecondary)' }}>
-              Acesso somente para usuários autorizados
+              Controle de jornada e frequência
             </p>
           </div>
 
           {error && <div className="error-message">{error}</div>}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleLogin}>
             <div className="form-group">
               <label htmlFor="email">Email *</label>
               <input
@@ -357,10 +458,10 @@ export default function ChamadosAuthPage() {
             <button
               type="submit"
               className="button button-primary"
-              disabled={submitting}
+              disabled={loading}
               style={{ width: '100%', marginBottom: 'var(--gap-md)' }}
             >
-              {submitting ? 'Processando...' : 'Entrar no Sistema'}
+              {loading ? 'Verificando acesso...' : 'Entrar no Sistema'}
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: 'var(--gap-md)' }}>
@@ -374,17 +475,18 @@ export default function ChamadosAuthPage() {
               </button>
             </div>
 
-            <div style={{ 
-              textAlign: 'center', 
-              paddingTop: 'var(--gap-md)', 
-              borderTop: '1px solid var(--color-border)',
-              fontSize: '0.9rem',
-              color: 'var(--color-textSecondary)'
-            }}>
-              <p style={{ marginBottom: 'var(--gap-md)' }}>
-                🔐 Acesso controlado pelo Admin Master
+            {/* Admin controlled access message */}
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
+              <p style={{ marginBottom: 'var(--gap-md)', fontSize: '0.9rem', opacity: 0.8 }}>
+                🔐 Acesso para empresas e colaboradores cadastrados
               </p>
+              <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                Se você é uma empresa, use o email e senha fornecidos pelo administrador.
+                Se você é um colaborador, use suas credenciais de acesso.
+              </p>
+            </div>
 
+            <div style={{ textAlign: 'center', paddingTop: 'var(--gap-md)', borderTop: '1px solid var(--color-border)' }}>
               <Link href="/sistemas" className="button button-ghost">
                 ← Voltar aos Sistemas
               </Link>
