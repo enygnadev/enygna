@@ -296,7 +296,7 @@ export default function SistemasPage() {
                 {(!userData.permissions || Object.values(userData.permissions).every(p => !p)) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>
-          )}</div>
+          )}
 
           <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
             <span className="tag">🔐 Segurança Enterprise</span>
