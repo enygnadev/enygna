@@ -728,9 +728,17 @@ export default function AdminMasterPage() {
 
             // Se for admin, permitir acesso ao painel admin
             if (isAdminUser) {
-              console.log('Admin detectado, mantendo acesso ao painel');
+              console.log('Admin detectado, mantendo acesso ao painel:', {
+                email: user.email,
+                uid: user.uid
+              });
             } else {
               // É uma empresa, bloquear acesso ao admin
+              console.log('Acesso negado para usuário:', {
+                email: user.email,
+                uid: user.uid,
+                isEmpresa: true
+              });
               setTimeout(() => {
                 const empresaData = empresaSnapshot.docs[0].data();
                 const sistemasAtivos = empresaData.sistemasAtivos || [];
@@ -788,9 +796,13 @@ export default function AdminMasterPage() {
           setIsSuperAdmin(isAdminAccess);
 
           if (isAdminAccess) {
+            console.log('Carregando dados do admin para:', user.email);
             await loadAllData();
             initializeIntelligenceCenter(); // Centralizar inicialização
           } else {
+            console.log('Acesso negado para usuário:', user.email);
+            setError('❌ Acesso negado. Você não tem permissão para acessar o painel administrativo.');
+            setLoading(false);
             // Redirecionar para página de login se não for admin
             router.push('/admin/auth');
           }
@@ -2860,194 +2872,6 @@ export default function AdminMasterPage() {
                 </div>
               </div>
             )}
-
-            {/* Formulário de criação de admin (condicional) */}
-            {showCreateAdminForm && (
-              <div
-                style={{
-                  marginTop: '2rem',
-                  background: 'rgba(139,92,246,0.1)',
-                  border: '2px solid rgba(139,92,246,0.3)',
-                  borderRadius: '20px',
-                  padding: '2rem',
-                  animation: 'slideDown 0.3s ease-out',
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    marginBottom: '1.5rem',
-                    color: '#ffffff',
-                    textAlign: 'center',
-                  }}
-                >
-                  👑 Criar Novo Administrador
-                </h3>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1.5rem',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.5rem',
-                        fontWeight: 600,
-                        color: 'rgba(255,255,255,0.9)',
-                      }}
-                    >
-                      📧 Email do novo admin:
-                    </label>
-                    <input
-                      type="email"
-                      value={createAdminEmail}
-                      onChange={(e) => setCreateAdminEmail(e.target.value)}
-                      placeholder="admin@exemplo.com"
-                      style={{
-                        width: '100%',
-                        padding: '1rem',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '2px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontSize: '1rem',
-                        backdropFilter: 'blur(10px)',
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.5rem',
-                        fontWeight: 600,
-                        color: 'rgba(255,255,255,0.9)',
-                      }}
-                    >
-                      🔑 Senha (mínimo 6 caracteres):
-                    </label>
-                    <input
-                      type="password"
-                      value={createAdminPassword}
-                      onChange={(e) =>
-                        setCreateAdminPassword(e.target.value)
-                      }
-                      placeholder="••••••••"
-                      style={{
-                        width: '100%',
-                        padding: '1rem',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '2px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontSize: '1rem',
-                        backdropFilter: 'blur(10px)',
-                      }}
-                    />
-                  </div>
-
-                  {createAdminError && (
-                    <div
-                      style={{
-                        padding: '1rem',
-                        background: 'rgba(239,68,68,0.2)',
-                        border: '1px solid rgba(239,68,68,0.4)',
-                        borderRadius: '8px',
-                        color: '#fca5a5',
-                        fontSize: '0.9rem',
-                        whiteSpace: 'pre-line',
-                      }}
-                    >
-                      {createAdminError}
-                    </div>
-                  )}
-
-                  {createAdminSuccess && (
-                    <div
-                      style={{
-                        padding: '1rem',
-                        background: 'rgba(16,185,129,0.2)',
-                        border: '1px solid rgba(16,185,129,0.4)',
-                        borderRadius: '8px',
-                        color: '#6ee7b7',
-                        fontSize: '0.9rem',
-                        whiteSpace: 'pre-line',
-                      }}
-                    >
-                      {createAdminSuccess}
-                    </div>
-                  )}
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '1rem',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        setShowCreateAdminForm(false);
-                        setCreateAdminEmail('');
-                        setCreateAdminPassword('');
-                        setCreateAdminError('');
-                        setCreateAdminSuccess('');
-                      }}
-                      style={{
-                        padding: '1rem 2rem',
-                        background: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                        border: '2px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        transition: 'all 0.3s ease',
-                      }}
-                    >
-                      ❌ Cancelar
-                    </button>
-
-                    <button
-                      onClick={handleCreateAdmin}
-                      disabled={
-                        createAdminLoading ||
-                        !createAdminEmail ||
-                        !createAdminPassword
-                      }
-                      style={{
-                        padding: '1rem 2rem',
-                        background: createAdminLoading
-                          ? 'rgba(139,92,246,0.5)'
-                          : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '12px',
-                        cursor: createAdminLoading
-                          ? 'not-allowed'
-                          : 'pointer',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        transition: 'all 0.3s ease',
-                        opacity:
-                          !createAdminEmail || !createAdminPassword ? 0.5 : 1,
-                      }}
-                    >
-                      {createAdminLoading
-                        ? '🔄 Criando...'
-                        : '👑 Criar Administrador'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -4578,7 +4402,12 @@ export default function AdminMasterPage() {
             <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.5rem', fontWeight: '700' }}>
               📋 Gestão de Relatórios
             </h3>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              flexWrap: 'wrap',
+              marginBottom: '2rem'
+            }}>
               <button
                 onClick={() => generateReport('companies')}
                 style={{ padding: '1rem 1.5rem', background: 'linear-gradient(45deg, #3b82f6, #1e40af)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}
@@ -4695,20 +4524,6 @@ export default function AdminMasterPage() {
                 </table>
               </div>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'sistema-ponto' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <EmpresaManager
-              sistema="ponto"
-              allowCreate={true}
-              allowEdit={true}
-              allowDelete={isSuperAdmin}
-              onEmpresaSelect={(empresa) => {
-                console.log('Empresa do sistema ponto selecionada:', empresa);
-              }}
-            />
           </div>
         )}
 
@@ -5370,7 +5185,7 @@ export default function AdminMasterPage() {
                   Empresa Universal
                 </h3>
                 <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
-                  Crie empresa com acesso a todos os sistemas disponíveis
+                  Crie empresa com acesso a todos os sistemas disponíveis na plataforma.
                 </p>
                 <div style={{
                   background: 'rgba(255,255,255,0.2)',
@@ -5416,7 +5231,7 @@ export default function AdminMasterPage() {
                   Sistema Personalizado
                 </h3>
                 <p style={{ fontSize: '1rem', opacity: 0.9, marginBottom: '1rem' }}>
-                  Escolha quais sistemas ativar para a empresa
+                  Escolha quais sistemas e funcionalidades ativar para esta empresa.
                 </p>
                 <div style={{
                   background: 'rgba(255,255,255,0.2)',
@@ -5698,7 +5513,7 @@ export default function AdminMasterPage() {
                     <li style={{ marginBottom: '0.5rem' }}>✅ 999 funcionários</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ 10 empresas</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ CRM Enterprise + IA</li>
-                    <li style={{ marginBottom: '0.5rem' }}>✅ API personalizada</li>
+                    <li style={{ marginBottom: '0.5rem' }}>✅ Analytics avançado</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ Suporte dedicado</li>
                     <li style={{ marginBottom: '0.5rem' }}>✅ White label</li>
                   </ul>

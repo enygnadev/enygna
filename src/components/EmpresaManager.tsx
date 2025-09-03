@@ -215,6 +215,13 @@ export default function EmpresaManager({
       await setDoc(doc(db, collectionName, empresaId), empresaData);
       console.log('Empresa criada na coleção principal:', collectionName);
 
+      // Se não for universal, também criar na coleção específica do sistema
+      if (sistema !== 'universal') {
+        const sistemaCollectionName = getCollectionName();
+        await setDoc(doc(db, sistemaCollectionName, empresaId), empresaData);
+        console.log('Empresa criada na coleção específica:', sistemaCollectionName);
+      }
+
       // Criar configurações específicas do sistema
       await createSystemSpecificData(empresaId);
       console.log('Configurações específicas criadas');
