@@ -4,6 +4,24 @@ import React from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import Link from 'next/link';
 
+// Import the UserData type from the auth hook
+type UserData = {
+  uid: string;
+  email: string;
+  nome: string;
+  role: string;
+  tipo: 'colaborador' | 'empresa' | 'adminmaster';
+  empresaId?: string;
+  permissions?: {
+    frota: boolean;
+    ponto: boolean;
+    chamados: boolean;
+    documentos: boolean;
+    admin?: boolean;
+  };
+  ativo: boolean;
+};
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermissions?: string[];
@@ -108,7 +126,7 @@ export default function ProtectedRoute({
       // Type guard to ensure permission is a valid key
       const validPermissions = ['frota', 'ponto', 'chamados', 'documentos', 'admin'] as const;
       if (validPermissions.includes(permission as any)) {
-        return hasPermission(permission as keyof NonNullable<UserData['permissions']>);
+        return hasPermission(permission as 'frota' | 'ponto' | 'chamados' | 'documentos' | 'admin');
       }
       return false;
     });
