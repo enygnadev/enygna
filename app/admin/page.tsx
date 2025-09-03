@@ -732,10 +732,17 @@ export default function AdminMasterPage() {
 
       // Gerar ID único para a empresa
       const empresaId = `empresa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Gerar UID para a empresa (usado para autenticação)
+      const empresaUID = `uid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Adicionar UID aos dados da empresa
+      empresaData.uid = empresaUID;
 
       console.log('Criando empresa no sistema:', selectedSistema);
       console.log('Collection:', getCollectionName(selectedSistema));
       console.log('Empresa ID:', empresaId);
+      console.log('Empresa UID:', empresaUID);
       console.log('Dados da empresa:', empresaData);
 
       // 1. Se for sistema universal, criar na coleção 'empresas'
@@ -756,6 +763,27 @@ export default function AdminMasterPage() {
         });
         console.log('Empresa criada na coleção específica:', getCollectionName(selectedSistema));
       }
+
+      // 3. SEMPRE criar documento na coleção 'users' para autenticação
+      await setDoc(doc(db, 'users', empresaData.uid), {
+        createdAt: new Date().toISOString(),
+        displayName: empresaData.nome || "",
+        email: empresaData.email,
+        hourlyRate: 0,
+        isAdmin: true, // Empresa é sempre admin do próprio sistema
+        lunchBreakMinutes: 0,
+        lunchThresholdMinutes: 360,
+        monthlyBaseHours: 220,
+        monthlySalary: 0,
+        toleranceMinutes: 0,
+        role: 'admin', // Papel da empresa
+        empresaId: empresaId, // ID da empresa criada
+        sistemasAtivos: empresaData.sistemasAtivos || [selectedSistema], // Sistemas que tem acesso
+        tipo: 'empresa', // Identifica que é uma empresa
+        ativo: true,
+        plano: empresaData.plano || 'free'
+      });
+      console.log('Documento criado na coleção users para empresa:', empresaData.email);
 
       setCreateEmpresaSuccess('Empresa criada com sucesso!');
       // Recarregar a lista de empresas
