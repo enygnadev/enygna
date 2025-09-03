@@ -196,23 +196,52 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated();
     }
 
-    // Sistema de Ponto
+    // Sistema de Ponto - Regras específicas e detalhadas
     match /ponto_empresas/{empresaId} {
       allow read, write, create: if isSuperAdmin();
-      allow read, write, create: if isAuthenticated();
+      allow read, write, create: if isAuthenticated() && (
+        get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos != null &&
+        'ponto' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos
+      );
 
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
-        allow read, write, create: if isAuthenticated();
+        allow read, write, create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId
+        );
       }
     }
 
     match /ponto_users/{document} {
+      allow read, write, create: if isSuperAdmin();
       allow read, write, create: if isAuthenticated();
     }
 
     match /sessions/{document} {
+      allow read, write, create: if isSuperAdmin();
       allow read, write, create: if isAuthenticated();
+    }
+
+    // Regras específicas para colaboradores das empresas (subcoleção)
+    match /empresas/{empresaId}/colaboradores/{colaboradorId} {
+      allow read, write, create: if isSuperAdmin();
+      allow read, write, create: if isAuthenticated() && (
+        get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+        request.auth.uid == colaboradorId
+      );
+
+      match /sessions/{sessionId} {
+        allow read, write, create: if isSuperAdmin();
+        allow read, write, create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/empresas/$(empresaId)).data.email == request.auth.token.email ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId ||
+          request.auth.uid == colaboradorId
+        );
+      }
     }
 
     // === COLEÇÕES DE MONITORAMENTO E SEGURANÇA ===

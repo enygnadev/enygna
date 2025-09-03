@@ -428,16 +428,37 @@ function EmpresaDashboard() {
               
               if (hasAdminRole || hasPontoAccess || isEmpresaType) {
                 setMeRole(userData.role || 'admin');
-                setEmpresaId(userData.empresaId);
+                
+                // Priorizar empresaId da URL se existir
+                const fromQS = params.get("empresaId");
+                if (fromQS) {
+                  setEmpresaId(fromQS);
+                } else {
+                  setEmpresaId(userData.empresaId);
+                }
                 
                 // Carrega a configuração de geofencing da empresa
-                if (userData.empresaId) {
-                  const companyDoc = await getDoc(doc(db, "empresas", userData.empresaId));
-                  if (companyDoc.exists()) {
-                    const companyData = companyDoc.data() as any;
-                    if (companyData.geofencing) {
-                      setCompanyLocation(companyData.geofencing);
+                const empresaIdToUse = fromQS || userData.empresaId;
+                if (empresaIdToUse) {
+                  try {
+                    const companyDoc = await getDoc(doc(db, "empresas", empresaIdToUse));
+                    if (companyDoc.exists()) {
+                      const companyData = companyDoc.data() as any;
+                      if (companyData.geofencing) {
+                        setCompanyLocation(companyData.geofencing);
+                      }
+                      
+                      // Verificar se a empresa realmente tem sistema ponto ativo
+                      const sistemasAtivos = companyData.sistemasAtivos || [];
+                      if (!sistemasAtivos.includes('ponto')) {
+                        console.log("Empresa não tem sistema de ponto ativo");
+                        alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
+                        window.location.href = "/sistemas";
+                        return;
+                      }
                     }
+                  } catch (companyError) {
+                    console.error("Erro ao carregar dados da empresa:", companyError);
                   }
                 }
               } else {
@@ -451,23 +472,14 @@ function EmpresaDashboard() {
               // Se o usuário não existe no 'users', verifica se foi criado via admin para empresa
               // Busca pelo email na coleção de empresas para verificar se é uma empresa do sistema de ponto
               try {
-                // Primeiro tentar buscar empresa por email com sistema ponto
-                let empresasQuery = query(
-                  collection(db, "empresas"), 
-                  where("email", "==", u.email),
-                  where("sistemasAtivos", "array-contains", "ponto")
-                );
-                let empresasSnap = await getDocs(empresasQuery);
+                console.log("Buscando empresa por email:", u.email);
                 
-                // Se não encontrou, tentar buscar apenas por email (pode ser empresa recém criada)
-                if (empresasSnap.empty) {
-                  console.log("Tentando buscar empresa apenas por email...");
-                  empresasQuery = query(
-                    collection(db, "empresas"), 
-                    where("email", "==", u.email)
-                  );
-                  empresasSnap = await getDocs(empresasQuery);
-                }
+                // Buscar empresa por email
+                const empresasQuery = query(
+                  collection(db, "empresas"), 
+                  where("email", "==", u.email)
+                );
+                const empresasSnap = await getDocs(empresasQuery);
                 
                 if (!empresasSnap.empty) {
                   const empresaDoc = empresasSnap.docs[0];
@@ -480,7 +492,7 @@ function EmpresaDashboard() {
                   if (!sistemasAtivos.includes('ponto')) {
                     console.log("Empresa não tem sistema de ponto ativo");
                     alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
-                    window.location.href = "/dashboard";
+                    window.location.href = "/sistemas";
                     return;
                   }
                   
@@ -497,29 +509,32 @@ function EmpresaDashboard() {
                   });
                   
                   setMeRole('admin');
-                  setEmpresaId(empresaDoc.id);
+                  
+                  // Priorizar empresaId da URL se existir
+                  const fromQS = params.get("empresaId");
+                  setEmpresaId(fromQS || empresaDoc.id);
                   
                   // Carrega configuração de geofencing
                   if (empresaData.geofencing) {
                     setCompanyLocation(empresaData.geofencing);
                   }
                 } else {
-                  console.log("Empresa não encontrada");
-                  alert("Acesso negado. Empresa não encontrada no sistema.");
-                  window.location.href = "/dashboard";
+                  console.log("Empresa não encontrada no sistema");
+                  alert("Acesso negado. Empresa não encontrada no sistema ou não possui sistema de ponto ativo.");
+                  window.location.href = "/sistemas";
                   return;
                 }
               } catch (searchError) {
                 console.error("Erro ao buscar empresa:", searchError);
                 alert("Erro ao verificar permissões da empresa.");
-                window.location.href = "/dashboard";
+                window.location.href = "/sistemas";
                 return;
               }
             }
           } catch (error) {
             console.error("Erro ao verificar permissões:", error);
             alert("Erro ao verificar permissões. Redirecionando...");
-            window.location.href = "/dashboard";
+            window.location.href = "/sistemas";
             return;
           }
         } else {
@@ -530,24 +545,32 @@ function EmpresaDashboard() {
           if (fromQS) {
             setEmpresaId(fromQS);
              // Carrega a configuração de geofencing da empresa
-             const companyDoc = await getDoc(doc(db, "empresas", fromQS));
-             if (companyDoc.exists()) {
-               const companyData = companyDoc.data() as any;
-               if (companyData.geofencing) {
-                 setCompanyLocation(companyData.geofencing);
+             try {
+               const companyDoc = await getDoc(doc(db, "empresas", fromQS));
+               if (companyDoc.exists()) {
+                 const companyData = companyDoc.data() as any;
+                 if (companyData.geofencing) {
+                   setCompanyLocation(companyData.geofencing);
+                 }
                }
+             } catch (error) {
+               console.error("Erro ao carregar dados da empresa:", error);
              }
           } else {
             // 2) Usa empresaId dos claims (se houver)
             setEmpresaId(empIdFromClaims);
             if (empIdFromClaims) {
               // Carrega a configuração de geofencing da empresa
-              const companyDoc = await getDoc(doc(db, "empresas", empIdFromClaims));
-              if (companyDoc.exists()) {
-                const companyData = companyDoc.data() as any;
-                if (companyData.geofencing) {
-                  setCompanyLocation(companyData.geofencing);
+              try {
+                const companyDoc = await getDoc(doc(db, "empresas", empIdFromClaims));
+                if (companyDoc.exists()) {
+                  const companyData = companyDoc.data() as any;
+                  if (companyData.geofencing) {
+                    setCompanyLocation(companyData.geofencing);
+                  }
                 }
+              } catch (error) {
+                console.error("Erro ao carregar dados da empresa:", error);
               }
             }
           }
