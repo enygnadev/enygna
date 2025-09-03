@@ -361,13 +361,13 @@ export default function SistemasPage() {
       setSelectedSystem(systemId);
     } else if (systemId === 'chamados') {
       // Redirecionar para o sistema de chamados já implementado
-      window.location.href = '/chamados';
+      window.location.href = '/chamados/auth';
     } else if (systemId === 'documentos') {
       // Redirecionar para o sistema de documentos
-      window.location.href = '/documentos';
+      window.location.href = '/documentos/auth';
     } else if (systemId === 'frota') {
       // Redirecionar para o sistema de frota
-      window.location.href = '/frota';
+      window.location.href = '/frota/auth';
     } else if (systemId === 'financeiro') {
       // Redirecionar para o sistema financeiro
       window.location.href = '/financeiro/auth';
