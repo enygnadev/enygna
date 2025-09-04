@@ -7,26 +7,7 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
-
-// Define the UserData interface with the new property
-interface UserData {
-  uid: string;
-  email: string;
-  role?: string;
-  empresaId?: string;
-  sistemasAtivos?: string[];
-  bootstrapAdmin?: boolean;
-  permissions?: {
-    frota: boolean;
-    ponto: boolean;
-    chamados: boolean;
-    documentos: boolean;
-    admin?: boolean;
-    canAccessSystems?: string[];
-  };
-  tipo?: string;
-  nome?: string;
-}
+import { UserData } from '@/src/lib/types';
 
 
 export default function SistemasPage() {
