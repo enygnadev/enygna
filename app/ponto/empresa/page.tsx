@@ -699,6 +699,50 @@ function EmpresaDashboard() {
     showToast("Colaborador atualizado!");
   }
 
+  // Função utilitária para criar usuário sem afetar sessão atual
+  async function createUserSecondaryAuth(email: string, password: string, displayName: string) {
+    const { createUserWithEmailAndPassword, updateProfile, signOut } = await import("firebase/auth");
+    const { initializeApp, getApps } = await import("firebase/app");
+    const { getAuth } = await import("firebase/auth");
+    
+    // Configuração do Firebase (usar as mesmas credenciais)
+    const secondaryAppConfig = {
+      apiKey: "AIzaSyAps78YtMFxMtqXKJBj5E7v9zbCWjYJ8eo",
+      authDomain: "eny-gna.firebaseapp.com",
+      projectId: "eny-gna",
+      storageBucket: "eny-gna.firebasestorage.app",
+      messagingSenderId: "531017876423",
+      appId: "1:531017876423:web:b1da5b8cf97bee0ca5cf4d"
+    };
+
+    // Verificar se já existe uma app secundária
+    let secondaryApp;
+    const existingApps = getApps();
+    const secondaryAppExists = existingApps.find(app => app.name === 'secondary');
+    
+    if (secondaryAppExists) {
+      secondaryApp = secondaryAppExists;
+    } else {
+      secondaryApp = initializeApp(secondaryAppConfig, 'secondary');
+    }
+    
+    const secondaryAuth = getAuth(secondaryApp);
+    
+    // Criar usuário usando a instância secundária
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const newUser = userCredential.user;
+
+    // Atualizar perfil do novo usuário
+    await updateProfile(newUser, {
+      displayName: displayName
+    });
+
+    // Deslogar o usuário da instância secundária (não afeta o usuário principal)
+    await signOut(secondaryAuth);
+    
+    return newUser;
+  }
+
   // Função para adicionar colaborador usando apenas client SDK
   async function handleAddColaborador() {
     if (!newUserEmail.trim()) {
@@ -726,25 +770,14 @@ function EmpresaDashboard() {
 
     setIsAddingUser(true);
     
-    // Salvar usuário atual para restaurar depois
-    const currentUserAuth = auth.currentUser;
-    
     try {
       // Buscar sistemas ativos da empresa
       const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
       const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-      // Criar novo usuário no Firebase Auth
-      const { createUserWithEmailAndPassword, updateProfile, signOut, signInWithEmailAndPassword } = await import("firebase/auth");
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
-      const newUser = userCredential.user;
-
-      // Atualizar perfil
-      await updateProfile(newUser, {
-        displayName: newUserName
-      });
+      // Criar usuário sem afetar a sessão atual
+      const newUser = await createUserSecondaryAuth(newUserEmail, newUserPassword, newUserName);
 
       // Criar documento na coleção principal 'users'
       await setDoc(doc(db, 'users', newUser.uid), {
@@ -789,18 +822,9 @@ function EmpresaDashboard() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-
-      // Deslogar o novo usuário e relogar com o usuário da empresa
-      await signOut(auth);
       
-      // Relogar com o usuário da empresa original
-      if (currentUserAuth?.email) {
-        // Você precisa ter a senha da empresa salva ou usar outro método de autenticação
-        showToast("Colaborador criado! Por favor, faça login novamente.");
-        window.location.reload();
-      }
-
-      showToast("Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
+      // Sucesso - usuário principal permanece logado
+      showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.", "success");
       
       // Limpar formulário
       setNewUserEmail("");
@@ -814,7 +838,7 @@ function EmpresaDashboard() {
       setShowAddUserModal(false);
 
       // Recarregar lista de usuários
-      loadUsers();
+      await loadUsers();
 
     } catch (error: any) {
       console.error("Erro ao adicionar colaborador:", error);
