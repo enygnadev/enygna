@@ -705,6 +705,10 @@ function EmpresaDashboard() {
       alert("Email é obrigatório");
       return;
     }
+    if (!newUserPassword.trim() || newUserPassword.length < 6) {
+      alert("Senha é obrigatória e deve ter no mínimo 6 caracteres");
+      return;
+    }
 
     // Validar pelo menos um tipo de salário
     const hasHourly = newUserSalaryType === 'hourly' && newUserHourlyRate.trim();
@@ -1327,7 +1331,7 @@ function EmpresaDashboard() {
         onComplete={() => console.log('Tutorial empresa completado')}
         onSkip={() => console.log('Tutorial empresa pulado')}
       />
-      
+
       {/* HEADER MODERNO E RESPONSIVO */}
       <div
         className="card"
@@ -1372,7 +1376,7 @@ function EmpresaDashboard() {
               Painel de Ponto
             </h1>
           </div>
-          
+
           <button
             className="button button-ghost"
             onClick={() => {
@@ -1827,7 +1831,7 @@ function EmpresaDashboard() {
               <Icon name="approveAll" size={18} />
               {(!isMounted || windowWidth >= 640) ? "Aprovar Selecionados" : "Aprovar"}
             </button>
-            
+
             <button
               onClick={() => bulkSetStatus("rejected")}
               disabled={!selectedUser || selectedIds.size === 0}
@@ -2090,7 +2094,7 @@ function EmpresaDashboard() {
                 {!loading && pageRows.map((s) => {
                   const startDate = toDateSafe(s.start);
                   const endDate = s.end ? toDateSafe(s.end) : null;
-                  
+
                   return (
                     <tr 
                       key={s.id}
