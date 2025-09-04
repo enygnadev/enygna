@@ -699,7 +699,7 @@ function EmpresaDashboard() {
     showToast("Colaborador atualizado!");
   }
 
-  // Função para adicionar colaborador usando API route (mantém sessão da empresa)
+  // Função para adicionar colaborador usando apenas client SDK
   async function handleAddColaborador() {
     if (!newUserEmail.trim()) {
       alert("Email é obrigatório");
@@ -725,46 +725,79 @@ function EmpresaDashboard() {
     }
 
     setIsAddingUser(true);
+    
+    // Salvar usuário atual para restaurar depois
+    const currentUserAuth = auth.currentUser;
+    
     try {
       // Buscar sistemas ativos da empresa
       const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
       const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-      // Preparar dados para a API
-      const userData = {
+      // Criar novo usuário no Firebase Auth
+      const { createUserWithEmailAndPassword, updateProfile, signOut, signInWithEmailAndPassword } = await import("firebase/auth");
+      
+      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
+      const newUser = userCredential.user;
+
+      // Atualizar perfil
+      await updateProfile(newUser, {
+        displayName: newUserName
+      });
+
+      // Criar documento na coleção principal 'users'
+      await setDoc(doc(db, 'users', newUser.uid), {
         email: newUserEmail,
-        password: newUserPassword,
         displayName: newUserName,
         role: 'colaborador',
         tipo: 'colaborador',
         empresaId: empresaId,
         sistemasAtivos: sistemasAtivos,
+        permissions: {
+          canAccessSystems: sistemasAtivos
+        },
+        hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
+        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
+        monthlyBaseHours: 220,
+        toleranceMinutes: 0,
+        lunchBreakMinutes: 0,
+        lunchThresholdMinutes: 360,
+        ativo: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Criar documento na subcoleção da empresa
+      await setDoc(doc(db, 'empresas', empresaId!, 'colaboradores', newUser.uid), {
+        email: newUserEmail,
+        displayName: newUserName,
+        role: 'colaborador',
+        empresaId: empresaId,
         workDaysPerMonth: newUserWorkDays || 22,
         salaryType: newUserSalaryType,
         hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         dailyRate: newUserSalaryType === 'daily' ? Number(newUserDailyRate) || 0 : 0,
         monthlyRate: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
         monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
+        effectiveHourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         monthlyBaseHours: 220,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360
-      };
-
-      // Chamar API route para criar usuário sem afetar sessão atual
-      const response = await fetch('/api/admin/create-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+        lunchThresholdMinutes: 360,
+        isAuthUser: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao criar colaborador');
+      // Deslogar o novo usuário e relogar com o usuário da empresa
+      await signOut(auth);
+      
+      // Relogar com o usuário da empresa original
+      if (currentUserAuth?.email) {
+        // Você precisa ter a senha da empresa salva ou usar outro método de autenticação
+        showToast("Colaborador criado! Por favor, faça login novamente.");
+        window.location.reload();
       }
 
       showToast("Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
@@ -787,11 +820,11 @@ function EmpresaDashboard() {
       console.error("Erro ao adicionar colaborador:", error);
       let errorMessage = "Erro ao adicionar colaborador: ";
       
-      if (error.message.includes('email-already-in-use')) {
+      if (error.code === 'auth/email-already-in-use') {
         errorMessage += "Este email já está em uso.";
-      } else if (error.message.includes('weak-password')) {
+      } else if (error.code === 'auth/weak-password') {
         errorMessage += "A senha é muito fraca.";
-      } else if (error.message.includes('invalid-email')) {
+      } else if (error.code === 'auth/invalid-email') {
         errorMessage += "Email inválido.";
       } else {
         errorMessage += error.message;
