@@ -699,7 +699,7 @@ function EmpresaDashboard() {
     showToast("Colaborador atualizado!");
   }
 
-  // Função para adicionar colaborador com Firebase Auth
+  // Função para adicionar colaborador usando Admin SDK via API
   async function handleAddColaborador() {
     if (!newUserEmail.trim()) {
       alert("Email é obrigatório");
@@ -726,24 +726,35 @@ function EmpresaDashboard() {
 
     setIsAddingUser(true);
     try {
-      // 1. Criar usuário no Firebase Authentication
-      const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
-      const newUser = userCredential.user;
-
-      // 2. Atualizar profile no Auth
-      await updateProfile(newUser, {
-        displayName: newUserName
-      });
-
-      // 3. Buscar sistemas ativos da empresa
+      // 1. Buscar sistemas ativos da empresa
       const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
       const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-      // 4. Criar documento na coleção principal 'users'
-      await setDoc(doc(db, "users", newUser.uid), {
+      // 2. Criar usuário via API (não afeta a sessão atual)
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newUserEmail,
+          password: newUserPassword,
+          displayName: newUserName,
+          role: 'colaborador',
+          empresaId: empresaId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar usuário');
+      }
+
+      const { uid } = await response.json();
+
+      // 3. Criar documento na coleção principal 'users'
+      await setDoc(doc(db, "users", uid), {
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -764,8 +775,8 @@ function EmpresaDashboard() {
         updatedAt: serverTimestamp(),
       });
 
-      // 5. Criar documento na subcoleção da empresa
-      await setDoc(doc(db, "empresas", empresaId!, "colaboradores", newUser.uid), {
+      // 4. Criar documento na subcoleção da empresa
+      await setDoc(doc(db, "empresas", empresaId!, "colaboradores", uid), {
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -806,11 +817,11 @@ function EmpresaDashboard() {
       console.error("Erro ao adicionar colaborador:", error);
       let errorMessage = "Erro ao adicionar colaborador: ";
       
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.message.includes('email-already-in-use')) {
         errorMessage += "Este email já está em uso.";
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.message.includes('weak-password')) {
         errorMessage += "A senha é muito fraca.";
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (error.message.includes('invalid-email')) {
         errorMessage += "Email inválido.";
       } else {
         errorMessage += error.message;
