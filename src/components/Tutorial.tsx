@@ -55,9 +55,12 @@ export default function Tutorial({ steps, tutorialKey, onComplete, onSkip }: Tut
     if (onComplete) onComplete();
   };
 
-  if (!isVisible || hasSeenTutorial) return null;
+  if (!isVisible || hasSeenTutorial || !steps.length) return null;
 
   const currentStepData = steps[currentStep];
+  
+  // Verificação adicional de segurança
+  if (!currentStepData) return null;
 
   return (
     <>
