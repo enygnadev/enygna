@@ -699,7 +699,7 @@ function EmpresaDashboard() {
     showToast("Colaborador atualizado!");
   }
 
-  // Função para adicionar colaborador (apenas Firestore)
+  // Função para adicionar colaborador com Firebase Auth
   async function handleAddColaborador() {
     if (!newUserEmail.trim()) {
       alert("Email é obrigatório");
@@ -707,6 +707,10 @@ function EmpresaDashboard() {
     }
     if (!newUserPassword.trim() || newUserPassword.length < 6) {
       alert("Senha é obrigatória e deve ter no mínimo 6 caracteres");
+      return;
+    }
+    if (!newUserName.trim()) {
+      alert("Nome é obrigatório");
       return;
     }
 
@@ -722,13 +726,48 @@ function EmpresaDashboard() {
 
     setIsAddingUser(true);
     try {
-      // Gerar um ID único para o colaborador
-      const colaboradorId = `collab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // 1. Criar usuário no Firebase Authentication
+      const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
+      
+      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
+      const newUser = userCredential.user;
 
-      // Criar perfil no Firestore (sem Auth)
-      await setDoc(doc(db, "empresas", empresaId!, "colaboradores", colaboradorId), {
+      // 2. Atualizar profile no Auth
+      await updateProfile(newUser, {
+        displayName: newUserName
+      });
+
+      // 3. Buscar sistemas ativos da empresa
+      const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
+      const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
+      const sistemasAtivos = empresaData.sistemasAtivos || [];
+
+      // 4. Criar documento na coleção principal 'users'
+      await setDoc(doc(db, "users", newUser.uid), {
         email: newUserEmail,
-        displayName: newUserName || '',
+        displayName: newUserName,
+        role: 'colaborador',
+        tipo: 'colaborador',
+        empresaId: empresaId,
+        sistemasAtivos: sistemasAtivos,
+        permissions: {
+          canAccessSystems: sistemasAtivos
+        },
+        hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
+        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
+        monthlyBaseHours: 220,
+        toleranceMinutes: 0,
+        lunchBreakMinutes: 0,
+        lunchThresholdMinutes: 360,
+        ativo: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 5. Criar documento na subcoleção da empresa
+      await setDoc(doc(db, "empresas", empresaId!, "colaboradores", newUser.uid), {
+        email: newUserEmail,
+        displayName: newUserName,
         role: 'colaborador',
         empresaId: empresaId,
         workDaysPerMonth: newUserWorkDays || 22,
@@ -736,19 +775,22 @@ function EmpresaDashboard() {
         hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         dailyRate: newUserSalaryType === 'daily' ? Number(newUserDailyRate) || 0 : 0,
         monthlyRate: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        monthlySalary: Number(newUserMonthlyRate) || 0,
+        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
+        effectiveHourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         monthlyBaseHours: 220,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
         lunchThresholdMinutes: 360,
-        isAuthUser: false, // Indica que é colaborador sem conta Auth
+        isAuthUser: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      alert("Colaborador adicionado com sucesso!");
+      showToast("Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
+      
+      // Limpar formulário
       setNewUserEmail("");
-      setNewUserPassword(""); // Senha não é necessária no frontend para este modal
+      setNewUserPassword("");
       setNewUserName("");
       setNewUserWorkDays(22);
       setNewUserSalaryType('monthly');
@@ -762,7 +804,19 @@ function EmpresaDashboard() {
 
     } catch (error: any) {
       console.error("Erro ao adicionar colaborador:", error);
-      alert("Erro ao adicionar colaborador: " + error.message);
+      let errorMessage = "Erro ao adicionar colaborador: ";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage += "Este email já está em uso.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage += "A senha é muito fraca.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage += "Email inválido.";
+      } else {
+        errorMessage += error.message;
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsAddingUser(false);
     }
@@ -3022,13 +3076,14 @@ function EmpresaDashboard() {
                     alignItems: "center",
                     gap: "6px"
                   }}>
-                    👤 Nome Completo
+                    👤 Nome Completo *
                   </label>
                   <input
                     type="text"
                     value={newUserName}
                     onChange={(e) => setNewUserName(e.target.value)}
                     placeholder="Nome do colaborador"
+                    required
                     style={{
                       padding: "12px 16px",
                       background: "rgba(255, 255, 255, 0.05)",
@@ -3086,6 +3141,56 @@ function EmpresaDashboard() {
                       e.currentTarget.style.boxShadow = "none";
                     }}
                   />
+                </div>
+              </div>
+
+              {/* Campo de Senha */}
+              <div style={{
+                padding: "16px",
+                background: "linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: "12px",
+                marginBottom: "8px"
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "#fca5a5",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}>
+                    🔐 Senha de Acesso *
+                  </label>
+                  <input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      borderRadius: "10px",
+                      color: "white",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                      transition: "all 0.2s ease"
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#ef4444";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(239, 68, 68, 0.2)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  />
+                  <small style={{ color: "rgba(252, 165, 165, 0.8)", fontSize: "0.75rem" }}>
+                    O colaborador usará esta senha para fazer login no sistema
+                  </small>
                 </div>
               </div>
 
