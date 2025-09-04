@@ -55,12 +55,9 @@ export default function Tutorial({ steps, tutorialKey, onComplete, onSkip }: Tut
     if (onComplete) onComplete();
   };
 
-  if (!isVisible || hasSeenTutorial || !steps.length) return null;
+  if (!isVisible || hasSeenTutorial) return null;
 
   const currentStepData = steps[currentStep];
-  
-  // Verificação adicional de segurança
-  if (!currentStepData) return null;
 
   return (
     <>
@@ -87,9 +84,11 @@ export default function Tutorial({ steps, tutorialKey, onComplete, onSkip }: Tut
             </div>
             
             <div className="tutorial-actions">
-              <button onClick={handleSkip} className="tutorial-skip">
-                Pular Tutorial
-              </button>
+              {currentStepData.showSkip && (
+                <button onClick={handleSkip} className="tutorial-skip">
+                  Pular Tutorial
+                </button>
+              )}
               <button onClick={handleNext} className="tutorial-next">
                 {currentStep === steps.length - 1 ? 'Concluir' : 'Próximo'}
               </button>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Tutorial from '@/src/components/Tutorial';
 import ThemeSelector from '@/src/components/ThemeSelector';
-import { sistemasTutorialSteps } from '@/src/lib/tutorialSteps';
+import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
 
@@ -194,10 +194,10 @@ export default function SistemasPage() {
         padding: 'var(--gap-xl)'
       }}>
         <Tutorial
-          steps={sistemasTutorialSteps}
-          tutorialKey="sistemas"
-          onComplete={() => console.log('Tutorial sistemas completado')}
-          onSkip={() => console.log('Tutorial sistemas pulado')}
+          steps={homeTutorialSteps}
+          tutorialKey="home"
+          onComplete={() => console.log('Tutorial home completado')}
+          onSkip={() => console.log('Tutorial home pulado')}
         />
 
         {/* Header */}
