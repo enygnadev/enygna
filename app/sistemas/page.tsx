@@ -220,6 +220,25 @@ export default function SistemasPage() {
               </svg>
               Voltar ao Início
             </Link>
+            
+            <Link 
+              href="/sistemas/demo" 
+              className="button"
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                border: 'none',
+                color: 'white',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none'
+              }}
+            >
+              <span style={{ fontSize: '1rem' }}>🌟</span>
+              Demo Animado
+            </Link>
             <div className="badge">
               <span
                 className="status-indicator status-online"
