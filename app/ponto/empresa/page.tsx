@@ -2939,41 +2939,169 @@ function EmpresaDashboard() {
       {/* MODAL: Adicionar colaborador/admin/gestor */}
       {showAddUserModal && (
         <div style={backdropStyle}>
-          <div style={modalStyle}>
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>
-                <Icon name="users" /> Adicionar colaborador
+          <div style={{
+            ...modalStyle,
+            background: "linear-gradient(135deg, rgba(17, 17, 17, 0.95) 0%, rgba(34, 34, 34, 0.95) 100%)",
+            backdropFilter: "blur(25px)",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            boxShadow: "0 25px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)",
+            borderRadius: "20px",
+            maxWidth: "600px"
+          }}>
+            {/* Header do Modal */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "0 0 20px 0",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              marginBottom: "24px"
+            }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px"
+              }}>
+                <Icon name="users" size={24} style={{ color: "#3b82f6" }} />
+                Adicionar Colaborador
               </h3>
-              <button className="button button-ghost" onClick={() => setShowAddUserModal(false)}>
-                <Icon name="x" /> Fechar
+              <button 
+                onClick={() => setShowAddUserModal(false)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.1)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  borderRadius: "10px",
+                  padding: "8px 12px",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "0.875rem",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.5)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                }}
+              >
+                <Icon name="x" size={16} />
+                Fechar
               </button>
             </div>
-            <div className="stack" style={{ marginTop: 12, gap: 10 }}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Nome Completo:</label>
+
+            {/* Formulário */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Dados Básicos */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMounted && windowWidth < 640 ? "1fr" : "1fr 1fr",
+                gap: "16px"
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "rgba(255, 255, 255, 0.9)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}>
+                    👤 Nome Completo
+                  </label>
                   <input
                     type="text"
                     value={newUserName}
                     onChange={(e) => setNewUserName(e.target.value)}
                     placeholder="Nome do colaborador"
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "10px",
+                      color: "white",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                      transition: "all 0.2s ease"
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Email:</label>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "rgba(255, 255, 255, 0.9)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}>
+                    📧 Email *
+                  </label>
                   <input
                     type="email"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
                     placeholder="email@exemplo.com"
                     required
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "10px",
+                      color: "white",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                      transition: "all 0.2s ease"
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   />
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Dias trabalhados/mês:</label>
+              {/* Configurações de Trabalho */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMounted && windowWidth < 640 ? "1fr" : "1fr 1fr",
+                gap: "16px"
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "rgba(255, 255, 255, 0.9)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}>
+                    📅 Dias trabalhados/mês
+                  </label>
                   <input
                     type="number"
                     value={newUserWorkDays}
@@ -2981,10 +3109,38 @@ function EmpresaDashboard() {
                     min="1"
                     max="31"
                     placeholder="22"
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "10px",
+                      color: "white",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                      transition: "all 0.2s ease"
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Tipo de remuneração:</label>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "rgba(255, 255, 255, 0.9)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}>
+                    💼 Tipo de remuneração
+                  </label>
                   <select
                     value={newUserSalaryType}
                     onChange={(e) => {
@@ -2995,73 +3151,269 @@ function EmpresaDashboard() {
                       if (paymentType !== 'daily') setNewUserDailyRate('');
                       if (paymentType !== 'monthly') setNewUserMonthlyRate('');
                     }}
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "10px",
+                      color: "white",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                      transition: "all 0.2s ease"
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   >
-                    <option value="monthly">Salário Mensal</option>
-                    <option value="daily">Valor Diário</option>
-                    <option value="hourly">Valor por Hora</option>
+                    <option value="monthly" style={{ background: "#1a1a1a", color: "white" }}>Salário Mensal</option>
+                    <option value="daily" style={{ background: "#1a1a1a", color: "white" }}>Valor Diário</option>
+                    <option value="hourly" style={{ background: "#1a1a1a", color: "white" }}>Valor por Hora</option>
                   </select>
                 </div>
               </div>
 
-              <div className="salary-input-section">
+              {/* Seção de Salário com destaque */}
+              <div style={{
+                padding: "20px",
+                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1))",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                borderRadius: "12px",
+                marginTop: "8px"
+              }}>
                 {newUserSalaryType === 'hourly' && (
-                  <div className="form-group salary-highlight">
-                    <label>💰 Valor por hora (R$):</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      color: "#6ee7b7",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px"
+                    }}>
+                      💰 Valor por hora (R$)
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       value={newUserHourlyRate}
                       onChange={(e) => setNewUserHourlyRate(e.target.value)}
                       placeholder="15.00"
-                      className="salary-input"
+                      style={{
+                        padding: "14px 18px",
+                        background: "rgba(16, 185, 129, 0.1)",
+                        border: "2px solid rgba(16, 185, 129, 0.3)",
+                        borderRadius: "10px",
+                        color: "white",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        outline: "none",
+                        transition: "all 0.2s ease"
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#10b981";
+                        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     />
-                    <small>Exemplo: R$ 15,00/hora</small>
+                    <small style={{ color: "rgba(110, 231, 183, 0.8)", fontSize: "0.75rem" }}>
+                      Exemplo: R$ 15,00/hora
+                    </small>
                   </div>
                 )}
 
                 {newUserSalaryType === 'daily' && (
-                  <div className="form-group salary-highlight">
-                    <label>💰 Valor por dia (R$):</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      color: "#6ee7b7",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px"
+                    }}>
+                      💰 Valor por dia (R$)
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       value={newUserDailyRate}
                       onChange={(e) => setNewUserDailyRate(e.target.value)}
                       placeholder="120.00"
-                      className="salary-input"
+                      style={{
+                        padding: "14px 18px",
+                        background: "rgba(16, 185, 129, 0.1)",
+                        border: "2px solid rgba(16, 185, 129, 0.3)",
+                        borderRadius: "10px",
+                        color: "white",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        outline: "none",
+                        transition: "all 0.2s ease"
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#10b981";
+                        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     />
-                    <small>Exemplo: R$ 120,00/dia</small>
+                    <small style={{ color: "rgba(110, 231, 183, 0.8)", fontSize: "0.75rem" }}>
+                      Exemplo: R$ 120,00/dia
+                    </small>
                   </div>
                 )}
 
                 {newUserSalaryType === 'monthly' && (
-                  <div className="form-group salary-highlight">
-                    <label>💰 Salário mensal (R$):</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      color: "#6ee7b7",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px"
+                    }}>
+                      💰 Salário mensal (R$)
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       value={newUserMonthlyRate}
                       onChange={(e) => setNewUserMonthlyRate(e.target.value)}
                       placeholder="2500.00"
-                      className="salary-input"
+                      style={{
+                        padding: "14px 18px",
+                        background: "rgba(16, 185, 129, 0.1)",
+                        border: "2px solid rgba(16, 185, 129, 0.3)",
+                        borderRadius: "10px",
+                        color: "white",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        outline: "none",
+                        transition: "all 0.2s ease"
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#10b981";
+                        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     />
-                    <small>Exemplo: R$ 2.500,00/mês</small>
+                    <small style={{ color: "rgba(110, 231, 183, 0.8)", fontSize: "0.75rem" }}>
+                      Exemplo: R$ 2.500,00/mês
+                    </small>
                   </div>
                 )}
               </div>
 
-              <div className="button-group">
+              {/* Botões de Ação */}
+              <div style={{
+                display: "flex",
+                gap: "12px",
+                marginTop: "24px",
+                flexDirection: isMounted && windowWidth < 640 ? "column" : "row"
+              }}>
                 <button
-                  className="button primary"
                   onClick={handleAddColaborador}
                   disabled={isAddingUser}
+                  style={{
+                    flex: 1,
+                    padding: "16px 24px",
+                    background: isAddingUser 
+                      ? "rgba(107, 114, 128, 0.5)" 
+                      : "linear-gradient(135deg, #10b981, #059669)",
+                    border: "none",
+                    borderRadius: "12px",
+                    color: "white",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    cursor: isAddingUser ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    transition: "all 0.2s ease",
+                    boxShadow: isAddingUser ? "none" : "0 4px 16px rgba(16, 185, 129, 0.3)",
+                    opacity: isAddingUser ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isAddingUser) {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.4)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isAddingUser) {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(16, 185, 129, 0.3)";
+                    }
+                  }}
                 >
-                  {isAddingUser ? "Adicionando..." : "💾 Adicionar Colaborador"}
+                  {isAddingUser ? (
+                    <>
+                      <div style={{
+                        width: "16px",
+                        height: "16px",
+                        border: "2px solid rgba(255, 255, 255, 0.3)",
+                        borderTop: "2px solid white",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite"
+                      }} />
+                      Adicionando...
+                    </>
+                  ) : (
+                    <>
+                      💾 Adicionar Colaborador
+                    </>
+                  )}
                 </button>
+
                 <button
-                  className="button secondary"
                   onClick={() => setShowAddUserModal(false)}
                   disabled={isAddingUser}
+                  style={{
+                    flex: isMounted && windowWidth < 640 ? 1 : 0.5,
+                    padding: "16px 24px",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    borderRadius: "12px",
+                    color: "#f87171",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    cursor: isAddingUser ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    transition: "all 0.2s ease",
+                    opacity: isAddingUser ? 0.5 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isAddingUser) {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)";
+                      e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.5)";
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isAddingUser) {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
+                      e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }
+                  }}
                 >
                   ❌ Cancelar
                 </button>
