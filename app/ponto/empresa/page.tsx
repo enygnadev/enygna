@@ -699,7 +699,7 @@ function EmpresaDashboard() {
     showToast("Colaborador atualizado!");
   }
 
-  // Função para adicionar colaborador com Firebase Auth
+  // Função para adicionar colaborador usando API route (mantém sessão da empresa)
   async function handleAddColaborador() {
     if (!newUserEmail.trim()) {
       alert("Email é obrigatório");
@@ -726,65 +726,46 @@ function EmpresaDashboard() {
 
     setIsAddingUser(true);
     try {
-      // 1. Criar usuário no Firebase Authentication
-      const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
-      const newUser = userCredential.user;
-
-      // 2. Atualizar profile no Auth
-      await updateProfile(newUser, {
-        displayName: newUserName
-      });
-
-      // 3. Buscar sistemas ativos da empresa
+      // Buscar sistemas ativos da empresa
       const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
       const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-      // 4. Criar documento na coleção principal 'users'
-      await setDoc(doc(db, "users", newUser.uid), {
+      // Preparar dados para a API
+      const userData = {
         email: newUserEmail,
+        password: newUserPassword,
         displayName: newUserName,
         role: 'colaborador',
         tipo: 'colaborador',
         empresaId: empresaId,
         sistemasAtivos: sistemasAtivos,
-        permissions: {
-          canAccessSystems: sistemasAtivos
-        },
-        hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
-        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        monthlyBaseHours: 220,
-        toleranceMinutes: 0,
-        lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
-        ativo: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // 5. Criar documento na subcoleção da empresa
-      await setDoc(doc(db, "empresas", empresaId!, "colaboradores", newUser.uid), {
-        email: newUserEmail,
-        displayName: newUserName,
-        role: 'colaborador',
-        empresaId: empresaId,
         workDaysPerMonth: newUserWorkDays || 22,
         salaryType: newUserSalaryType,
         hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         dailyRate: newUserSalaryType === 'daily' ? Number(newUserDailyRate) || 0 : 0,
         monthlyRate: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
         monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        effectiveHourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
         monthlyBaseHours: 220,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
-        isAuthUser: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        lunchThresholdMinutes: 360
+      };
+
+      // Chamar API route para criar usuário sem afetar sessão atual
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao criar colaborador');
+      }
 
       showToast("Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
       
@@ -806,11 +787,11 @@ function EmpresaDashboard() {
       console.error("Erro ao adicionar colaborador:", error);
       let errorMessage = "Erro ao adicionar colaborador: ";
       
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.message.includes('email-already-in-use')) {
         errorMessage += "Este email já está em uso.";
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.message.includes('weak-password')) {
         errorMessage += "A senha é muito fraca.";
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (error.message.includes('invalid-email')) {
         errorMessage += "Email inválido.";
       } else {
         errorMessage += error.message;
