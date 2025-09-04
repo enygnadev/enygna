@@ -50,4 +50,8 @@ export interface UserData {
   lunchBreakMinutes?: number;
   lunchThresholdMinutes?: number;
   isAdmin?: boolean;
+  // Campos adicionais para empresas
+  tipo?: string;
+  nome?: string;
+  plano?: string;
 }
