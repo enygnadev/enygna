@@ -21,3 +21,33 @@ export type SessionDoc = {
   status?: 'pending' | 'approved' | 'rejected';
   notes?: string;
 };
+
+export interface UserData {
+  uid: string;
+  email: string;
+  displayName?: string;
+  role: string;
+  empresaId?: string;
+  company?: string;
+  ativo: boolean;
+  createdAt: any;
+  updatedAt: any;
+  bootstrapAdmin?: boolean;
+  sistemasAtivos?: string[];
+  permissions: {
+    frota: boolean;
+    ponto: boolean;
+    chamados: boolean;
+    documentos: boolean;
+    admin?: boolean;
+    canAccessSystems?: string[];
+  };
+  // Campos específicos para colaboradores
+  monthlySalary?: number;
+  hourlyRate?: number;
+  monthlyBaseHours?: number;
+  toleranceMinutes?: number;
+  lunchBreakMinutes?: number;
+  lunchThresholdMinutes?: number;
+  isAdmin?: boolean;
+}

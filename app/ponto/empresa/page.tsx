@@ -824,7 +824,7 @@ function EmpresaDashboard() {
       });
       
       // Sucesso - usuário principal permanece logado
-      showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.", "success");
+      showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
       
       // Limpar formulário
       setNewUserEmail("");
@@ -2240,7 +2240,7 @@ function EmpresaDashboard() {
                           {(s.status || "pending") === "pending" && (
                             <>
                               <button
-                                onClick={() => handleApprove(s.id, selectedUser.id)}
+                                onClick={() => selectedUser && handleApprove(s.id, selectedUser.id)}
                                 style={{
                                   padding: "6px 12px",
                                   background: "linear-gradient(135deg, #10b981, #059669)",
@@ -2260,7 +2260,7 @@ function EmpresaDashboard() {
                                 Aprovar
                               </button>
                               <button
-                                onClick={() => handleReject(s.id, selectedUser.id)}
+                                onClick={() => selectedUser && handleReject(s.id, selectedUser.id)}
                                 style={{
                                   padding: "6px 12px",
                                   background: "linear-gradient(135deg, #ef4444, #dc2626)",
