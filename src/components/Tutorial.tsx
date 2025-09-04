@@ -87,11 +87,9 @@ export default function Tutorial({ steps, tutorialKey, onComplete, onSkip }: Tut
             </div>
             
             <div className="tutorial-actions">
-              {currentStepData.showSkip && (
-                <button onClick={handleSkip} className="tutorial-skip">
-                  Pular Tutorial
-                </button>
-              )}
+              <button onClick={handleSkip} className="tutorial-skip">
+                Pular Tutorial
+              </button>
               <button onClick={handleNext} className="tutorial-next">
                 {currentStep === steps.length - 1 ? 'Concluir' : 'Próximo'}
               </button>

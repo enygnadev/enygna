@@ -47,6 +47,7 @@ import ScheduleImporter from "@/src/components/ScheduleImporter";
 import PayrollExporter from "@/src/components/PayrollExporter";
 import ElectronicSignature from "@/src/components/ElectronicSignature";
 import Tutorial from "@/src/components/Tutorial";
+import { pontoEmpresaTutorialSteps } from "@/src/lib/tutorialSteps";
 
 /** =============================================================
  * ÍCONES SVG MODERNOS COM ANIMAÇÕES
@@ -1012,32 +1013,7 @@ function ModernEmpresaDashboard() {
 
       {/* Tutorial Component */}
       <Tutorial
-        steps={[
-          {
-            id: 'welcome-empresa',
-            title: 'Dashboard Empresarial Modernizado',
-            content: 'Bem-vindo ao novo dashboard! Aqui você pode gerenciar seus colaboradores e controlar o ponto eletrônico.',
-            showSkip: true
-          },
-          {
-            id: 'select-collaborator',
-            title: 'Selecione um Colaborador',
-            content: 'Use o seletor na barra lateral para escolher qual colaborador deseja visualizar.',
-            showSkip: false
-          },
-          {
-            id: 'tabs-navigation',
-            title: 'Navegação por Abas',
-            content: 'Use as abas para navegar entre diferentes seções: Visão Geral, Sessões, Colaboradores, Analytics, etc.',
-            showSkip: false
-          },
-          {
-            id: 'metrics-overview',
-            title: 'Métricas em Tempo Real',
-            content: 'Visualize métricas importantes como horas trabalhadas, ganhos e status das sessões.',
-            showSkip: false
-          }
-        ]}
+        steps={pontoEmpresaTutorialSteps}
         tutorialKey="empresa-dashboard-modern"
         onComplete={() => console.log('Tutorial completado')}
         onSkip={() => console.log('Tutorial pulado')}
