@@ -16,9 +16,17 @@ interface UserData {
   role?: string;
   empresaId?: string;
   sistemasAtivos?: string[];
-  permissions?: Record<string, boolean>;
+  permissions?: {
+    frota?: boolean;
+    ponto?: boolean;
+    chamados?: boolean;
+    documentos?: boolean;
+    admin?: boolean;
+    canAccessSystems?: string[];
+  };
   tipo?: string;
   nome?: string;
+  bootstrapAdmin?: boolean;
 }
 
 
@@ -32,17 +40,22 @@ export default function SistemasPage() {
     if (!user || !userData) return false;
     
     // Admins sempre têm acesso
-    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || (userData as any).bootstrapAdmin) {
       return true;
     }
     
     // Verificar sistemas ativos do usuário
-    if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+    if ((userData as any).sistemasAtivos && (userData as any).sistemasAtivos.includes(sistema)) {
       return true;
     }
     
     // Verificar permissões específicas
-    if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+    if (userData.permissions && (userData.permissions as any).canAccessSystems && (userData.permissions as any).canAccessSystems.includes(sistema)) {
+      return true;
+    }
+    
+    // Verificar permissões diretas
+    if (userData.permissions && (userData.permissions as any)[sistema]) {
       return true;
     }
     
@@ -56,7 +69,7 @@ export default function SistemasPage() {
         userEmail: user.email,
         userId: user.uid,
         userData: userData,
-        sistemasAtivos: userData?.sistemasAtivos || [],
+        sistemasAtivos: (userData as any)?.sistemasAtivos || [],
         hasAccessPonto: hasAccess('ponto'),
         hasAccessChamados: hasAccess('chamados'),
         hasAccessCrm: hasAccess('crm'),
@@ -346,7 +359,7 @@ export default function SistemasPage() {
                 {hasAccess('financeiro') && <span className="tag" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>💰 Financeiro</span>}
                 {(hasAccess('crm') || hasAccess('vendas')) && <span className="tag" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💼 CRM/Vendas</span>}
                 {userData.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
-                {(!userData.sistemasAtivos || userData.sistemasAtivos.length === 0) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                {(!(userData as any).sistemasAtivos || (userData as any).sistemasAtivos.length === 0) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>
           )}
