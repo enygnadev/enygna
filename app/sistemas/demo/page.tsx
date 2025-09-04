@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import SistemasAnimatedDemo from "../../../src/components/SistemasAnimatedDemo"
+import AnimatedBeamDemo from "@/src/components/AnimatedBeamDemo"
 
 export default function SistemasBeamDemoPage() {
   const [showLegend, setShowLegend] = useState(true)
@@ -90,7 +90,7 @@ export default function SistemasBeamDemoPage() {
       <div style={{
         marginBottom: "clamp(32px, 6vw, 64px)"
       }}>
-        <SistemasAnimatedDemo />
+        <AnimatedBeamDemo />
       </div>
 
       {/* Legenda */}
