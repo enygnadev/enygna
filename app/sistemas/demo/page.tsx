@@ -1,243 +1,154 @@
 "use client"
 
-import { useState } from "react"
-import AnimatedBeamDemo from "@/src/components/AnimatedBeamDemo"
+import { motion } from "motion/react"
+import { type RefObject, useEffect, useId, useState } from "react"
 
-export default function SistemasBeamDemoPage() {
-  const [showLegend, setShowLegend] = useState(true)
+import { cn } from "@/lib/utils"
+
+export interface AnimatedBeamProps {
+  className?: string
+  containerRef: RefObject<HTMLElement | null> // Container ref
+  fromRef: RefObject<HTMLElement | null>
+  toRef: RefObject<HTMLElement | null>
+  curvature?: number
+  reverse?: boolean
+  pathColor?: string
+  pathWidth?: number
+  pathOpacity?: number
+  gradientStartColor?: string
+  gradientStopColor?: string
+  delay?: number
+  duration?: number
+  startXOffset?: number
+  startYOffset?: number
+  endXOffset?: number
+  endYOffset?: number
+}
+
+export const AnimatedBeam: React.FC<AnimatedBeamProps> = ({
+  className,
+  containerRef,
+  fromRef,
+  toRef,
+  curvature = 0,
+  reverse = false, // Include the reverse prop
+  duration = Math.random() * 3 + 4,
+  delay = 0,
+  pathColor = "gray",
+  pathWidth = 2,
+  pathOpacity = 0.2,
+  gradientStartColor = "#ffaa40",
+  gradientStopColor = "#9c40ff",
+  startXOffset = 0,
+  startYOffset = 0,
+  endXOffset = 0,
+  endYOffset = 0,
+}) => {
+  const id = useId()
+  const [pathD, setPathD] = useState("")
+  const [svgDimensions, setSvgDimensions] = useState({ width: 0, height: 0 })
+
+  // Calculate the gradient coordinates based on the reverse prop
+  const gradientCoordinates = reverse
+    ? {
+        x1: ["90%", "-10%"],
+        x2: ["100%", "0%"],
+        y1: ["0%", "0%"],
+        y2: ["0%", "0%"],
+      }
+    : {
+        x1: ["10%", "110%"],
+        x2: ["0%", "100%"],
+        y1: ["0%", "0%"],
+        y2: ["0%", "0%"],
+      }
+
+  useEffect(() => {
+    const updatePath = () => {
+      if (containerRef.current && fromRef.current && toRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const rectA = fromRef.current.getBoundingClientRect()
+        const rectB = toRef.current.getBoundingClientRect()
+
+        const svgWidth = containerRect.width
+        const svgHeight = containerRect.height
+        setSvgDimensions({ width: svgWidth, height: svgHeight })
+
+        const startX = rectA.left - containerRect.left + rectA.width / 2 + startXOffset
+        const startY = rectA.top - containerRect.top + rectA.height / 2 + startYOffset
+        const endX = rectB.left - containerRect.left + rectB.width / 2 + endXOffset
+        const endY = rectB.top - containerRect.top + rectB.height / 2 + endYOffset
+
+        const controlY = startY - curvature
+        const d = `M ${startX},${startY} Q ${(startX + endX) / 2},${controlY} ${endX},${endY}`
+        setPathD(d)
+      }
+    }
+
+    // Initialize ResizeObserver
+    const resizeObserver = new ResizeObserver((entries) => {
+      // For all entries, recalculate the path
+      for (const entry of entries) {
+        updatePath()
+      }
+    })
+
+    // Observe the container element
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    // Call the updatePath initially to set the initial path
+    updatePath()
+
+    // Clean up the observer on component unmount
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [containerRef, fromRef, toRef, curvature, startXOffset, startYOffset, endXOffset, endYOffset])
 
   return (
-    <div 
-      className="container"
-      style={{
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-        minHeight: "100vh",
-        padding: "clamp(16px, 4vw, 32px)",
-        color: "white"
-      }}
+    <svg
+      fill="none"
+      width={svgDimensions.width}
+      height={svgDimensions.height}
+      xmlns="http://www.w3.org/2000/svg"
+      className={cn("pointer-events-none absolute left-0 top-0 transform-gpu stroke-2", className)}
+      viewBox={`0 0 ${svgDimensions.width} ${svgDimensions.height}`}
     >
-      {/* Header */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "clamp(24px, 5vw, 48px)",
-        flexWrap: "wrap",
-        gap: "16px"
-      }}>
-        <div>
-          <h1 style={{
-            fontSize: "clamp(2rem, 5vw, 3.5rem)",
-            fontWeight: "800",
-            marginBottom: "8px",
-            background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text"
-          }}>
-            🌟 Demo Sistemas Animados
-          </h1>
-          <p style={{
-            fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
-            color: "rgba(255, 255, 255, 0.7)",
-            marginBottom: "16px"
-          }}>
-            Demonstração interativa do ecossistema ENY-GNA com animações
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            style={{
-              padding: "12px 20px",
-              background: "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "10px",
-              color: "white",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              transition: "all 0.2s ease"
-            }}
-          >
-            {showLegend ? "🙈 Ocultar" : "👁️ Mostrar"} Legenda
-          </button>
-          
-          <button
-            onClick={() => window.history.back()}
-            style={{
-              padding: "12px 20px",
-              background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-              border: "none",
-              borderRadius: "10px",
-              color: "white",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
-          >
-            ← Voltar aos Sistemas
-          </button>
-        </div>
-      </div>
-
-      {/* Demonstração Principal */}
-      <div style={{
-        marginBottom: "clamp(32px, 6vw, 64px)"
-      }}>
-        <AnimatedBeamDemo />
-      </div>
-
-      {/* Legenda */}
-      {showLegend && (
-        <div style={{
-          background: "rgba(255, 255, 255, 0.05)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "20px",
-          padding: "clamp(20px, 4vw, 40px)",
-          backdropFilter: "blur(20px)",
-          marginBottom: "clamp(32px, 6vw, 64px)"
-        }}>
-          <h2 style={{
-            fontSize: "clamp(1.5rem, 3vw, 2rem)",
-            fontWeight: "700",
-            marginBottom: "24px",
-            color: "#3b82f6"
-          }}>
-            📖 Como Funciona
-          </h2>
-          
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "20px",
-            marginBottom: "24px"
-          }}>
-            <div>
-              <h3 style={{ color: "#8b5cf6", fontSize: "1.1rem", marginBottom: "8px" }}>
-                🎯 Sistema Central
-              </h3>
-              <p style={{ color: "rgba(255, 255, 255, 0.8)", lineHeight: 1.6 }}>
-                O centro representa o hub principal - clique para voltar à página de sistemas
-              </p>
-            </div>
-            
-            <div>
-              <h3 style={{ color: "#3b82f6", fontSize: "1.1rem", marginBottom: "8px" }}>
-                ⚡ Feixes Animados
-              </h3>
-              <p style={{ color: "rgba(255, 255, 255, 0.8)", lineHeight: 1.6 }}>
-                As animações mostram a conexão e fluxo de dados entre os sistemas
-              </p>
-            </div>
-            
-            <div>
-              <h3 style={{ color: "#10b981", fontSize: "1.1rem", marginBottom: "8px" }}>
-                🖱️ Navegação Interativa
-              </h3>
-              <p style={{ color: "rgba(255, 255, 255, 0.8)", lineHeight: 1.6 }}>
-                Clique em qualquer sistema para navegar diretamente para ele
-              </p>
-            </div>
-          </div>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: "12px",
-            marginTop: "24px"
-          }}>
-            {[
-              { icon: "🕒", name: "Ponto", color: "#3b82f6" },
-              { icon: "🎫", name: "Chamados", color: "#ec4899" },
-              { icon: "💼", name: "CRM", color: "#06b6d4" },
-              { icon: "💰", name: "Financeiro", color: "#10b981" },
-              { icon: "🚗", name: "Frota", color: "#8b5cf6" },
-              { icon: "📄", name: "Documentos", color: "#6366f1" }
-            ].map((sistema) => (
-              <div 
-                key={sistema.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "12px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: "12px",
-                  border: `1px solid ${sistema.color}33`
-                }}
-              >
-                <div style={{ fontSize: "1.5rem" }}>{sistema.icon}</div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  fontWeight: 500,
-                  color: sistema.color 
-                }}>
-                  {sistema.name}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recursos Técnicos */}
-      <div style={{
-        background: "rgba(255, 255, 255, 0.05)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        borderRadius: "20px",
-        padding: "clamp(20px, 4vw, 40px)",
-        backdropFilter: "blur(20px)"
-      }}>
-        <h2 style={{
-          fontSize: "clamp(1.5rem, 3vw, 2rem)",
-          fontWeight: "700",
-          marginBottom: "24px",
-          color: "#f59e0b"
-        }}>
-          🚀 Recursos Técnicos
-        </h2>
-        
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "20px"
-        }}>
-          <div>
-            <h4 style={{ color: "#3b82f6", marginBottom: "8px" }}>⚡ Framer Motion</h4>
-            <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "0.9rem" }}>
-              Animações fluidas e performáticas com gradientes dinâmicos
-            </p>
-          </div>
-          
-          <div>
-            <h4 style={{ color: "#8b5cf6", marginBottom: "8px" }}>📐 SVG Responsivo</h4>
-            <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "0.9rem" }}>
-              Gráficos vetoriais que se adaptam a qualquer tamanho de tela
-            </p>
-          </div>
-          
-          <div>
-            <h4 style={{ color: "#10b981", marginBottom: "8px" }}>🎨 Design System</h4>
-            <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "0.9rem" }}>
-              Integrado ao tema existente com glass morphism
-            </p>
-          </div>
-          
-          <div>
-            <h4 style={{ color: "#f59e0b", marginBottom: "8px" }}>🔄 Real-time</h4>
-            <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "0.9rem" }}>
-              ResizeObserver para recalculo automático das posições
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+      <path d={pathD} stroke={pathColor} strokeWidth={pathWidth} strokeOpacity={pathOpacity} strokeLinecap="round" />
+      <path d={pathD} strokeWidth={pathWidth} stroke={`url(#${id})`} strokeOpacity="1" strokeLinecap="round" />
+      <defs>
+        <motion.linearGradient
+          className="transform-gpu"
+          id={id}
+          gradientUnits={"userSpaceOnUse"}
+          initial={{
+            x1: "0%",
+            x2: "0%",
+            y1: "0%",
+            y2: "0%",
+          }}
+          animate={{
+            x1: gradientCoordinates.x1,
+            x2: gradientCoordinates.x2,
+            y1: gradientCoordinates.y1,
+            y2: gradientCoordinates.y2,
+          }}
+          transition={{
+            delay,
+            duration,
+            ease: [0.16, 1, 0.3, 1], // https://easings.net/#easeOutExpo
+            repeat: Number.POSITIVE_INFINITY,
+            repeatDelay: 0,
+          }}
+        >
+          <stop stopColor={gradientStartColor} stopOpacity="0"></stop>
+          <stop stopColor={gradientStartColor}></stop>
+          <stop offset="32.5%" stopColor={gradientStopColor}></stop>
+          <stop offset="100%" stopColor={gradientStopColor} stopOpacity="0"></stop>
+        </motion.linearGradient>
+      </defs>
+    </svg>
   )
 }
