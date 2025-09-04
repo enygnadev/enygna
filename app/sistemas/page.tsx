@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Tutorial from '@/src/components/Tutorial';
 import ThemeSelector from '@/src/components/ThemeSelector';
+import AnimatedSystemsMenu from '@/src/components/AnimatedSystemsMenu';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
@@ -358,138 +359,63 @@ export default function SistemasPage() {
           </div>
         </div>
 
-        {/* Systems Grid */}
+        {/* Menu de Sistemas com Animated Beams */}
+        <div style={{ marginBottom: 'var(--gap-2xl)' }}>
+          <AnimatedSystemsMenu
+            onSystemSelect={handleSystemSelect}
+            hasAccess={hasAccess}
+            user={user}
+            userData={userData}
+          />
+        </div>
+
+        {/* Legenda dos Sistemas */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(280px, 25vw, 360px), 1fr))',
-          gap: 'var(--gap-xl)',
-          marginBottom: 'var(--gap-2xl)'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: 'var(--gap-md)',
+          marginBottom: 'var(--gap-2xl)',
+          padding: 'var(--gap-lg)',
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           {systems.map((system) => {
             const hasSystemAccess = user && userData && hasAccess(system.id);
             const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.id);
 
             return (
-              <div
-                key={system.id}
-                className="system-card"
-                onClick={() => isAccessible ? handleSystemSelect(system.id) : null}
-                style={{
-                  background: 'var(--gradient-card)',
-                  border: `2px solid ${system.borderColor}`,
-                  borderRadius: '20px',
-                  padding: 'var(--gap-xl)',
-                  cursor: isAccessible ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  backdropFilter: 'blur(20px)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  opacity: isAccessible ? 1 : 0.5
-                }}
-                onMouseEnter={(e) => {
-                  if (isAccessible) {
-                    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
-                    e.currentTarget.style.borderColor = system.borderColor;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (isAccessible) {
-                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
-                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                  }
-                }}
-              >
-              {/* Background gradient overlay */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: system.gradient,
-                opacity: 0.05,
-                borderRadius: '18px'
-              }} />
-
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{
-                  fontSize: 'clamp(2.5rem, 6vw, 3.5rem)',
-                  marginBottom: 'var(--gap-md)',
-                  textAlign: 'center'
-                }}>
+              <div key={system.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--gap-sm)',
+                padding: 'var(--gap-sm)',
+                borderRadius: '8px',
+                background: isAccessible ? 'rgba(255, 255, 255, 0.05)' : 'rgba(128, 128, 128, 0.1)'
+              }}>
+                <span style={{ fontSize: '1.2rem', filter: isAccessible ? 'none' : 'grayscale(100%)' }}>
                   {system.icon}
-                </div>
-
-                <h3 style={{
-                  fontSize: 'clamp(1.2rem, 2.5vw, 1.5rem)',
-                  fontWeight: '700',
-                  marginBottom: 'var(--gap-sm)',
-                  textAlign: 'center',
-                  color: 'var(--color-text)'
-                }}>
-                  {system.name}
-                </h3>
-
-                <p style={{
-                  fontSize: 'clamp(0.9rem, 1.5vw, 1rem)',
-                  color: 'var(--color-textSecondary)',
-                  textAlign: 'center',
-                  lineHeight: 1.5,
-                  marginBottom: 'var(--gap-lg)'
-                }}>
-                  {system.description}
-                </p>
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'var(--gap-sm)',
-                  padding: 'var(--gap-sm) var(--gap-md)',
-                  background: isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
-                  borderRadius: '12px',
-                  color: 'white',
-                  fontWeight: '600',
-                  fontSize: '0.9rem'
-                }}>
-                  {user && userData ? (
-                    hasSystemAccess ? (
-                      <>
-                        <span>✅ Acessar Sistema</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </>
-                    ) : ['vendas', 'estoque', 'rh'].includes(system.id) ? (
-                      <>
-                        <span>🚧 Em Breve</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                          <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      </>
-                    ) : (
-                      <>
-                        <span>🔒 Sem Acesso</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
-                          <circle cx="12" cy="16" r="1" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <span>Acessar Sistema</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </>
-                  )}
+                </span>
+                <div>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    color: isAccessible ? 'var(--color-text)' : 'var(--color-textSecondary)'
+                  }}>
+                    {system.name}
+                  </div>
+                  <div style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--color-textSecondary)',
+                    opacity: 0.8
+                  }}>
+                    {user && userData ? (
+                      hasSystemAccess ? '✅ Disponível' : 
+                      ['vendas', 'estoque', 'rh'].includes(system.id) ? '🚧 Em breve' : '🔒 Sem acesso'
+                    ) : 'Clique para acessar'}
+                  </div>
                 </div>
               </div>
-            </div>
             );
           })}
         </div>
