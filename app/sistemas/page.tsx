@@ -15,7 +15,15 @@ interface UserData {
   role?: string;
   empresaId?: string;
   sistemasAtivos?: string[];
-  permissions?: Record<string, boolean>;
+  bootstrapAdmin?: boolean;
+  permissions?: {
+    frota: boolean;
+    ponto: boolean;
+    chamados: boolean;
+    documentos: boolean;
+    admin?: boolean;
+    canAccessSystems?: string[];
+  };
   tipo?: string;
   nome?: string;
 }
