@@ -7,7 +7,6 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
-import { useSystemAccess } from '@/src/hooks/useSystemAccess';
 
 // Define the UserData interface with the new property
 interface UserData {
@@ -26,25 +25,44 @@ export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
   const { user, userData, loading, signOut } = useAuthData();
-  const { hasAccess, systemsAvailable, loading: systemsLoading } = useSystemAccess(user);
+
+  // Função para verificar acesso aos sistemas
+  const hasAccess = (sistema: string): boolean => {
+    if (!user || !userData) return false;
+    
+    // Admins sempre têm acesso
+    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+      return true;
+    }
+    
+    // Verificar sistemas ativos do usuário
+    if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+      return true;
+    }
+    
+    // Verificar permissões específicas
+    if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Debug para verificar o que está acontecendo
   useEffect(() => {
-    if (!loading && !systemsLoading && user) {
+    if (!loading && user) {
       console.log('Debug sistemas completo:', {
         userEmail: user.email,
         userId: user.uid,
         userData: userData,
-        systemsAvailable,
-        systemsCount: systemsAvailable?.length || 0,
+        sistemasAtivos: userData?.sistemasAtivos || [],
         hasAccessPonto: hasAccess('ponto'),
         hasAccessChamados: hasAccess('chamados'),
         hasAccessCrm: hasAccess('crm'),
-        loading,
-        systemsLoading
+        loading
       });
     }
-  }, [loading, systemsLoading, user, userData, systemsAvailable, hasAccess]);
+  }, [loading, user, userData]);
 
 
   // Check online status and PWA mode
@@ -346,7 +364,7 @@ export default function SistemasPage() {
           marginBottom: 'var(--gap-2xl)'
         }}>
           {systems.map((system) => {
-            const hasSystemAccess = user && userData && hasAccess(system.id as keyof typeof userData.permissions);
+            const hasSystemAccess = user && userData && hasAccess(system.id);
             const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.id);
 
             return (
@@ -473,10 +491,6 @@ export default function SistemasPage() {
             );
           })}
         </div>
-
-    
-            
-        
 
         {/* Footer */}
         <footer className="card" style={{
