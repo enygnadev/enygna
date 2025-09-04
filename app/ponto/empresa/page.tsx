@@ -1316,36 +1316,63 @@ function EmpresaDashboard() {
   ];
 
   return (
-    <div className="container" style={{ paddingBottom: 88 }}>
+    <div className="container" style={{ 
+      paddingBottom: 88,
+      maxWidth: '100%',
+      padding: isMounted && windowWidth < 768 ? '0 12px 88px 12px' : '0 24px 88px 24px'
+    }}>
       <Tutorial
         steps={empresaTutorialSteps}
         tutorialKey="empresa-dashboard"
         onComplete={() => console.log('Tutorial empresa completado')}
         onSkip={() => console.log('Tutorial empresa pulado')}
       />
-      {/* TOP BAR */}
+      
+      {/* HEADER MODERNO E RESPONSIVO */}
       <div
         className="card"
         style={{
           marginTop: 16,
-          padding: 16,
-          borderRadius: 14,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01))",
+          padding: isMounted && windowWidth < 768 ? 16 : 24,
+          borderRadius: 16,
+          background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(20px)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)"
         }}
       >
         <div
-          className="row"
-          style={{ justifyContent: "space-between", alignItems: "center", gap: 12 }}
+          style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: isMounted && windowWidth < 768 ? "flex-start" : "center", 
+            gap: 16,
+            flexDirection: isMounted && windowWidth < 768 ? "column" : "row"
+          }}
         >
-          <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <div style={{ 
+            display: "flex", 
+            gap: 12, 
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
             <Tag tone="info">
-              <Icon name="shield" /> Empresa • {meRole || "—"}
+              <Icon name="shield" size={16} /> 
+              {isMounted && windowWidth < 768 ? "Empresa" : `Empresa • ${meRole || "—"}`}
             </Tag>
-            <h1 className="h1" style={{ margin: 0 }}>
-              Painel de Ponto – Empresa
+            <h1 style={{ 
+              margin: 0,
+              fontSize: isMounted && windowWidth < 768 ? "1.5rem" : "1.875rem",
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text"
+            }}>
+              Painel de Ponto
             </h1>
           </div>
+          
           <button
             className="button button-ghost"
             onClick={() => {
@@ -1356,19 +1383,36 @@ function EmpresaDashboard() {
                 window.location.href = "/";
               });
             }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            style={{ 
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: 8,
+              padding: isMounted && windowWidth < 768 ? "8px 16px" : "10px 20px",
+              borderRadius: 12,
+              fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+              transition: "all 0.2s ease",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              background: "rgba(255, 255, 255, 0.1)"
+            }}
           >
-            <Icon name="back" /> Sair do painel
+            <Icon name="back" size={16} />
+            {(!isMounted || windowWidth >= 640) && " Sair"}
           </button>
         </div>
 
-        {/* Fluxo de trabalho */}
-        <div className="row" style={{ gap: 18, marginTop: 12, flexWrap: "wrap" }}>
+        {/* PROGRESS STEPS - Mais elegante */}
+        <div style={{ 
+          display: "flex", 
+          gap: isMounted && windowWidth < 768 ? 12 : 20, 
+          marginTop: 20, 
+          flexWrap: "wrap",
+          justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
+        }}>
           <HeaderStep n={1} title="Selecionar colaborador" done={!!selectedUser} />
-          <HeaderStep n={2} title="Ajustar filtros e ordem" done={true} />
+          <HeaderStep n={2} title="Ajustar filtros" done={true} />
           <HeaderStep n={3} title="Revisar registros" done={filtered.length > 0} />
-          <HeaderStep n={4} title="Aprovar / Rejeitar" done={false} />
-          <HeaderStep n={5} title="Exportar e arquivar" done={false} />
+          <HeaderStep n={4} title="Aprovar/Rejeitar" done={false} />
+          <HeaderStep n={5} title="Exportar" done={false} />
         </div>
       </div>
 
@@ -1416,78 +1460,138 @@ function EmpresaDashboard() {
         </div>
       )}
 
-      {/* ABAS DE NAVEGAÇÃO - Responsivas */}
+      {/* NAVIGATION TABS - Design moderno com gradiente */}
       <div className="card" style={{
-        marginTop: 14,
-        padding: "clamp(12px, 3vw, 16px)",
+        marginTop: 16,
+        padding: isMounted && windowWidth < 768 ? 12 : 16,
+        borderRadius: 16,
+        background: "rgba(255, 255, 255, 0.02)",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch'
       }}>
-        <div className="row" style={{
-          gap: "clamp(6px, 1.5vw, 12px)",
+        <div style={{
+          display: "flex",
+          gap: isMounted && windowWidth < 768 ? 6 : 8,
           flexWrap: isMounted && windowWidth < 768 ? 'wrap' : 'nowrap',
-          justifyContent: isMounted && windowWidth < 640 ? 'center' : 'flex-start'
+          justifyContent: isMounted && windowWidth < 640 ? 'center' : 'flex-start',
+          background: "rgba(0, 0, 0, 0.2)",
+          borderRadius: 12,
+          padding: 4
         }}>
           {tabs.map(tab => (
             <button
               key={tab.id}
-              className={`button ${activeTab === tab.id ? 'button-primary' : 'button-ghost'}`}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "clamp(4px, 1vw, 6px)",
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
-                minWidth: isMounted && windowWidth < 640 ? "auto" : "120px",
-                whiteSpace: "nowrap"
+                gap: isMounted && windowWidth < 768 ? 4 : 6,
+                fontSize: isMounted && windowWidth < 768 ? "0.75rem" : "0.875rem",
+                padding: isMounted && windowWidth < 768 ? "8px 12px" : "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: activeTab === tab.id 
+                  ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
+                  : "transparent",
+                color: activeTab === tab.id ? "white" : "rgba(255, 255, 255, 0.7)",
+                fontWeight: activeTab === tab.id ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: activeTab === tab.id 
+                  ? "0 4px 16px rgba(59, 130, 246, 0.3)"
+                  : "none",
+                minWidth: isMounted && windowWidth < 640 ? "auto" : "100px",
+                whiteSpace: "nowrap",
+                transform: activeTab === tab.id ? "translateY(-1px)" : "translateY(0)"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  e.currentTarget.style.color = "white";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+                }
               }}
             >
               <Icon name={tab.icon} size={isMounted && windowWidth < 768 ? 14 : 16} />
-              {(!isMounted || windowWidth >= 480) && ` ${tab.label}`}
+              {(!isMounted || windowWidth >= 480) && tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* CONTROLES SUPERIORES (VISÃO GERAL) */}
+      {/* CONTROLES SUPERIORES - Layout Grid Responsivo */}
       {activeTab === "overview" && (
-        <div className="card" style={{ marginTop: 14, padding: 16 }}>
-          <div className="row" style={{
-            gap: "clamp(8px, 2vw, 12px)",
-            alignItems: "center",
-            flexWrap: "wrap",
-            justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
+        <div className="card" style={{ 
+          marginTop: 16, 
+          padding: isMounted && windowWidth < 768 ? 16 : 24,
+          borderRadius: 16,
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(255, 255, 255, 0.08)"
+        }}>
+          {/* Seção Principal - Seleção de Colaborador */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMounted && windowWidth < 768 
+              ? "1fr" 
+              : "1fr auto",
+            gap: 16,
+            marginBottom: 20
           }}>
-            <select
-              className="input"
-              style={{
-                maxWidth: isMounted && windowWidth < 768 ? "100%" : 360,
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px)"
-              }}
-              onChange={(e) => {
-                const u = users.find((x) => x.id === e.target.value);
-                if (u) {
-                  loadSessions(u);
-                  if (isMounted && windowWidth < 768) {
-                    showToast(`Carregando sessões de ${u.displayName || u.email}...`);
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: 4,
+              borderRadius: 12,
+              border: "1px solid rgba(255, 255, 255, 0.1)"
+            }}>
+              <Icon name="users" 
+                size={20} 
+                style={{ 
+                  marginLeft: 12,
+                  color: "rgba(59, 130, 246, 0.8)" 
+                }} 
+              />
+              <select
+                className="input"
+                style={{
+                  flex: 1,
+                  border: "none",
+                  background: "transparent",
+                  fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                  padding: "12px 8px",
+                  color: "white"
+                }}
+                onChange={(e) => {
+                  const u = users.find((x) => x.id === e.target.value);
+                  if (u) {
+                    loadSessions(u);
+                    if (isMounted && windowWidth < 768) {
+                      showToast(`Carregando sessões de ${u.displayName || u.email}...`);
+                    }
                   }
-                }
-              }}
-              disabled={!empresaId}
-              aria-label="Selecionar colaborador"
-            >
-              <option value="">
-                {!empresaId ? "Selecione uma empresa" : "Selecione um colaborador"}
-              </option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.displayName || u.email}
-                  {u.role && u.role !== "colaborador" ? ` (${u.role})` : ""}
+                }}
+                disabled={!empresaId}
+                aria-label="Selecionar colaborador"
+              >
+                <option value="">
+                  {!empresaId ? "Selecione uma empresa" : "Selecione um colaborador"}
                 </option>
-              ))}
-            </select>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.displayName || u.email}
+                    {u.role && u.role !== "colaborador" ? ` (${u.role})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <button
               className="button"
@@ -1497,32 +1601,59 @@ function EmpresaDashboard() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "clamp(4px, 1vw, 6px)",
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)"
+                gap: 8,
+                fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                padding: isMounted && windowWidth < 768 ? "12px 16px" : "12px 20px",
+                borderRadius: 12,
+                background: selectedUser 
+                  ? "linear-gradient(135deg, #10b981, #059669)"
+                  : "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: selectedUser ? "white" : "rgba(255, 255, 255, 0.5)",
+                fontWeight: 500,
+                transition: "all 0.2s ease",
+                boxShadow: selectedUser ? "0 4px 16px rgba(16, 185, 129, 0.3)" : "none"
               }}
             >
-              <Icon name="edit" size={isMounted && windowWidth < 768 ? 14 : 16} />
-              {(!isMounted || windowWidth >= 640) && " Editar colaborador"}
+              <Icon name="edit" size={16} />
+              {(!isMounted || windowWidth >= 640) && " Editar"}
             </button>
+          </div>
 
-            <div
-              className="input"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "clamp(6px, 1.5vw, 8px)",
-                maxWidth: isMounted && windowWidth < 768 ? "100%" : 280,
-                minWidth: isMounted && windowWidth < 768 ? "250px" : "auto"
-              }}
-            >
-              <Icon name="search" size={isMounted && windowWidth < 768 ? 14 : 16} />
+          {/* Filtros e Pesquisa - Grid Layout */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMounted && windowWidth < 768 
+              ? "1fr" 
+              : "1fr 200px 180px auto",
+            gap: 16,
+            marginBottom: 20
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: 4,
+              borderRadius: 12,
+              border: "1px solid rgba(255, 255, 255, 0.1)"
+            }}>
+              <Icon name="search" 
+                size={20} 
+                style={{ 
+                  marginLeft: 12,
+                  color: "rgba(156, 163, 175, 0.8)" 
+                }} 
+              />
               <input
                 className="input"
                 style={{
-                  border: "none",
                   flex: 1,
-                  fontSize: "clamp(12px, 2.5vw, 14px)"
+                  border: "none",
+                  background: "transparent",
+                  fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                  padding: "12px 8px",
+                  color: "white"
                 }}
                 placeholder="Buscar por data (ex: 12/05)"
                 value={search}
@@ -1533,9 +1664,12 @@ function EmpresaDashboard() {
             <select
               className="input"
               style={{
-                maxWidth: isMounted && windowWidth < 768 ? "100%" : 180,
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px)"
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: 12,
+                fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                padding: "12px",
+                color: "white"
               }}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -1546,45 +1680,55 @@ function EmpresaDashboard() {
               <option value="rejected">Rejeitados</option>
             </select>
 
-            <div className="row" style={{
-              gap: "clamp(6px, 1.5vw, 8px)",
-              flexWrap: "wrap",
-              width: isMounted && windowWidth < 768 ? "100%" : "auto"
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8
             }}>
-              <div className="input" style={{
+              <div style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "clamp(6px, 1.5vw, 8px)",
-                maxWidth: isMounted && windowWidth < 768 ? "calc(50% - 4px)" : 180,
-                minWidth: isMounted && windowWidth < 768 ? "140px" : "auto"
+                gap: 8,
+                background: "rgba(255, 255, 255, 0.05)",
+                padding: 4,
+                borderRadius: 12,
+                border: "1px solid rgba(255, 255, 255, 0.1)"
               }}>
-                <Icon name="calendar" size={isMounted && windowWidth < 768 ? 14 : 16} />
+                <Icon name="calendar" size={16} style={{ marginLeft: 8, color: "rgba(156, 163, 175, 0.8)" }} />
                 <input
                   className="input"
                   style={{
-                    border: "none",
                     flex: 1,
-                    fontSize: "clamp(12px, 2.5vw, 14px)"
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "0.875rem",
+                    padding: "8px 4px",
+                    color: "white"
                   }}
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
               </div>
-              <div className="input" style={{
+              <div style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "clamp(6px, 1.5vw, 8px)",
-                maxWidth: isMounted && windowWidth < 768 ? "calc(50% - 4px)" : 180,
-                minWidth: isMounted && windowWidth < 768 ? "140px" : "auto"
+                gap: 8,
+                background: "rgba(255, 255, 255, 0.05)",
+                padding: 4,
+                borderRadius: 12,
+                border: "1px solid rgba(255, 255, 255, 0.1)"
               }}>
-                <Icon name="calendar" size={isMounted && windowWidth < 768 ? 14 : 16} />
+                <Icon name="calendar" size={16} style={{ marginLeft: 8, color: "rgba(156, 163, 175, 0.8)" }} />
                 <input
                   className="input"
                   style={{
-                    border: "none",
                     flex: 1,
-                    fontSize: "clamp(12px, 2.5vw, 14px)"
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "0.875rem",
+                    padding: "8px 4px",
+                    color: "white"
                   }}
                   type="date"
                   value={dateTo}
@@ -1599,165 +1743,536 @@ function EmpresaDashboard() {
               title="Recarregar"
               disabled={!empresaId}
               style={{
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
+                padding: "12px 20px",
                 display: "flex",
                 alignItems: "center",
-                gap: "clamp(4px, 1vw, 6px)"
+                gap: 8,
+                borderRadius: 12,
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                transition: "all 0.2s ease"
               }}
             >
-              <Icon name="refresh" size={isMounted && windowWidth < 768 ? 14 : 16} />
+              <Icon name="refresh" size={16} />
               {(!isMounted || windowWidth >= 640) && " Atualizar"}
             </button>
-
-            {selectedUser && (
-              <div className="row" style={{
-                gap: "clamp(6px, 1.5vw, 8px)",
-                flexWrap: "wrap",
-                marginLeft: isMounted && windowWidth < 768 ? "0" : "auto",
-                width: isMounted && windowWidth < 768 ? "100%" : "auto",
-                justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
-              }}>
-                <ExportButtons
-                  rows={exportRows}
-                  filenameBase={`pontos_${selectedUser.displayName || selectedUser.email}`}
-                />
-              </div>
-            )}
           </div>
 
-          {/* KPIs */}
-          <div className="grid" style={{ marginTop: 10 }}>
-            <Kpi title="Total de horas (filtrado)" value={kpis.totalTime} />
-            <Kpi title="A receber (filtrado)" value={kpis.totalEarn} tone="success" />
+          {/* Export e Ações */}
+          {selectedUser && (
+            <div style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-end",
+              marginBottom: 20,
+              flexWrap: "wrap"
+            }}>
+              <ExportButtons
+                rows={exportRows}
+                filenameBase={`pontos_${selectedUser.displayName || selectedUser.email}`}
+              />
+            </div>
+          )}
+
+          {/* KPIs - Cards Modernos */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMounted && windowWidth < 768 
+              ? "repeat(auto-fit, minmax(120px, 1fr))"
+              : "repeat(5, 1fr)",
+            gap: isMounted && windowWidth < 768 ? 12 : 16,
+            marginBottom: 24
+          }}>
+            <Kpi title="Total de horas" value={kpis.totalTime} />
+            <Kpi title="A receber" value={kpis.totalEarn} tone="success" />
             <Kpi title="Pendentes" value={String(kpis.pending)} tone="warning" />
             <Kpi title="Aprovados" value={String(kpis.approved)} tone="success" />
             <Kpi title="Rejeitados" value={String(kpis.rejected)} tone="danger" />
           </div>
 
-          {/* Ações em massa - Responsivo */}
-          <div className="row" style={{
-            gap: "clamp(6px, 1.5vw, 8px)",
-            flexWrap: "wrap",
-            marginTop: "clamp(8px, 2vw, 10px)",
-            justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
+          {/* Ações em Massa - Layout Moderno */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMounted && windowWidth < 768 
+              ? "1fr" 
+              : "1fr 1fr",
+            gap: 16,
+            marginBottom: 20
           }}>
             <button
-              className="button"
               onClick={() => bulkSetStatus("approved")}
               disabled={!selectedUser || selectedIds.size === 0}
               title="Aprovar selecionados"
               style={{
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
                 display: "flex",
                 alignItems: "center",
-                gap: "clamp(4px, 1vw, 6px)"
+                justifyContent: "center",
+                gap: 8,
+                padding: "16px 24px",
+                background: selectedIds.size > 0 
+                  ? "linear-gradient(135deg, #10b981, #059669)"
+                  : "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: 12,
+                color: selectedIds.size > 0 ? "white" : "rgba(255, 255, 255, 0.5)",
+                fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                fontWeight: 600,
+                cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+                boxShadow: selectedIds.size > 0 ? "0 4px 16px rgba(16, 185, 129, 0.3)" : "none",
+                transform: selectedIds.size > 0 ? "translateY(-1px)" : "translateY(0)"
               }}
             >
-              <Icon name="approveAll" size={isMounted && windowWidth < 768 ? 14 : 16} />
-              {(!isMounted || windowWidth >= 640) ? " Aprovar selecionados" : " Aprovar"}
+              <Icon name="approveAll" size={18} />
+              {(!isMounted || windowWidth >= 640) ? "Aprovar Selecionados" : "Aprovar"}
             </button>
+            
             <button
-              className="button"
               onClick={() => bulkSetStatus("rejected")}
               disabled={!selectedUser || selectedIds.size === 0}
               title="Rejeitar selecionados"
               style={{
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
                 display: "flex",
                 alignItems: "center",
-                gap: "clamp(4px, 1vw, 6px)"
+                justifyContent: "center",
+                gap: 8,
+                padding: "16px 24px",
+                background: selectedIds.size > 0 
+                  ? "linear-gradient(135deg, #ef4444, #dc2626)"
+                  : "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: 12,
+                color: selectedIds.size > 0 ? "white" : "rgba(255, 255, 255, 0.5)",
+                fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
+                fontWeight: 600,
+                cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+                boxShadow: selectedIds.size > 0 ? "0 4px 16px rgba(239, 68, 68, 0.3)" : "none",
+                transform: selectedIds.size > 0 ? "translateY(-1px)" : "translateY(0)"
               }}
             >
-              <Icon name="rejectAll" size={isMounted && windowWidth < 768 ? 14 : 16} />
-              {(!isMounted || windowWidth >= 640) ? " Rejeitar selecionados" : " Rejeitar"}
+              <Icon name="rejectAll" size={18} />
+              {(!isMounted || windowWidth >= 640) ? "Rejeitar Selecionados" : "Rejeitar"}
             </button>
+          </div>
 
-            {/* Fechamento Automático Avançado */}
-            <div className="row" style={{
-              gap: "clamp(6px, 1.5vw, 8px)",
-              padding: "clamp(8px, 2vw, 12px)",
-              background: "rgba(59, 130, 246, 0.1)",
-              borderRadius: "clamp(8px, 2vw, 12px)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
-              flexWrap: "wrap",
-              alignItems: "center"
+          {/* Ferramentas Avançadas de Fechamento */}
+          <div style={{
+            display: "grid", 
+            gridTemplateColumns: isMounted && windowWidth < 768 ? "1fr" : "auto 1fr auto",
+            gap: 16,
+            alignItems: "center",
+            padding: 20,
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1))",
+            borderRadius: 16,
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            marginBottom: 24
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#60a5fa",
+              fontWeight: 600
             }}>
-              <div style={{
-                fontSize: "clamp(11px, 2.5vw, 13px)",
-                fontWeight: "600",
-                color: "#60a5fa",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px"
-              }}>
-                <Icon name="clock" size={14} />
-                Fechamento Automático:
-              </div>
+              <Icon name="clock" size={20} />
+              <span>Fechamento Avançado</span>
+            </div>
 
+            <div style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
+            }}>
               <button
-                className="button"
                 onClick={autoCloseAllPending}
                 disabled={!selectedUser || loading}
                 title="Fechamento automático de todos os pontos pendentes"
                 style={{
-                  fontSize: "clamp(11px, 2.5vw, 13px)",
-                  padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2.5vw, 14px)",
-                  background: "linear-gradient(45deg, #16a34a, #15803d)",
+                  padding: "10px 16px",
+                  background: "linear-gradient(135deg, #16a34a, #15803d)",
+                  border: "1px solid rgba(22, 163, 74, 0.5)",
+                  borderRadius: 10,
+                  color: "white",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
                   display: "flex",
                   alignItems: "center",
-                  gap: "clamp(4px, 1vw, 6px)",
-                  border: "1px solid rgba(22, 163, 74, 0.5)"
+                  gap: 8,
+                  boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)"
                 }}
               >
-                <Icon name="check" size={isMounted && windowWidth < 768 ? 12 : 14} />
-                {(!isMounted || windowWidth >= 640) ? "Fechar Todos Pendentes" : "Fechar Todos"}
+                <Icon name="check" size={16} />
+                {(!isMounted || windowWidth >= 640) ? "Fechar Todos" : "Auto"}
               </button>
 
               <button
-                className="button"
                 onClick={smartAutoClose}
                 disabled={!selectedUser || loading}
                 title="Fechamento inteligente baseado em padrões"
                 style={{
-                  fontSize: "clamp(11px, 2.5vw, 13px)",
-                  padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2.5vw, 14px)",
-                  background: "linear-gradient(45deg, #8b5cf6, #7c3aed)",
+                  padding: "10px 16px",
+                  background: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                  border: "1px solid rgba(139, 92, 246, 0.5)",
+                  borderRadius: 10,
+                  color: "white",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
                   display: "flex",
                   alignItems: "center",
-                  gap: "clamp(4px, 1vw, 6px)",
-                  border: "1px solid rgba(139, 92, 246, 0.5)"
+                  gap: 8,
+                  boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)"
                 }}
               >
-                <Icon name="shield" size={isMounted && windowWidth < 768 ? 12 : 14} />
-                {(!isMounted || windowWidth >= 640) ? "Fechamento Inteligente" : "Inteligente"}
+                <Icon name="shield" size={16} />
+                {(!isMounted || windowWidth >= 640) ? "Inteligente" : "Smart"}
               </button>
 
               <button
-                className="button button-ghost"
                 onClick={selectAllPending}
                 disabled={!selectedUser}
                 title="Selecionar todos os pontos pendentes"
                 style={{
-                  fontSize: "clamp(11px, 2.5vw, 13px)",
-                  padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2.5vw, 14px)",
+                  padding: "10px 16px",
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  border: "1px solid rgba(245, 158, 11, 0.5)",
+                  borderRadius: 10,
+                  color: "white",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
                   display: "flex",
                   alignItems: "center",
-                  gap: "clamp(4px, 1vw, 6px)",
-                  border: "1px solid rgba(245, 158, 11, 0.5)"
+                  gap: 8,
+                  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)"
                 }}
               >
-                <Icon name="filter" size={isMounted && windowWidth < 768 ? 12 : 14} />
-                {(!isMounted || windowWidth >= 640) ? "Selecionar Pendentes" : "Selecionar"}
+                <Icon name="filter" size={16} />
+                {(!isMounted || windowWidth >= 640) ? "Selecionar" : "Sel"}
               </button>
             </div>
 
-            <Tag>
-              <Icon name="status" size={isMounted && windowWidth < 768 ? 14 : 16} />
-              {selectedIds.size} selecionado(s)
-            </Tag>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 16px",
+              background: "rgba(255, 255, 255, 0.1)",
+              borderRadius: 10,
+              border: "1px solid rgba(255, 255, 255, 0.2)"
+            }}>
+              <Icon name="status" size={16} />
+              <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+                {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TABELA DE SESSÕES - Design Moderno */}
+      {activeTab === "sessions" && (
+        <div className="card" style={{ 
+          marginTop: 16, 
+          padding: 0,
+          borderRadius: 16,
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          overflow: "hidden"
+        }}>
+          <div style={{ 
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch"
+          }}>
+            <table className="table" style={{ 
+              minWidth: 900,
+              background: "transparent"
+            }}>
+              <thead>
+                <tr style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.1)"
+                }}>
+                  <th style={{ 
+                    width: 36, 
+                    padding: "16px 12px",
+                    textAlign: "center"
+                  }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todos da página"
+                      checked={(() => {
+                        const ids = pageRows.map((r) => r.id);
+                        return ids.every((id) => selectedIds.has(id)) && ids.length > 0;
+                      })()}
+                      onChange={(e) => {
+                        const ids = pageRows.map((r) => r.id);
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          ids.forEach((id) =>
+                            e.currentTarget.checked ? next.add(id) : next.delete(id)
+                          );
+                          return next;
+                        });
+                      }}
+                      style={{
+                        transform: "scale(1.2)",
+                        accentColor: "#3b82f6"
+                      }}
+                    />
+                  </th>
+                  <SortableTh keyName="start" label="Início" />
+                  <SortableTh keyName="end" label="Fim" />
+                  <SortableTh keyName="duration" label="Duração" />
+                  <SortableTh keyName="earnings" label="Ganhos" />
+                  <SortableTh keyName="status" label="Status" />
+                  <th style={{ 
+                    minWidth: 360,
+                    padding: "16px",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    color: "rgba(255, 255, 255, 0.9)"
+                  }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} style={{ 
+                      padding: 40, 
+                      textAlign: "center",
+                      color: "rgba(255, 255, 255, 0.7)",
+                      fontSize: "1rem"
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 12
+                      }}>
+                        <Icon name="refresh" size={20} />
+                        Carregando sessões...
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loading && pageRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ 
+                      padding: 40, 
+                      textAlign: "center",
+                      color: "rgba(255, 255, 255, 0.7)",
+                      fontSize: "1rem"
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 12
+                      }}>
+                        <Icon name="search" size={24} />
+                        <span>Nenhuma sessão encontrada</span>
+                        <span style={{ fontSize: "0.875rem", opacity: 0.7 }}>
+                          Ajuste os filtros ou selecione outro colaborador
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loading && pageRows.map((s) => {
+                  const startDate = toDateSafe(s.start);
+                  const endDate = s.end ? toDateSafe(s.end) : null;
+                  
+                  return (
+                    <tr 
+                      key={s.id}
+                      style={{
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                        background: selectedIds.has(s.id) 
+                          ? "rgba(59, 130, 246, 0.1)" 
+                          : "transparent",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <td style={{ padding: "16px 12px", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleOne(s.id)}
+                          style={{
+                            transform: "scale(1.2)",
+                            accentColor: "#3b82f6"
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "16px", fontSize: "0.875rem" }}>
+                        {startDate ? format(startDate, "dd/MM/yyyy HH:mm") : "—"}
+                      </td>
+                      <td style={{ padding: "16px", fontSize: "0.875rem" }}>
+                        {endDate ? format(endDate, "dd/MM/yyyy HH:mm") : "—"}
+                      </td>
+                      <td style={{ padding: "16px", fontSize: "0.875rem" }}>
+                        {s.durationSec ? `${Math.floor(s.durationSec / 3600)}h ${Math.floor((s.durationSec % 3600) / 60)}min` : "—"}
+                      </td>
+                      <td style={{ padding: "16px", fontSize: "0.875rem", fontWeight: 600 }}>
+                        R$ {s.earnings?.toFixed(2) || "0,00"}
+                      </td>
+                      <td style={{ padding: "16px" }}>
+                        <Tag tone={
+                          s.status === "approved" ? "success" :
+                          s.status === "rejected" ? "danger" : "warning"
+                        }>
+                          {s.status === "approved" ? "Aprovado" :
+                           s.status === "rejected" ? "Rejeitado" : "Pendente"}
+                        </Tag>
+                      </td>
+                      <td style={{ padding: "16px" }}>
+                        <div style={{ 
+                          display: "flex", 
+                          gap: 8, 
+                          flexWrap: "wrap",
+                          alignItems: "center"
+                        }}>
+                          {(s.status || "pending") === "pending" && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(s.id, selectedUser.id)}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "linear-gradient(135deg, #10b981, #059669)",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  color: "white",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 500,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)"
+                                }}
+                              >
+                                <Icon name="check" size={12} />
+                                Aprovar
+                              </button>
+                              <button
+                                onClick={() => handleReject(s.id, selectedUser.id)}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  color: "white",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 500,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  boxShadow: "0 2px 8px rgba(239, 68, 68, 0.3)"
+                                }}
+                              >
+                                <Icon name="x" size={12} />
+                                Rejeitar
+                              </button>
+                            </>
+                          )}
+                          {(s.locationStart || s.locationEnd || s.liveLocation) && (
+                            <button
+                              onClick={() => openLocModal(s)}
+                              style={{
+                                padding: "6px 12px",
+                                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                                border: "none",
+                                borderRadius: 6,
+                                color: "white",
+                                fontSize: "0.75rem",
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)"
+                              }}
+                            >
+                              <Icon name="mapPin" size={12} />
+                              Mapa
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginação Moderna */}
+          <div style={{
+            padding: "20px 24px",
+            background: "rgba(255, 255, 255, 0.05)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 16
+          }}>
+            <span style={{ 
+              fontSize: "0.875rem", 
+              color: "rgba(255, 255, 255, 0.7)" 
+            }}>
+              Página {page} de {totalPages} • {filtered.length} registros
+            </span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                style={{
+                  padding: "8px 12px",
+                  background: page > 1 ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  borderRadius: 8,
+                  color: page > 1 ? "white" : "rgba(255, 255, 255, 0.5)",
+                  fontSize: "0.875rem",
+                  cursor: page > 1 ? "pointer" : "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                <Icon name="back" size={14} />
+                Anterior
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                style={{
+                  padding: "8px 12px",
+                  background: page < totalPages ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  borderRadius: 8,
+                  color: page < totalPages ? "white" : "rgba(255, 255, 255, 0.5)",
+                  fontSize: "0.875rem",
+                  cursor: page < totalPages ? "pointer" : "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                Próximo
+                <Icon name="back" size={14} style={{ transform: "rotate(180deg)" }} />
+              </button>
+            </div>
           </div>
         </div>
       )}
