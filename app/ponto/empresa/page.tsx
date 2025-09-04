@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -177,31 +178,54 @@ function ModernIcon({
         <polyline points="17,6 23,6 23,12" stroke="currentColor" strokeWidth="2"/>
       </svg>
     ),
+    home: (
+      <svg {...iconStyle} className={`${className} ${animationClass}`} viewBox="0 0 24 24" fill="none">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2"/>
+        <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    ),
+    bell: (
+      <svg {...iconStyle} className={`${className} ${animationClass}`} viewBox="0 0 24 24" fill="none">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="2"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    ),
+    user: (
+      <svg {...iconStyle} className={`${className} ${animationClass}`} viewBox="0 0 24 24" fill="none">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2"/>
+        <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    ),
   };
 
   return icons[name] || <div style={iconStyle} />;
 }
 
 /** =============================================================
- * COMPONENTES UI MODERNOS
+ * COMPONENTES UI MODERNOS E ELEGANTES
  * ============================================================= */
 function GlassCard({
   children,
   className = "",
   hover = false,
-  glow = false
+  glow = false,
+  padding = "p-6"
 }: {
   children: ReactNode;
   className?: string;
   hover?: boolean;
   glow?: boolean;
+  padding?: string;
 }) {
   return (
     <div
       className={`
-        backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl
-        ${hover ? 'transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:-translate-y-1' : ''}
-        ${glow ? 'shadow-lg shadow-blue-500/10' : ''}
+        backdrop-blur-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent
+        border border-white/20 rounded-3xl
+        shadow-2xl shadow-black/10
+        ${hover ? 'transition-all duration-500 hover:bg-gradient-to-br hover:from-white/20 hover:via-white/10 hover:to-white/5 hover:border-white/30 hover:shadow-3xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:scale-[1.02]' : ''}
+        ${glow ? 'ring-1 ring-blue-500/30 shadow-blue-500/20' : ''}
+        ${padding}
         ${className}
       `}
     >
@@ -216,47 +240,70 @@ function MetricCard({
   value,
   subtitle,
   trend,
-  color = "blue"
+  color = "blue",
+  large = false
 }: {
   icon: string;
   title: string;
   value: string;
   subtitle?: string;
   trend?: "up" | "down" | "stable";
-  color?: "blue" | "green" | "yellow" | "red" | "purple";
+  color?: "blue" | "green" | "yellow" | "red" | "purple" | "indigo" | "cyan";
+  large?: boolean;
 }) {
   const colorClasses = {
-    blue: "from-blue-500/20 to-cyan-500/20 border-blue-500/30",
-    green: "from-green-500/20 to-emerald-500/20 border-green-500/30",
-    yellow: "from-yellow-500/20 to-orange-500/20 border-yellow-500/30",
-    red: "from-red-500/20 to-pink-500/20 border-red-500/30",
-    purple: "from-purple-500/20 to-indigo-500/20 border-purple-500/30"
+    blue: "from-blue-500/30 to-cyan-500/30 border-blue-400/40 text-blue-300",
+    green: "from-green-500/30 to-emerald-500/30 border-green-400/40 text-green-300",
+    yellow: "from-yellow-500/30 to-orange-500/30 border-yellow-400/40 text-yellow-300",
+    red: "from-red-500/30 to-pink-500/30 border-red-400/40 text-red-300",
+    purple: "from-purple-500/30 to-indigo-500/30 border-purple-400/40 text-purple-300",
+    indigo: "from-indigo-500/30 to-blue-500/30 border-indigo-400/40 text-indigo-300",
+    cyan: "from-cyan-500/30 to-teal-500/30 border-cyan-400/40 text-cyan-300"
   };
 
-  const trendIcon = trend === "up" ? "↗" : trend === "down" ? "↘" : "→";
+  const trendIcon = trend === "up" ? "📈" : trend === "down" ? "📉" : "➡️";
   const trendColor = trend === "up" ? "text-green-400" : trend === "down" ? "text-red-400" : "text-gray-400";
 
   return (
-    <GlassCard className={`p-6 bg-gradient-to-br ${colorClasses[color]} hover group`} hover glow>
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-3 rounded-xl bg-white/10 group-hover:bg-white/20 transition-all">
-          <ModernIcon name={icon} size={24} className={`text-${color}-400`} />
-        </div>
-        {trend && (
-          <span className={`text-sm font-medium ${trendColor}`}>
-            {trendIcon}
-          </span>
-        )}
+    <div
+      className={`
+        relative overflow-hidden rounded-3xl p-6
+        bg-gradient-to-br ${colorClasses[color]} border-2 backdrop-blur-xl
+        transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-${color}-500/30
+        group cursor-pointer
+        ${large ? 'col-span-2' : ''}
+      `}
+    >
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
       </div>
 
-      <div className="space-y-1">
-        <p className="text-white/70 text-sm font-medium">{title}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        {subtitle && (
-          <p className="text-white/50 text-xs">{subtitle}</p>
-        )}
+      {/* Content */}
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-4">
+          <div className={`p-4 rounded-2xl bg-gradient-to-br ${colorClasses[color]} shadow-lg group-hover:scale-110 transition-all duration-300`}>
+            <ModernIcon name={icon} size={large ? 32 : 24} className="text-white" />
+          </div>
+          {trend && (
+            <div className={`text-sm font-bold ${trendColor} bg-black/20 px-3 py-1 rounded-full`}>
+              {trendIcon}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-white/80 text-sm font-medium uppercase tracking-wider">{title}</p>
+          <p className={`font-black ${large ? 'text-4xl' : 'text-3xl'} text-white leading-none`}>{value}</p>
+          {subtitle && (
+            <p className="text-white/60 text-xs font-medium">{subtitle}</p>
+          )}
+        </div>
       </div>
-    </GlassCard>
+
+      {/* Hover Effect */}
+      <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+    </div>
   );
 }
 
@@ -271,23 +318,24 @@ function ModernButton({
 }: {
   children: ReactNode;
   onClick?: () => void;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "success";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   loading?: boolean;
   className?: string;
 }) {
   const variants = {
-    primary: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40",
-    secondary: "bg-white/10 text-white border border-white/20 hover:bg-white/20",
-    ghost: "text-white/70 hover:text-white hover:bg-white/10",
-    danger: "bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/25 hover:shadow-red-500/40"
+    primary: "bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-105",
+    secondary: "bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 text-white border border-gray-600 hover:border-gray-400 shadow-xl hover:shadow-gray-500/40",
+    ghost: "text-white/80 hover:text-white hover:bg-white/10 border border-white/20 hover:border-white/40 backdrop-blur-sm",
+    danger: "bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white shadow-2xl shadow-red-500/40 hover:shadow-red-500/60 hover:scale-105",
+    success: "bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white shadow-2xl shadow-green-500/40 hover:shadow-green-500/60 hover:scale-105"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-3 text-base"
+    sm: "px-4 py-2 text-sm",
+    md: "px-6 py-3 text-base",
+    lg: "px-8 py-4 text-lg"
   };
 
   return (
@@ -295,14 +343,15 @@ function ModernButton({
       onClick={onClick}
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center gap-2 font-medium rounded-xl
-        transition-all duration-200 hover:scale-105 active:scale-95
+        inline-flex items-center justify-center gap-3 font-bold rounded-2xl
+        transition-all duration-300 transform-gpu
         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+        focus:outline-none focus:ring-4 focus:ring-white/20
         ${variants[variant]} ${sizes[size]} ${className}
       `}
     >
       {loading && (
-        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
       )}
       {children}
     </button>
@@ -319,30 +368,33 @@ function TabNavigation({
   onTabChange: (tabId: string) => void;
 }) {
   return (
-    <GlassCard className="p-2">
-      <div className="flex space-x-1 overflow-x-auto">
+    <GlassCard padding="p-2" className="mb-8">
+      <div className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={`
-              relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium
-              transition-all duration-200 whitespace-nowrap
+              relative flex items-center gap-3 px-6 py-3 rounded-2xl font-bold
+              transition-all duration-300 whitespace-nowrap group
               ${activeTab === tab.id
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
+                ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white shadow-xl shadow-blue-500/30 scale-105'
+                : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
               }
             `}
           >
-            <ModernIcon name={tab.icon} size={16} />
+            <ModernIcon name={tab.icon} size={18} animated={activeTab === tab.id} />
             <span>{tab.label}</span>
             {tab.count !== undefined && (
-              <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+              <span className={`
+                px-3 py-1 rounded-full text-xs font-black
+                ${activeTab === tab.id 
+                  ? 'bg-white/20 text-white' 
+                  : 'bg-blue-500/80 text-white group-hover:bg-blue-500'
+                }
+              `}>
                 {tab.count}
               </span>
-            )}
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" />
             )}
           </button>
         ))}
@@ -352,68 +404,122 @@ function TabNavigation({
 }
 
 /** =============================================================
- * COMPONENTE D3 PARA VISUALIZAÇÕES
+ * COMPONENTE D3 MELHORADO PARA VISUALIZAÇÕES
  * ============================================================= */
-function D3Chart({ data, type = "bar" }: { data: any[]; type?: "bar" | "line" | "pie" }) {
+function D3Chart({ data, type = "bar", title }: { data: any[]; type?: "bar" | "line" | "pie"; title?: string }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!svgRef.current || !data.length) return;
 
-    // Aqui você implementaria as visualizações D3
-    // Para este exemplo, vou criar um gráfico simples com SVG nativo
     const svg = svgRef.current;
     svg.innerHTML = '';
 
     if (type === "bar") {
-      const maxValue = Math.max(...data.map(d => d.value));
-      const barWidth = 300 / data.length - 10;
+      const maxValue = Math.max(...data.map(d => d.value || 0));
+      const barWidth = (320 - 40) / data.length - 8;
 
       data.forEach((d, i) => {
-        const barHeight = (d.value / maxValue) * 150;
+        const barHeight = maxValue > 0 ? (d.value / maxValue) * 140 : 0;
+        const hue = 200 + i * 25;
 
+        // Background bar
+        const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        bgRect.setAttribute("x", (i * (barWidth + 8) + 20).toString());
+        bgRect.setAttribute("y", "20");
+        bgRect.setAttribute("width", barWidth.toString());
+        bgRect.setAttribute("height", "140");
+        bgRect.setAttribute("fill", `hsla(${hue}, 50%, 50%, 0.1)`);
+        bgRect.setAttribute("rx", "8");
+        svg.appendChild(bgRect);
+
+        // Animated bar
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", (i * (barWidth + 10) + 10).toString());
-        rect.setAttribute("y", (170 - barHeight).toString());
+        rect.setAttribute("x", (i * (barWidth + 8) + 20).toString());
+        rect.setAttribute("y", (160 - barHeight).toString());
         rect.setAttribute("width", barWidth.toString());
         rect.setAttribute("height", barHeight.toString());
-        rect.setAttribute("fill", `hsl(${200 + i * 30}, 70%, 60%)`);
-        rect.setAttribute("rx", "4");
+        rect.setAttribute("fill", `url(#gradient-${i})`);
+        rect.setAttribute("rx", "8");
 
-        // Animação
+        // Gradient definition
+        const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+        gradient.setAttribute("id", `gradient-${i}`);
+        gradient.setAttribute("x1", "0%");
+        gradient.setAttribute("y1", "0%");
+        gradient.setAttribute("x2", "0%");
+        gradient.setAttribute("y2", "100%");
+
+        const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stop1.setAttribute("offset", "0%");
+        stop1.setAttribute("stop-color", `hsl(${hue}, 70%, 60%)`);
+        
+        const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stop2.setAttribute("offset", "100%");
+        stop2.setAttribute("stop-color", `hsl(${hue}, 70%, 40%)`);
+
+        gradient.appendChild(stop1);
+        gradient.appendChild(stop2);
+        defs.appendChild(gradient);
+        svg.appendChild(defs);
+
+        // Animation
         rect.style.transform = `scaleY(0)`;
         rect.style.transformOrigin = 'bottom';
-        rect.style.transition = `transform 0.6s ease-out`;
+        rect.style.transition = `transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)`;
 
         svg.appendChild(rect);
 
         // Trigger animation
         setTimeout(() => {
           rect.style.transform = `scaleY(1)`;
-        }, i * 100);
+        }, i * 150);
+
+        // Value label
+        if (barHeight > 20) {
+          const valueText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          valueText.setAttribute("x", (i * (barWidth + 8) + 20 + barWidth/2).toString());
+          valueText.setAttribute("y", (160 - barHeight + 16).toString());
+          valueText.setAttribute("text-anchor", "middle");
+          valueText.setAttribute("fill", "white");
+          valueText.setAttribute("font-size", "12");
+          valueText.setAttribute("font-weight", "bold");
+          valueText.textContent = d.value?.toString() || "0";
+          svg.appendChild(valueText);
+        }
 
         // Label
         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", (i * (barWidth + 10) + 10 + barWidth/2).toString());
-        text.setAttribute("y", "190");
+        text.setAttribute("x", (i * (barWidth + 8) + 20 + barWidth/2).toString());
+        text.setAttribute("y", "180");
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("fill", "white");
-        text.setAttribute("font-size", "12");
-        text.textContent = d.label;
+        text.setAttribute("font-size", "11");
+        text.setAttribute("font-weight", "600");
+        text.textContent = d.label || "";
         svg.appendChild(text);
       });
     }
   }, [data, type]);
 
   return (
-    <div className="w-full h-48 flex items-center justify-center">
-      <svg ref={svgRef} width="320" height="200" className="overflow-visible" />
-    </div>
+    <GlassCard className="p-6">
+      {title && (
+        <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+          <ModernIcon name="analytics" size={20} />
+          {title}
+        </h3>
+      )}
+      <div className="w-full h-48 flex items-center justify-center overflow-hidden rounded-2xl bg-black/20">
+        <svg ref={svgRef} width="320" height="200" className="overflow-visible" />
+      </div>
+    </GlassCard>
   );
 }
 
 /** =============================================================
- * TIPOS E HELPERS
+ * TIPOS E HELPERS (mantendo a lógica existente)
  * ============================================================= */
 type Geo = { lat: number; lng: number; acc?: number; label?: string };
 
@@ -468,7 +574,7 @@ function toDateSafe(x: any): Date | null {
 }
 
 /** =============================================================
- * COMPONENTE PRINCIPAL MODERNIZADO
+ * COMPONENTE PRINCIPAL COMPLETAMENTE REDESENHADO
  * ============================================================= */
 function ModernEmpresaDashboard() {
   const params = useSearchParams();
@@ -497,7 +603,7 @@ function ModernEmpresaDashboard() {
 
   // Tabs configuration
   const tabs = [
-    { id: "overview", label: "Visão Geral", icon: "dashboard", count: sessions.length },
+    { id: "overview", label: "Dashboard", icon: "dashboard", count: sessions.length },
     { id: "sessions", label: "Sessões", icon: "clock", count: sessions.filter(s => s.status === "pending").length },
     { id: "users", label: "Colaboradores", icon: "users", count: users.length },
     { id: "analytics", label: "Analytics", icon: "analytics" },
@@ -505,7 +611,7 @@ function ModernEmpresaDashboard() {
     { id: "payroll", label: "Folha", icon: "money" },
   ];
 
-  // Authentication and data loading logic (keeping existing logic)
+  // Authentication and data loading logic (mantendo a lógica existente)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -587,7 +693,7 @@ function ModernEmpresaDashboard() {
           role: (v.role || "colaborador") as U["role"],
         };
       });
-      list.sort((a, b) => (a.displayName || b.email).localeCompare(b.displayName || b.email));
+      list.sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email));
       setUsers(list);
     } finally {
       setLoading(false);
@@ -639,8 +745,8 @@ function ModernEmpresaDashboard() {
     const approvedCount = filteredSessions.filter(s => s.status === "approved").length;
 
     return {
-      totalHours: `${Math.floor(totalHours)}h ${Math.floor((totalHours % 1) * 60)}m`,
-      totalEarnings: `R$ ${totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      totalHours: Math.round(totalHours * 100) / 100,
+      totalEarnings: totalEarnings,
       pendingCount,
       approvedCount,
       activeUsers: users.length,
@@ -675,340 +781,403 @@ function ModernEmpresaDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 via-purple-900 to-slate-800 relative overflow-hidden">
       {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl animate-pulse"></div>
+      </div>
+
+      {/* Animated Grid Background */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="grid grid-cols-12 gap-4 h-full">
+          {Array.from({ length: 120 }, (_, i) => (
+            <div key={i} className="border border-white/10 rounded animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}></div>
+          ))}
+        </div>
       </div>
 
       {/* Header */}
-      <header className="relative z-10 p-6 border-b border-white/10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all lg:hidden"
-            >
-              <ModernIcon name="menu" size={20} />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Dashboard Empresarial</h1>
-              <p className="text-white/60 text-sm">Sistema de Controle de Ponto</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <GlassCard className="px-3 py-2">
-              <div className="flex items-center gap-2 text-white/80 text-sm">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>Online</span>
+      <header className="relative z-20 p-6 border-b border-white/10 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto">
+          <GlassCard padding="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
+                >
+                  <ModernIcon name="menu" size={24} />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-black text-white mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                    Dashboard Empresarial
+                  </h1>
+                  <p className="text-white/60 font-medium">Sistema Avançado de Controle de Ponto</p>
+                </div>
               </div>
-            </GlassCard>
 
-            <ModernButton onClick={handleSignOut} variant="ghost" size="sm">
-              Sair
-            </ModernButton>
-          </div>
+              <div className="flex items-center gap-4">
+                <GlassCard padding="px-4 py-2" glow>
+                  <div className="flex items-center gap-3 text-white/90">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
+                    <span className="font-bold">Sistema Online</span>
+                  </div>
+                </GlassCard>
+
+                <ModernButton onClick={() => window.location.href = "/sistemas"} variant="ghost" size="md">
+                  <ModernIcon name="home" size={18} />
+                  Sistemas
+                </ModernButton>
+
+                <ModernButton onClick={handleSignOut} variant="danger" size="md">
+                  Sair
+                </ModernButton>
+              </div>
+            </div>
+          </GlassCard>
         </div>
       </header>
 
-      <div className="flex max-w-7xl mx-auto p-6 gap-6">
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'} transition-all duration-300 lg:w-64 flex-shrink-0`}>
-          <div className="space-y-6">
-            {/* User Selector */}
-            <GlassCard className="p-4">
-              <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-                <ModernIcon name="users" size={16} />
-                Colaborador
-              </h3>
-              <select
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm"
-                onChange={(e) => {
-                  const u = users.find(x => x.id === e.target.value);
-                  if (u) loadSessions(u);
-                }}
-              >
-                <option value="">Selecione um colaborador</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id} className="text-black">
-                    {u.displayName || u.email}
-                  </option>
-                ))}
-              </select>
-            </GlassCard>
-
-            {/* Quick Stats */}
-            <GlassCard className="p-4">
-              <h3 className="text-white font-medium mb-3">Resumo Rápido</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">Colaboradores</span>
-                  <span className="text-white font-medium">{users.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">Sessões Hoje</span>
-                  <span className="text-white font-medium">{metrics.sessionsToday}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">Pendentes</span>
-                  <span className="text-yellow-400 font-medium">{metrics.pendingCount}</span>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 space-y-6">
-          {/* Tab Navigation */}
-          <TabNavigation
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-
-          {/* Overview Tab */}
-          {activeTab === "overview" && (
-            <div className="space-y-6">
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard
-                  icon="clock"
-                  title="Total de Horas"
-                  value={metrics.totalHours}
-                  subtitle="Este período"
-                  trend="up"
-                  color="blue"
-                />
-                <MetricCard
-                  icon="money"
-                  title="Total a Receber"
-                  value={metrics.totalEarnings}
-                  subtitle="Valores calculados"
-                  trend="up"
-                  color="green"
-                />
-                <MetricCard
-                  icon="users"
-                  title="Colaboradores Ativos"
-                  value={metrics.activeUsers.toString()}
-                  subtitle="Total cadastrados"
-                  trend="stable"
-                  color="purple"
-                />
-                <MetricCard
-                  icon="trending"
-                  title="Sessões Pendentes"
-                  value={metrics.pendingCount.toString()}
-                  subtitle="Aguardando aprovação"
-                  trend={metrics.pendingCount > 0 ? "up" : "stable"}
-                  color="yellow"
-                />
-              </div>
-
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <GlassCard className="p-6">
-                  <h3 className="text-white font-medium mb-4 flex items-center gap-2">
-                    <ModernIcon name="analytics" size={16} />
-                    Sessões por Dia (7 dias)
+      <div className="relative z-10 max-w-7xl mx-auto p-6">
+        <div className="flex gap-8">
+          {/* Sidebar */}
+          <aside className={`${sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'} transition-all duration-500 lg:w-80 flex-shrink-0`}>
+            <div className="space-y-6 sticky top-6">
+              {/* User Selector */}
+              <GlassCard glow>
+                <div className="space-y-4">
+                  <h3 className="text-white font-bold text-lg flex items-center gap-3">
+                    <ModernIcon name="user" size={20} />
+                    Selecionar Colaborador
                   </h3>
-                  <D3Chart data={chartData} type="bar" />
-                </GlassCard>
+                  <select
+                    className="w-full p-4 bg-gradient-to-r from-white/10 to-white/5 border border-white/30 rounded-2xl text-white text-sm font-medium backdrop-blur-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 transition-all"
+                    onChange={(e) => {
+                      const u = users.find(x => x.id === e.target.value);
+                      if (u) loadSessions(u);
+                    }}
+                  >
+                    <option value="" className="text-black bg-gray-800">Escolha um colaborador</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id} className="text-black bg-gray-800">
+                        {u.displayName || u.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </GlassCard>
 
-                <GlassCard className="p-6">
-                  <h3 className="text-white font-medium mb-4">Status das Sessões</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                        <span className="text-white/80">Aprovadas</span>
+              {/* Quick Stats */}
+              <GlassCard>
+                <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-3">
+                  <ModernIcon name="analytics" size={20} />
+                  Resumo Executivo
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl border border-blue-400/30">
+                    <span className="text-white/80 font-medium">Colaboradores</span>
+                    <span className="text-white font-black text-xl">{users.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl border border-green-400/30">
+                    <span className="text-white/80 font-medium">Sessões Hoje</span>
+                    <span className="text-white font-black text-xl">{metrics.sessionsToday}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl border border-yellow-400/30">
+                    <span className="text-white/80 font-medium">Pendentes</span>
+                    <span className="text-white font-black text-xl">{metrics.pendingCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-2xl border border-purple-400/30">
+                    <span className="text-white/80 font-medium">Total Aprovadas</span>
+                    <span className="text-white font-black text-xl">{metrics.approvedCount}</span>
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 space-y-8">
+            {/* Tab Navigation */}
+            <TabNavigation
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+
+            {/* Overview Tab */}
+            {activeTab === "overview" && (
+              <div className="space-y-8">
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <MetricCard
+                    icon="clock"
+                    title="Horas Trabalhadas"
+                    value={`${Math.floor(metrics.totalHours)}h ${Math.floor((metrics.totalHours % 1) * 60)}m`}
+                    subtitle="Total do período"
+                    trend="up"
+                    color="blue"
+                  />
+                  <MetricCard
+                    icon="money"
+                    title="Valor Total"
+                    value={`R$ ${metrics.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    subtitle="A pagar/receber"
+                    trend="up"
+                    color="green"
+                  />
+                  <MetricCard
+                    icon="users"
+                    title="Colaboradores"
+                    value={metrics.activeUsers.toString()}
+                    subtitle="Ativos no sistema"
+                    trend="stable"
+                    color="purple"
+                  />
+                  <MetricCard
+                    icon="bell"
+                    title="Pendências"
+                    value={metrics.pendingCount.toString()}
+                    subtitle="Precisam aprovação"
+                    trend={metrics.pendingCount > 0 ? "up" : "stable"}
+                    color="yellow"
+                  />
+                </div>
+
+                {/* Charts and Stats */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <D3Chart 
+                    data={chartData} 
+                    type="bar" 
+                    title="Atividade dos Últimos 7 Dias"
+                  />
+
+                  <GlassCard className="p-8">
+                    <h3 className="text-white font-bold text-xl mb-6 flex items-center gap-3">
+                      <ModernIcon name="trending" size={22} />
+                      Status das Sessões
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/30 to-emerald-500/30 rounded-2xl border border-green-400/30">
+                        <div className="flex items-center gap-4">
+                          <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-white font-bold">Aprovadas</span>
+                        </div>
+                        <span className="text-white font-black text-xl">{metrics.approvedCount}</span>
                       </div>
-                      <span className="text-white font-medium">{metrics.approvedCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                        <span className="text-white/80">Pendentes</span>
+                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-500/30 to-orange-500/30 rounded-2xl border border-yellow-400/30">
+                        <div className="flex items-center gap-4">
+                          <div className="w-4 h-4 bg-yellow-400 rounded-full animate-pulse"></div>
+                          <span className="text-white font-bold">Pendentes</span>
+                        </div>
+                        <span className="text-white font-black text-xl">{metrics.pendingCount}</span>
                       </div>
-                      <span className="text-white font-medium">{metrics.pendingCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                        <span className="text-white/80">Rejeitadas</span>
+                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-500/30 to-pink-500/30 rounded-2xl border border-red-400/30">
+                        <div className="flex items-center gap-4">
+                          <div className="w-4 h-4 bg-red-400 rounded-full animate-pulse"></div>
+                          <span className="text-white font-bold">Rejeitadas</span>
+                        </div>
+                        <span className="text-white font-black text-xl">
+                          {filteredSessions.filter(s => s.status === "rejected").length}
+                        </span>
                       </div>
-                      <span className="text-white font-medium">
-                        {filteredSessions.filter(s => s.status === "rejected").length}
-                      </span>
                     </div>
+                  </GlassCard>
+                </div>
+
+                {/* Action Buttons */}
+                <GlassCard className="p-8">
+                  <h3 className="text-white font-bold text-xl mb-6 flex items-center gap-3">
+                    <ModernIcon name="settings" size={22} />
+                    Ações Rápidas
+                  </h3>
+                  <div className="flex flex-wrap gap-4">
+                    <ModernButton variant="primary" size="lg">
+                      <ModernIcon name="check" size={20} />
+                      Aprovar Sessões Pendentes
+                    </ModernButton>
+                    <ModernButton variant="secondary" size="lg">
+                      <ModernIcon name="download" size={20} />
+                      Gerar Relatório Completo
+                    </ModernButton>
+                    <ModernButton variant="success" size="lg">
+                      <ModernIcon name="plus" size={20} />
+                      Adicionar Colaborador
+                    </ModernButton>
                   </div>
                 </GlassCard>
               </div>
+            )}
 
-              {/* Actions Section */}
-              <GlassCard className="p-6">
-                <h3 className="text-white font-medium mb-4">Ações Rápidas</h3>
-                <div className="flex flex-wrap gap-3">
-                  <ModernButton variant="primary">
-                    <ModernIcon name="check" size={16} />
-                    Aprovar Pendentes
-                  </ModernButton>
-                  <ModernButton variant="secondary">
-                    <ModernIcon name="download" size={16} />
-                    Exportar Relatório
-                  </ModernButton>
-                  <ModernButton variant="secondary">
-                    <ModernIcon name="plus" size={16} />
-                    Adicionar Colaborador
-                  </ModernButton>
-                </div>
-              </GlassCard>
-            </div>
-          )}
+            {/* Sessions Tab */}
+            {activeTab === "sessions" && selectedUser && (
+              <div className="space-y-8">
+                {/* Filters */}
+                <GlassCard className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3 border border-white/20">
+                      <ModernIcon name="search" size={18} className="text-white/60" />
+                      <input
+                        type="text"
+                        placeholder="Buscar sessões..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="bg-transparent border-none outline-none text-white placeholder-white/50 flex-1 font-medium"
+                      />
+                    </div>
 
-          {/* Sessions Tab */}
-          {activeTab === "sessions" && selectedUser && (
-            <div className="space-y-6">
-              {/* Filters */}
-              <GlassCard className="p-4">
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ModernIcon name="search" size={16} className="text-white/60" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as any)}
+                      className="bg-white/10 border border-white/30 rounded-2xl px-4 py-3 text-white font-medium backdrop-blur-xl focus:border-blue-400"
+                    >
+                      <option value="all" className="text-black bg-gray-800">📋 Todos</option>
+                      <option value="pending" className="text-black bg-gray-800">⏳ Pendentes</option>
+                      <option value="approved" className="text-black bg-gray-800">✅ Aprovados</option>
+                      <option value="rejected" className="text-black bg-gray-800">❌ Rejeitados</option>
+                    </select>
+
                     <input
-                      type="text"
-                      placeholder="Buscar sessões..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="bg-transparent border-none outline-none text-white placeholder-white/40 flex-1"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="bg-white/10 border border-white/30 rounded-2xl px-4 py-3 text-white font-medium backdrop-blur-xl focus:border-blue-400"
                     />
+
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="bg-white/10 border border-white/30 rounded-2xl px-4 py-3 text-white font-medium backdrop-blur-xl focus:border-blue-400"
+                    />
+
+                    <ModernButton variant="primary" size="md">
+                      <ModernIcon name="filter" size={16} />
+                      Filtrar
+                    </ModernButton>
                   </div>
+                </GlassCard>
 
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm"
-                  >
-                    <option value="all" className="text-black">Todos</option>
-                    <option value="pending" className="text-black">Pendentes</option>
-                    <option value="approved" className="text-black">Aprovados</option>
-                    <option value="rejected" className="text-black">Rejeitados</option>
-                  </select>
+                {/* Sessions Table */}
+                <GlassCard className="overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-white/10 to-white/5 border-b border-white/10">
+                          <th className="text-left p-6 text-white font-bold uppercase tracking-wider">Data & Hora</th>
+                          <th className="text-left p-6 text-white font-bold uppercase tracking-wider">Duração</th>
+                          <th className="text-left p-6 text-white font-bold uppercase tracking-wider">Ganhos</th>
+                          <th className="text-left p-6 text-white font-bold uppercase tracking-wider">Status</th>
+                          <th className="text-left p-6 text-white font-bold uppercase tracking-wider">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          <tr>
+                            <td colSpan={5} className="text-center p-12 text-white/70">
+                              <div className="flex items-center justify-center gap-3">
+                                <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin"></div>
+                                <span className="font-bold text-lg">Carregando sessões...</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : filteredSessions.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="text-center p-12 text-white/70">
+                              <div className="space-y-3">
+                                <ModernIcon name="search" size={48} className="mx-auto text-white/30" />
+                                <p className="font-bold text-lg">Nenhuma sessão encontrada</p>
+                                <p className="text-sm">Tente ajustar os filtros de busca</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredSessions.map((session, index) => {
+                            const startDate = toDateSafe(session.start);
+                            const endDate = session.end ? toDateSafe(session.end) : null;
+                            const duration = session.durationSec ? Math.floor(session.durationSec / 60) : 0;
 
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm"
-                  />
+                            return (
+                              <tr 
+                                key={session.id} 
+                                className="border-b border-white/5 hover:bg-gradient-to-r hover:from-white/10 hover:to-white/5 transition-all duration-300 group"
+                                style={{ animationDelay: `${index * 0.1}s` }}
+                              >
+                                <td className="p-6">
+                                  <div className="space-y-1">
+                                    <div className="text-white font-bold text-lg">
+                                      {startDate ? format(startDate, "dd/MM/yyyy") : "—"}
+                                    </div>
+                                    <div className="text-white/70 font-medium">
+                                      {startDate ? format(startDate, "HH:mm") : "—"} - {endDate ? format(endDate, "HH:mm") : "Em andamento"}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-6">
+                                  <span className="text-white font-bold text-lg">
+                                    {duration > 0 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : "—"}
+                                  </span>
+                                </td>
+                                <td className="p-6">
+                                  <span className="text-green-400 font-black text-lg">
+                                    R$ {(session.earnings || 0).toFixed(2)}
+                                  </span>
+                                </td>
+                                <td className="p-6">
+                                  <span className={`
+                                    inline-flex px-4 py-2 rounded-full text-sm font-black uppercase tracking-wider
+                                    ${(session.status || "pending") === "approved"
+                                      ? "bg-gradient-to-r from-green-500/30 to-emerald-500/30 text-green-300 border border-green-400/30"
+                                      : (session.status || "pending") === "rejected"
+                                      ? "bg-gradient-to-r from-red-500/30 to-pink-500/30 text-red-300 border border-red-400/30"
+                                      : "bg-gradient-to-r from-yellow-500/30 to-orange-500/30 text-yellow-300 border border-yellow-400/30"
+                                    }
+                                  `}>
+                                    {(session.status || "pending") === "approved" ? "✅ Aprovado" :
+                                     (session.status || "pending") === "rejected" ? "❌ Rejeitado" : "⏳ Pendente"}
+                                  </span>
+                                </td>
+                                <td className="p-6">
+                                  <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                    <ModernButton variant="success" size="sm">
+                                      <ModernIcon name="check" size={16} />
+                                    </ModernButton>
+                                    <ModernButton variant="danger" size="sm">
+                                      <ModernIcon name="x" size={16} />
+                                    </ModernButton>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </GlassCard>
+              </div>
+            )}
 
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm"
-                  />
+            {/* Other tabs placeholder */}
+            {activeTab !== "overview" && activeTab !== "sessions" && (
+              <GlassCard className="p-12 text-center">
+                <div className="space-y-6">
+                  <ModernIcon name="settings" size={64} className="text-white/30 mx-auto" />
+                  <div className="space-y-3">
+                    <h3 className="text-white font-black text-2xl">Seção em Desenvolvimento</h3>
+                    <p className="text-white/60 font-medium">Esta funcionalidade está sendo desenvolvida e estará disponível em breve.</p>
+                  </div>
+                  <ModernButton variant="primary" size="lg">
+                    <ModernIcon name="bell" size={20} />
+                    Me Notificar Quando Ficar Pronto
+                  </ModernButton>
                 </div>
               </GlassCard>
-
-              {/* Sessions Table */}
-              <GlassCard className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-white/5">
-                      <tr>
-                        <th className="text-left p-4 text-white/80 font-medium">Data/Hora</th>
-                        <th className="text-left p-4 text-white/80 font-medium">Duração</th>
-                        <th className="text-left p-4 text-white/80 font-medium">Ganhos</th>
-                        <th className="text-left p-4 text-white/80 font-medium">Status</th>
-                        <th className="text-left p-4 text-white/80 font-medium">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        <tr>
-                          <td colSpan={5} className="text-center p-8 text-white/60">
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
-                              Carregando...
-                            </div>
-                          </td>
-                        </tr>
-                      ) : filteredSessions.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="text-center p-8 text-white/60">
-                            Nenhuma sessão encontrada
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredSessions.map((session) => {
-                          const startDate = toDateSafe(session.start);
-                          const endDate = session.end ? toDateSafe(session.end) : null;
-                          const duration = session.durationSec ? Math.floor(session.durationSec / 60) : 0;
-
-                          return (
-                            <tr key={session.id} className="border-t border-white/10 hover:bg-white/5 transition-colors">
-                              <td className="p-4">
-                                <div className="text-white font-medium">
-                                  {startDate ? format(startDate, "dd/MM/yyyy") : "—"}
-                                </div>
-                                <div className="text-white/60 text-sm">
-                                  {startDate ? format(startDate, "HH:mm") : "—"} - {endDate ? format(endDate, "HH:mm") : "Em andamento"}
-                                </div>
-                              </td>
-                              <td className="p-4 text-white">
-                                {duration > 0 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : "—"}
-                              </td>
-                              <td className="p-4 text-white font-medium">
-                                R$ {(session.earnings || 0).toFixed(2)}
-                              </td>
-                              <td className="p-4">
-                                <span className={`
-                                  inline-flex px-2 py-1 rounded-full text-xs font-medium
-                                  ${(session.status || "pending") === "approved"
-                                    ? "bg-green-400/20 text-green-400"
-                                    : (session.status || "pending") === "rejected"
-                                    ? "bg-red-400/20 text-red-400"
-                                    : "bg-yellow-400/20 text-yellow-400"
-                                  }
-                                `}>
-                                  {(session.status || "pending") === "approved" ? "Aprovado" :
-                                   (session.status || "pending") === "rejected" ? "Rejeitado" : "Pendente"}
-                                </span>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex gap-2">
-                                  <ModernButton variant="ghost" size="sm">
-                                    <ModernIcon name="check" size={14} />
-                                  </ModernButton>
-                                  <ModernButton variant="ghost" size="sm">
-                                    <ModernIcon name="x" size={14} />
-                                  </ModernButton>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </GlassCard>
-            </div>
-          )}
-
-          {/* Other tabs content would go here */}
-          {activeTab !== "overview" && activeTab !== "sessions" && (
-            <GlassCard className="p-8 text-center">
-              <ModernIcon name="settings" size={48} className="text-white/40 mx-auto mb-4" />
-              <h3 className="text-white font-medium text-lg mb-2">Em Desenvolvimento</h3>
-              <p className="text-white/60">Esta seção está sendo desenvolvida.</p>
-            </GlassCard>
-          )}
-        </main>
+            )}
+          </main>
+        </div>
       </div>
 
       {/* Tutorial Component */}
@@ -1018,6 +1187,37 @@ function ModernEmpresaDashboard() {
         onComplete={() => console.log('Tutorial completado')}
         onSkip={() => console.log('Tutorial pulado')}
       />
+
+      {/* Custom Styles */}
+      <style jsx global>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Scrollbar customization */
+        ::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+          background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+          border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(45deg, #2563eb, #7c3aed);
+        }
+      `}</style>
     </div>
   );
 }
@@ -1029,9 +1229,12 @@ export default function EmpresaDashboardPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mx-auto"></div>
-          <p className="text-white/60">Carregando dashboard...</p>
+        <div className="text-center space-y-6">
+          <div className="w-12 h-12 border-4 border-white/20 border-t-white/80 rounded-full animate-spin mx-auto"></div>
+          <div className="space-y-2">
+            <h2 className="text-white font-bold text-xl">Carregando Dashboard...</h2>
+            <p className="text-white/60 font-medium">Preparando seu ambiente de trabalho</p>
+          </div>
         </div>
       </div>
     }>
