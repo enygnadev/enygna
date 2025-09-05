@@ -212,6 +212,14 @@ export default function EmpresaManager({
 
       console.log('Dados da empresa:', empresaData);
 
+      // Validar campos obrigatórios antes de criar
+      const requiredFields = ['nome', 'email'];
+      for (const field of requiredFields) {
+        if (!empresaData[field]) {
+          throw new Error(`Campo obrigatório ausente: ${field}`);
+        }
+      }
+
       // Tentar criar na coleção principal
       await setDoc(doc(db, collectionName, empresaId), empresaData);
       console.log('Empresa criada na coleção principal:', collectionName);

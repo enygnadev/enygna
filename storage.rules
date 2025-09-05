@@ -157,3 +157,74 @@ service firebase.storage {
     }
   }
 }
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Função para verificar se é superadmin
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token != null && (
+        request.auth.token.bootstrapAdmin == true ||
+        request.auth.token.role == 'superadmin' ||
+        request.auth.token.role == 'adminmaster'
+      );
+    }
+    
+    // Função para verificar se pertence à mesma empresa
+    function sameCompany(empresaId) {
+      return request.auth != null && request.auth.token != null && (
+        isSuperAdmin() ||
+        request.auth.token.empresaId == empresaId ||
+        request.auth.token.company == empresaId
+      );
+    }
+    
+    // Função para verificar acesso ao sistema
+    function hasSystemAccess(sistema) {
+      return request.auth != null && request.auth.token != null && (
+        isSuperAdmin() ||
+        request.auth.token.role in ['admin', 'gestor'] ||
+        (request.auth.token.sistemasAtivos != null && 
+         sistema in request.auth.token.sistemasAtivos)
+      );
+    }
+
+    // SuperAdmins têm acesso total
+    match /{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Documentos por empresa
+    match /documentos/{empresaId}/{allPaths=**} {
+      allow read, write: if request.auth != null && 
+        sameCompany(empresaId) && 
+        hasSystemAccess('documentos');
+    }
+
+    // Avatars de usuários
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true; // Avatars são públicos para leitura
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Logos de empresas
+    match /logos/{empresaId}/{allPaths=**} {
+      allow read: if true; // Logos são públicos
+      allow write: if request.auth != null && sameCompany(empresaId);
+    }
+
+    // Uploads temporários
+    match /temp/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Backups (apenas superadmins)
+    match /backups/{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Deny por padrão
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
