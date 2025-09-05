@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -32,7 +31,7 @@ service cloud.firestore {
       );
     }
 
-    
+
 
     function isAuthenticated() { 
       return request.auth != null && request.auth.uid != null; 
@@ -64,15 +63,18 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(requiredFields);
     }
 
-    
 
-    
+
+
 
     function sameCompany(empresaId) {
       return request.auth != null && request.auth.token != null && (
-        isSuperAdmin() || 
-        request.auth.token.empresaId == empresaId ||
-        request.auth.token.company == empresaId
+        request.auth.token.empresaId == empresaId || 
+        request.auth.token.company == empresaId ||
+        // Verificar se o email do usuário corresponde ao email da empresa
+        (resource != null && resource.data != null && resource.data.empresaId == empresaId) ||
+        // Para novos documentos, verificar se o empresaId está sendo definido corretamente
+        (request.resource != null && request.resource.data != null && request.resource.data.empresaId == empresaId)
       );
     }
 
@@ -80,7 +82,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.token != null && roles.hasAny([request.auth.token.role]);
     }
 
-    
+
 
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
@@ -95,22 +97,28 @@ service cloud.firestore {
       );
     }
 
-    // === COLEÇÃO USERS ===
+    // ===== COLEÇÃO DE USUÁRIOS =====
     match /users/{userId} {
-      // Super admins têm acesso total
-      allow read, write: if isSuperAdmin();
-      
-      // Usuários podem ler/atualizar seus próprios dados
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-      
-      // Admins podem ler/editar usuários da mesma empresa
-      allow read, write: if isAuthenticated() && isAdmin() && (
-        !exists(/databases/$(database)/documents/users/$(userId)) ||
-        sameCompany(get(/databases/$(database)/documents/users/$(userId)).data.empresaId)
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || isAdmin() || 
+        request.auth.uid == userId ||
+        sameCompany(resource.data.empresaId)
       );
-      
-      // Permitir criação automática de documentos de usuário
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() || isAdmin() || 
+        request.auth.uid == userId
+      );
+
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() || isAdmin() ||
+        // Empresa pode criar usuários para sua empresa
+        (request.resource.data.empresaId != null && sameCompany(request.resource.data.empresaId))
+      );
+
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() || isAdmin()
+      );
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====
