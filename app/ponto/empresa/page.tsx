@@ -48,7 +48,7 @@ import ScheduleImporter from "@/components/ScheduleImporter";
 import PayrollExporter from "@/components/PayrollExporter";
 import ElectronicSignature from "@/components/ElectronicSignature";
 import Tutorial from "@/components/Tutorial"; // Import Tutorial component
-import { isSuperAdmin, hasAdminAccess, canAccessSystem, getUserEmpresaId } from '@/src/lib/securityHelpers'; // Import security helpers
+import { isSuperAdmin, hasAdminAccess, canAccessSystem, getUserEmpresaId, AuthClaims } from '@/src/lib/securityHelpers'; // Import security helpers
 
 /** =============================================================
  * ÍCONES INLINE (sem libs externas)
