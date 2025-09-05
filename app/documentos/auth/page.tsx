@@ -33,7 +33,11 @@ export default function DocumentosAuthPage() {
           
           if (hasDocumentosAccess) {
             console.log('✅ Usuário já tem acesso ao sistema documentos, redirecionando...');
-            router.push('/documentos');
+            // Evitar loop: verificar se já estamos sendo redirecionados
+            const currentPath = window.location.pathname;
+            if (currentPath === '/documentos/auth') {
+              router.replace('/documentos');
+            }
             return;
           } else {
             console.log('❌ Usuário logado mas sem acesso ao sistema documentos');
@@ -52,33 +56,63 @@ export default function DocumentosAuthPage() {
 
   const checkDocumentosAccess = async (user: any): Promise<boolean> => {
     try {
-      // 1. Verificar documento do usuário
+      console.log('🔍 Verificando acesso ao sistema documentos para:', user.email);
+
+      // 1. Verificar claims do token primeiro (mais confiável)
+      try {
+        const tokenResult = await user.getIdTokenResult(true);
+        const claims = tokenResult.claims;
+        
+        console.log('🎫 Claims do usuário:', claims);
+        
+        // Super admin sempre tem acesso
+        if (claims.role === 'superadmin' || claims.role === 'adminmaster' || claims.bootstrapAdmin) {
+          console.log('👑 Super admin detectado - acesso liberado');
+          return true;
+        }
+        
+        // Verificar sistemas ativos nas claims
+        if (claims.sistemasAtivos?.includes('documentos') || 
+            claims.permissions?.canAccessSystems?.includes('documentos')) {
+          console.log('✅ Acesso encontrado nas claims');
+          return true;
+        }
+      } catch (claimsError) {
+        console.log('⚠️ Erro ao verificar claims, continuando com Firestore:', claimsError);
+      }
+
+      // 2. Verificar documento do usuário
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        console.log('📊 Dados do usuário encontrados:', userData);
         
         // Verificar se tem acesso ao sistema documentos
         if (userData.sistemasAtivos?.includes('documentos') || 
             userData.permissions?.documentos ||
             userData.permissions?.canAccessSystems?.includes('documentos')) {
+          console.log('✅ Acesso encontrado no documento do usuário');
           return true;
         }
       }
 
-      // 2. Verificar se é empresa com sistema documentos ativo
+      // 3. Verificar se é empresa com sistema documentos ativo
       const empresasQuery = query(collection(db, 'empresas'), where('email', '==', user.email));
       const empresasSnapshot = await getDocs(empresasQuery);
 
       for (const empresaDoc of empresasSnapshot.docs) {
         const empresaData = empresaDoc.data();
+        console.log('🏢 Verificando empresa:', empresaDoc.id, empresaData);
+        
         if (empresaData.ativo && 
             empresaData.sistemasAtivos && 
             empresaData.sistemasAtivos.includes('documentos')) {
+          console.log('✅ Acesso encontrado na empresa');
           return true;
         }
       }
 
-      // 3. Verificar se é colaborador em empresa com documentos ativo
+      // 4. Verificar se é colaborador em empresa com documentos ativo
       const todasEmpresas = await getDocs(collection(db, 'empresas'));
       for (const empresaDoc of todasEmpresas.docs) {
         const empresaData = empresaDoc.data();
@@ -89,11 +123,13 @@ export default function DocumentosAuthPage() {
           const colaboradorSnapshot = await getDocs(colaboradorQuery);
           
           if (!colaboradorSnapshot.empty) {
+            console.log('✅ Acesso encontrado como colaborador');
             return true;
           }
         }
       }
 
+      console.log('❌ Nenhum acesso encontrado ao sistema documentos');
       return false;
     } catch (error) {
       console.error('Erro ao verificar acesso ao documentos:', error);
@@ -121,7 +157,8 @@ export default function DocumentosAuthPage() {
       
       if (hasAccess) {
         console.log('✅ Login realizado com sucesso, redirecionando para /documentos');
-        router.push('/documentos');
+        // Usar replace para evitar loop de navegação
+        router.replace('/documentos');
       } else {
         setError('Este email não tem acesso ao sistema de documentos. Entre em contato com o administrador.');
         await auth.signOut();
