@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -25,7 +26,8 @@ export default function LocationMap({
   samePlaceRadius = 120,
 }: Props) {
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
-  const [mapInstance, setMapInstance] = React.useState<any>(null);
+  const mapInstanceRef = React.useRef<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isClient, setIsClient] = React.useState(false);
 
   // Garantir que está no cliente
@@ -33,18 +35,39 @@ export default function LocationMap({
     setIsClient(true);
   }, []);
 
-  // Inicializar mapa apenas uma vez
+  // Cleanup e inicialização do mapa
   React.useEffect(() => {
-    if (!isClient || !mapContainerRef.current || mapInstance) return;
+    if (!isClient || !mapContainerRef.current) return;
 
-    let map: any;
+    let isMounted = true;
 
     const initMap = async () => {
       try {
+        // Limpar qualquer instância anterior
+        if (mapInstanceRef.current) {
+          try {
+            mapInstanceRef.current.remove();
+          } catch (e) {
+            console.warn('Erro ao limpar mapa anterior:', e);
+          }
+          mapInstanceRef.current = null;
+        }
+
+        // Limpar container
+        if (mapContainerRef.current) {
+          mapContainerRef.current.innerHTML = '';
+          mapContainerRef.current._leaflet_id = null;
+        }
+
+        // Aguardar um pouco para garantir limpeza
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!isMounted) return;
+
         // Importar Leaflet dinamicamente
         const L = (await import('leaflet')).default;
 
-        // Configurar ícones do Leaflet
+        // Configurar ícones
         delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -52,59 +75,167 @@ export default function LocationMap({
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
         });
 
-        // Criar mapa
-        map = L.map(mapContainerRef.current).setView([lat, lng], 16);
+        if (!isMounted || !mapContainerRef.current) return;
 
-        // Adicionar tile layer do OpenStreetMap (gratuito)
+        // Criar nova instância do mapa
+        const map = L.map(mapContainerRef.current, {
+          zoomControl: true,
+          scrollWheelZoom: true,
+          doubleClickZoom: true,
+          boxZoom: true,
+          keyboard: true,
+          dragging: true,
+          touchZoom: true
+        }).setView([lat, lng], 16);
+
+        // Tile layer moderno
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors'
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+          className: 'map-tiles'
         }).addTo(map);
 
-        // Marcador da posição atual
-        L.marker([lat, lng]).addTo(map)
-          .bindPopup(`${label}<br/>${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracy ? `<br/>±${Math.round(accuracy)}m` : ''}`)
+        // Marcador principal com ícone personalizado
+        const mainIcon = L.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div style="
+              width: 24px;
+              height: 24px;
+              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 12px;
+              font-weight: bold;
+            ">📍</div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        L.marker([lat, lng], { icon: mainIcon }).addTo(map)
+          .bindPopup(`
+            <div style="
+              padding: 8px;
+              font-family: system-ui, -apple-system, sans-serif;
+              min-width: 200px;
+            ">
+              <h4 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                ${label}
+              </h4>
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}
+              </p>
+              ${accuracy ? `
+                <p style="margin: 4px 0 0 0; color: #059669; font-size: 11px;">
+                  🎯 Precisão: ±${Math.round(accuracy)}m
+                </p>
+              ` : ''}
+            </div>
+          `)
           .openPopup();
 
-        // Se tiver ponto de comparação, adicionar
-        if (compareTo) {
-          L.marker([compareTo.lat, compareTo.lng]).addTo(map)
-            .bindPopup(`${compareTo.label || 'Referência'}<br/>${compareTo.lat.toFixed(5)}, ${compareTo.lng.toFixed(5)}`);
-
-          // Círculo do raio de geofencing
-          L.circle([compareTo.lat, compareTo.lng], {
-            radius: samePlaceRadius,
-            color: '#3388ff',
-            fillColor: '#3388ff',
-            fillOpacity: 0.2
-          }).addTo(map);
-        }
-
-        // Círculo de precisão se disponível
+        // Círculo de precisão estilizado
         if (accuracy && accuracy > 0) {
           L.circle([lat, lng], {
             radius: accuracy,
-            color: '#ff7800',
-            fillColor: '#ff7800',
-            fillOpacity: 0.1
+            color: '#3b82f6',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.1,
+            weight: 2,
+            dashArray: '5, 5'
           }).addTo(map);
         }
 
-        setMapInstance(map);
+        // Ponto de comparação se existir
+        if (compareTo) {
+          const compareIcon = L.divIcon({
+            className: 'custom-marker-compare',
+            html: `
+              <div style="
+                width: 20px;
+                height: 20px;
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 10px;
+              ">🏢</div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+
+          L.marker([compareTo.lat, compareTo.lng], { icon: compareIcon }).addTo(map)
+            .bindPopup(`
+              <div style="
+                padding: 8px;
+                font-family: system-ui, -apple-system, sans-serif;
+                min-width: 180px;
+              ">
+                <h4 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                  ${compareTo.label || 'Referência'}
+                </h4>
+                <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                  📍 ${compareTo.lat.toFixed(5)}, ${compareTo.lng.toFixed(5)}
+                </p>
+              </div>
+            `);
+
+          // Área de geofencing estilizada
+          L.circle([compareTo.lat, compareTo.lng], {
+            radius: samePlaceRadius,
+            color: '#10b981',
+            fillColor: '#10b981',
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: '10, 5'
+          }).addTo(map);
+
+          // Linha conectora pontilhada
+          L.polyline([[lat, lng], [compareTo.lat, compareTo.lng]], {
+            color: '#6b7280',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '8, 8'
+          }).addTo(map);
+        }
+
+        mapInstanceRef.current = map;
+        setIsLoading(false);
+
+        // Ajustar visualização se tiver ponto de comparação
+        if (compareTo) {
+          const bounds = L.latLngBounds([[lat, lng], [compareTo.lat, compareTo.lng]]);
+          map.fitBounds(bounds, { padding: [20, 20] });
+        }
+
       } catch (error) {
         console.error('Erro ao inicializar mapa:', error);
+        setIsLoading(false);
       }
     };
 
     initMap();
 
-    // Cleanup
     return () => {
-      if (map) {
+      isMounted = false;
+      if (mapInstanceRef.current) {
         try {
-          map.remove();
+          mapInstanceRef.current.remove();
         } catch (error) {
-          console.warn('Erro ao limpar mapa:', error);
+          console.warn('Erro no cleanup:', error);
         }
+        mapInstanceRef.current = null;
       }
     };
   }, [isClient, lat, lng, label, accuracy, compareTo, samePlaceRadius]);
@@ -131,52 +262,148 @@ export default function LocationMap({
 
   if (!isClient) {
     return (
-      <div style={{ width: '100%', height: 300, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p>Carregando mapa...</p>
+      <div style={{
+        width: '100%',
+        height: 320,
+        background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
+        border: '1px solid #e2e8f0'
+      }}>
+        <div style={{ textAlign: 'center', color: '#64748b' }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            border: '3px solid #e2e8f0',
+            borderTop: '3px solid #3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 12px'
+          }} />
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Carregando mapa...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div style={{ width: '100%' }}>
-      {/* Status bar */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .leaflet-container {
+          font-family: system-ui, -apple-system, sans-serif !important;
+        }
+        
+        .leaflet-popup-content-wrapper {
+          border-radius: 12px !important;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        .leaflet-popup-tip {
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .map-tiles {
+          filter: saturate(1.1) contrast(1.05);
+        }
+      `}</style>
+
+      {/* Status bar estilizado */}
       {compareTo && distance !== null && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginBottom: 8,
-            padding: '8px 12px',
-            borderRadius: 8,
-            backgroundColor: isInsideRadius ? '#f0f9ff' : '#fef2f2',
-            border: `1px solid ${isInsideRadius ? '#3b82f6' : '#ef4444'}`,
-            fontSize: 12,
+            justifyContent: 'space-between',
+            marginBottom: 12,
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: isInsideRadius 
+              ? 'linear-gradient(135deg, #ecfdf5, #d1fae5)' 
+              : 'linear-gradient(135deg, #fef2f2, #fecaca)',
+            border: `2px solid ${isInsideRadius ? '#10b981' : '#ef4444'}`,
+            fontSize: 13,
+            fontWeight: 500,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
           }}
         >
-          <span style={{ color: isInsideRadius ? '#1e40af' : '#dc2626' }}>
-            {isInsideRadius ? '✓ Dentro da área' : '⚠ Fora da área'} • 
-            Distância: {Math.round(distance)}m • 
-            Raio: {samePlaceRadius}m
-          </span>
-          {accuracy && (
-            <span style={{ marginLeft: 10, opacity: 0.7 }}>
-              Precisão: ±{Math.round(accuracy)}m
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ 
+              fontSize: 16,
+              filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+            }}>
+              {isInsideRadius ? '✅' : '⚠️'}
             </span>
-          )}
+            <span style={{ color: isInsideRadius ? '#065f46' : '#991b1b' }}>
+              {isInsideRadius ? 'Dentro da área permitida' : 'Fora da área permitida'}
+            </span>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            gap: 16, 
+            color: isInsideRadius ? '#065f46' : '#991b1b',
+            opacity: 0.8,
+            fontSize: 12
+          }}>
+            <span>📏 {Math.round(distance)}m</span>
+            <span>🎯 Raio: {samePlaceRadius}m</span>
+            {accuracy && <span>📍 ±{Math.round(accuracy)}m</span>}
+          </div>
         </div>
       )}
 
-      {/* Mapa */}
-      <div 
-        ref={mapContainerRef} 
-        style={{ 
-          width: '100%', 
-          height: 300, 
-          borderRadius: 12, 
-          overflow: 'hidden',
-          border: '1px solid #e5e7eb'
-        }} 
-      />
+      {/* Container do mapa */}
+      <div style={{ position: 'relative' }}>
+        <div 
+          ref={mapContainerRef}
+          style={{ 
+            width: '100%', 
+            height: 320,
+            borderRadius: 16,
+            overflow: 'hidden',
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
+            background: '#f8fafc'
+          }} 
+        />
+        
+        {/* Loading overlay */}
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(248, 250, 252, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 16,
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div style={{ textAlign: 'center', color: '#64748b' }}>
+              <div style={{
+                width: 32,
+                height: 32,
+                border: '3px solid #e2e8f0',
+                borderTop: '3px solid #3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 8px'
+              }} />
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 500 }}>Carregando...</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
