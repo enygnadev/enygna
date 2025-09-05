@@ -237,6 +237,7 @@ export function useRouteProtection(
   requiredRoles: string[] = [],
   requireEmailVerified = false
 ) {
+  const { user, profile } = useAuth();
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
   const [error, setError] = useState<string>('');
 
@@ -262,7 +263,7 @@ export function useRouteProtection(
     }
 
     check();
-  }, [requiredSystems, requiredRoles, requireEmailVerified]);
+  }, [user, profile, requiredSystems, requiredRoles, requireEmailVerified]);
 
   return { canAccess, error };
 }

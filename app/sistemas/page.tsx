@@ -23,7 +23,7 @@ export default function SistemasPage() {
     if (!user || !userData) return false;
 
     // Admins sempre têm acesso
-    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.claims?.bootstrapAdmin) {
       return true;
     }
 
@@ -33,7 +33,7 @@ export default function SistemasPage() {
     }
 
     // Verificar permissões específicas
-    if (userData.permissions?.canAccessSystems?.includes(sistema)) {
+    if (userData.claims?.permissions?.canAccessSystems?.includes(sistema)) {
       return true;
     }
 
@@ -234,7 +234,7 @@ export default function SistemasPage() {
                     background: user ? 'var(--color-success)' : 'var(--color-error)',
                   }}
                 ></span>
-                {user ? `👤 ${userData?.nome || user.email?.split('@')[0]}` : '🔒 Não logado'}
+                {user ? `👤 ${userData?.displayName || user.email?.split('@')[0]}` : '🔒 Não logado'}
               </div>
             )}
           </div>
@@ -336,7 +336,7 @@ export default function SistemasPage() {
                 {hasAccess('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
                 {hasAccess('financeiro') && <span className="tag" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>💰 Financeiro</span>}
                 {(hasAccess('crm') || hasAccess('vendas')) && <span className="tag" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💼 CRM/Vendas</span>}
-                {userData.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
+                {userData.claims?.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
                 {(!userData.sistemasAtivos?.length) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>

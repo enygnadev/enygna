@@ -66,7 +66,7 @@ function NovoTicketPageContent() {
         at: Date.now(),
         action: 'create',
         by: userData?.uid || 'unknown',
-        byName: userData?.nome || userData?.email || 'Unknown User',
+        byName: userData?.displayName || userData?.email || 'Unknown User',
         payload: { ticket: ticketData }
       } as TicketAudit);
 
