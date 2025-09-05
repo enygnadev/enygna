@@ -202,7 +202,7 @@ export class AdvancedRateLimit {
 }
 
 // Security Event Logger
-export class SecurityLogger {
+class AdvancedSecurityLogger {
   static logEvent(event: SecurityEventType, details: any, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'): void {
     const logEntry = {
       timestamp: new Date().toISOString(),
@@ -279,6 +279,13 @@ type SecurityEventType =
   | 'SQL_INJECTION_ATTEMPT'
   | 'FILE_UPLOAD_VIOLATION'
   | 'RATE_LIMIT_EXCEEDED'
-  | 'HONEYPOT_ACCESS';
+  | 'HONEYPOT_ACCESS'
+  | 'CRITICAL_INPUT_THREAT'
+  | 'HIGH_INPUT_THREAT'
+  | 'INVALID_EMPRESA_ACCESS'
+  | 'SUSPICIOUS_REQUEST'
+  | 'SUSPICIOUS_USER_AGENT'
+  | 'BOT_ACCESS_ATTEMPT'
+  | 'CSRF_PROTECTION_TRIGGERED';
 
-export { SessionSecurityManager, SecurityLogger };
+export { SessionSecurityManager, AdvancedSecurityLogger as SecurityLogger };

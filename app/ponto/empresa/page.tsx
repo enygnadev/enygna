@@ -24,7 +24,7 @@ import {
   doc,
   getDocs,
   getDoc,
-  orderBy, 
+  orderBy,
   query,
   updateDoc,
   setDoc,
@@ -236,27 +236,31 @@ function toDateSafe(x: any): Date | null {
 /** Tipos */
 type Geo = { lat: number; lng: number; acc?: number; label?: string };
 
-type U = {
+interface UserData {
   id: string;
-  email: string;
-  displayName?: string;
-  effectiveHourlyRate?: number;
-  monthlySalary?: number;
-  role?: "superadmin" | "admin" | "gestor" | "colaborador";
+  email: string | null;
+  displayName: string;
+  role: 'colaborador' | 'admin' | 'gestor' | 'superadmin' | 'adminmaster';
+  tipo: 'empresa' | 'colaborador';
+  empresaId: string;
+  sistemasAtivos: string[];
+  permissions: {
+    canAccessSystems: string[];
+    admin: boolean;
+  };
   claims?: {
     role?: string;
     empresaId?: string;
+    bootstrapAdmin?: boolean;
     permissions?: {
       canAccessSystems?: string[];
       admin?: boolean;
       bootstrapAdmin?: boolean;
     };
   };
-  permissions?: {
-    canAccessSystems?: string[];
-    admin?: boolean;
-  };
-};
+  createdAt: any;
+  lastLogin: any;
+}
 
 type S = {
   id: string;
@@ -283,13 +287,13 @@ function EmpresaDashboard() {
   const params = useSearchParams();
 
   const [empresaId, setEmpresaId] = useState<string | null>(null);
-  const [meRole, setMeRole] = useState<U["role"] | null>(null);
+  const [meRole, setMeRole] = useState<UserData["role"] | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   const [empresas, setEmpresas] = useState<{ id: string; nome: string }[]>([]);
 
-  const [users, setUsers] = useState<U[]>([]);
-  const [selectedUser, setSelectedUser] = useState<U | null>(null);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
 
   const [sessions, setSessions] = useState<S[]>([]);
   const [loading, setLoading] = useState(false);
@@ -312,7 +316,7 @@ function EmpresaDashboard() {
   const [locSession, setLocSession] = useState<S | null>(null);
 
   // Forms
-  const [editForm, setEditForm] = useState<Partial<U>>({});
+  const [editForm, setEditForm] = useState<Partial<UserData>>({});
   const [addForm, setAddForm] = useState<{
     email: string;
     displayName?: string;
@@ -322,7 +326,7 @@ function EmpresaDashboard() {
     dailyRate?: number;
     workingDaysPerMonth?: number;
     paymentType?: "hourly" | "monthly" | "daily";
-    role?: U["role"];
+    role?: UserData["role"];
   }>({
     email: "",
     role: "colaborador",
@@ -370,9 +374,9 @@ function EmpresaDashboard() {
   };
 
   const validatePassword = (password: string): boolean => {
-    return password.length >= 8 && 
-           /[A-Z]/.test(password) && 
-           /[a-z]/.test(password) && 
+    return password.length >= 8 &&
+           /[A-Z]/.test(password) &&
+           /[a-z]/.test(password) &&
            /[0-9]/.test(password);
   };
   const [newUserWorkDays, setNewUserWorkDays] = useState(22);
@@ -423,7 +427,7 @@ function EmpresaDashboard() {
       try {
         const tk = await getIdTokenResult(u, true);
         const claims = tk.claims as any;
-        const role = (claims.role || "colaborador") as U["role"];
+        const role = (claims.role || "colaborador") as UserData["role"];
         const empIdFromClaims = (claims.empresaId || null) as string | null;
 
         // Debug info
@@ -433,17 +437,17 @@ function EmpresaDashboard() {
         try {
           const userDocRef = doc(db, "users", u.uid);
           const userDocSnap = await getDoc(userDocRef);
-          let userData: U | null = null;
+          let userData: UserData | null = null;
 
           if (userDocSnap.exists()) {
-            userData = userDocSnap.data() as U;
+            userData = userDocSnap.data() as UserData;
             console.log("Dados do usuário encontrados:", userData);
           } else {
             // Se o usuário não existe no 'users', busca na coleção 'empresas' para verificar se é um admin de empresa
             try {
               console.log("Usuário não encontrado na coleção users, buscando em empresas...");
               const empresasQuery = query(
-                collection(db, "empresas"), 
+                collection(db, "empresas"),
                 where("email", "==", u.email) // Busca empresa pelo email do usuário
               );
               const empresasSnap = await getDocs(empresasQuery);
@@ -462,16 +466,25 @@ function EmpresaDashboard() {
                 }
 
                 // Cria documento do usuário com perfil de admin da empresa
-                const newUserPayload = {
+                const newUserPayload: UserData = {
+                  id: u.uid,
                   email: u.email,
                   displayName: empresaData.nome || u.displayName || u.email,
-                  role: 'admin' as const, // Admin da empresa
-                  tipo: 'empresa' as const,
+                  role: 'admin', // Admin da empresa
+                  tipo: 'empresa',
                   empresaId: empresaDoc.id,
                   sistemasAtivos: sistemasAtivos,
                   permissions: {
                     canAccessSystems: sistemasAtivos,
                     admin: true, // Concede permissão de admin dentro da empresa
+                  },
+                  claims: {
+                    role: 'admin',
+                    empresaId: empresaDoc.id,
+                    permissions: {
+                      canAccessSystems: sistemasAtivos,
+                      admin: true
+                    }
                   },
                   createdAt: serverTimestamp(),
                   lastLogin: serverTimestamp()
@@ -609,7 +622,7 @@ function EmpresaDashboard() {
       const snap = await getDocs(
         collection(db, "empresas", empresaId, "colaboradores")
       );
-      const list: U[] = snap.docs.map((d) => {
+      const list: UserData[] = snap.docs.map((d) => {
         const v = d.data() as any;
         return {
           id: d.id,
@@ -617,7 +630,7 @@ function EmpresaDashboard() {
           displayName: v.displayName,
           effectiveHourlyRate: v.effectiveHourlyRate,
           monthlySalary: v.monthlySalary,
-          role: (v.role || "colaborador") as U["role"],
+          role: (v.role || "colaborador") as UserData["role"],
           // claims e permissions podem não estar na subcoleção 'colaboradores'
           // Se precisar, precisaria buscar no doc principal 'users' por UID
         };
@@ -634,7 +647,7 @@ function EmpresaDashboard() {
     }
   };
 
-  async function loadSessions(u: U) {
+  async function loadSessions(u: UserData) {
     if (!empresaId) return;
     setSelectedUser(u);
     setLoading(true);
@@ -675,12 +688,12 @@ function EmpresaDashboard() {
   async function saveEdit() {
     if (!editForm?.id || !empresaId) return;
     const ref = doc(db, "empresas", empresaId, "colaboradores", editForm.id);
-    const payload: Partial<U> = {
+    const payload: Partial<UserData> = {
       email: editForm.email ?? "",
       displayName: editForm.displayName ?? "",
       effectiveHourlyRate: Number(editForm.effectiveHourlyRate) || 0,
       monthlySalary: Number(editForm.monthlySalary) || 0,
-      role: (editForm.role as U["role"]) || "colaborador",
+      role: (editForm.role as UserData["role"]) || "colaborador",
     };
     try {
       await setDoc(ref, payload, { merge: true });
@@ -765,7 +778,7 @@ function EmpresaDashboard() {
       alert("Nome deve ter pelo menos 2 caracteres");
       return;
     }
-    if (sanitizedName.length > 100) {
+    if (!sanitizedName || sanitizedName.length > 100) {
       alert("Nome não pode exceder 100 caracteres");
       return;
     }
@@ -797,6 +810,7 @@ function EmpresaDashboard() {
       // Criar documento na coleção principal 'users'
       const userDocRef = doc(db, 'users', newUser.uid);
       await setDoc(userDocRef, {
+        id: newUser.uid,
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -821,6 +835,7 @@ function EmpresaDashboard() {
       // Criar documento na subcoleção da empresa
       const colaboradorDocRef = doc(db, 'empresas', empresaId!, 'colaboradores', newUser.uid);
       await setDoc(colaboradorDocRef, {
+        id: newUser.uid,
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -1447,7 +1462,7 @@ function EmpresaDashboard() {
   ];
 
   return (
-    <div className="container" style={{ 
+    <div className="container" style={{
       paddingBottom: 88,
       maxWidth: '100%',
       padding: isMounted && windowWidth < 768 ? '0 12px 88px 12px' : '0 24px 88px 24px'
@@ -1473,25 +1488,25 @@ function EmpresaDashboard() {
         }}
       >
         <div
-          style={{ 
-            display: "flex", 
-            justifyContent: "space-between", 
-            alignItems: isMounted && windowWidth < 768 ? "flex-start" : "center", 
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: isMounted && windowWidth < 768 ? "flex-start" : "center",
             gap: 16,
             flexDirection: isMounted && windowWidth < 768 ? "column" : "row"
           }}
         >
-          <div style={{ 
-            display: "flex", 
-            gap: 12, 
+          <div style={{
+            display: "flex",
+            gap: 12,
             alignItems: "center",
             flexWrap: "wrap"
           }}>
             <Tag tone="info">
-              <Icon name="shield" size={16} /> 
+              <Icon name="shield" size={16} />
               {isMounted && windowWidth < 768 ? "Empresa" : `Empresa • ${meRole || "—"}`}
             </Tag>
-            <h1 style={{ 
+            <h1 style={{
               margin: 0,
               fontSize: isMounted && windowWidth < 768 ? "1.5rem" : "1.875rem",
               fontWeight: 700,
@@ -1514,9 +1529,9 @@ function EmpresaDashboard() {
                 window.location.href = "/";
               });
             }}
-            style={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
               gap: 8,
               padding: isMounted && windowWidth < 768 ? "8px 16px" : "10px 20px",
               borderRadius: 12,
@@ -1532,10 +1547,10 @@ function EmpresaDashboard() {
         </div>
 
         {/* PROGRESS STEPS - Mais elegante */}
-        <div style={{ 
-          display: "flex", 
-          gap: isMounted && windowWidth < 768 ? 12 : 20, 
-          marginTop: 20, 
+        <div style={{
+          display: "flex",
+          gap: isMounted && windowWidth < 768 ? 12 : 20,
+          marginTop: 20,
           flexWrap: "wrap",
           justifyContent: isMounted && windowWidth < 768 ? "center" : "flex-start"
         }}>
@@ -1621,14 +1636,14 @@ function EmpresaDashboard() {
                 padding: isMounted && windowWidth < 768 ? "8px 12px" : "10px 16px",
                 borderRadius: 8,
                 border: "none",
-                background: activeTab === tab.id 
+                background: activeTab === tab.id
                   ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
                   : "transparent",
                 color: activeTab === tab.id ? "white" : "rgba(255, 255, 255, 0.7)",
                 fontWeight: activeTab === tab.id ? 600 : 400,
                 cursor: "pointer",
                 transition: "all 0.2s ease",
-                boxShadow: activeTab === tab.id 
+                boxShadow: activeTab === tab.id
                   ? "0 4px 16px rgba(59, 130, 246, 0.3)"
                   : "none",
                 minWidth: isMounted && windowWidth < 640 ? "auto" : "100px",
@@ -1657,8 +1672,8 @@ function EmpresaDashboard() {
 
       {/* CONTROLES SUPERIORES - Layout Grid Responsivo */}
       {activeTab === "overview" && (
-        <div className="card" style={{ 
-          marginTop: 16, 
+        <div className="card" style={{
+          marginTop: 16,
           padding: isMounted && windowWidth < 768 ? 16 : 24,
           borderRadius: 16,
           background: "rgba(255, 255, 255, 0.02)",
@@ -1667,8 +1682,8 @@ function EmpresaDashboard() {
           {/* Seção Principal - Seleção de Colaborador */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: isMounted && windowWidth < 768 
-              ? "1fr" 
+            gridTemplateColumns: isMounted && windowWidth < 768
+              ? "1fr"
               : "1fr auto",
             gap: 16,
             marginBottom: 20
@@ -1682,12 +1697,12 @@ function EmpresaDashboard() {
               borderRadius: 12,
               border: "1px solid rgba(255, 255, 255, 0.1)"
             }}>
-              <Icon name="users" 
-                size={20} 
-                style={{ 
+              <Icon name="users"
+                size={20}
+                style={{
                   marginLeft: 12,
-                  color: "rgba(59, 130, 246, 0.8)" 
-                }} 
+                  color: "rgba(59, 130, 246, 0.8)"
+                }}
               />
               <select
                 className="input"
@@ -1735,7 +1750,7 @@ function EmpresaDashboard() {
                 fontSize: isMounted && windowWidth < 768 ? "0.875rem" : "1rem",
                 padding: isMounted && windowWidth < 768 ? "12px 16px" : "12px 20px",
                 borderRadius: 12,
-                background: selectedUser 
+                background: selectedUser
                   ? "linear-gradient(135deg, #10b981, #059669)"
                   : "rgba(255, 255, 255, 0.1)",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1753,8 +1768,8 @@ function EmpresaDashboard() {
           {/* Filtros e Pesquisa - Grid Layout */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: isMounted && windowWidth < 768 
-              ? "1fr" 
+            gridTemplateColumns: isMounted && windowWidth < 768
+              ? "1fr"
               : "1fr 200px 180px auto",
             gap: 16,
             marginBottom: 20
@@ -1768,12 +1783,12 @@ function EmpresaDashboard() {
               borderRadius: 12,
               border: "1px solid rgba(255, 255, 255, 0.1)"
             }}>
-              <Icon name="search" 
-                size={20} 
-                style={{ 
+              <Icon name="search"
+                size={20}
+                style={{
                   marginLeft: 12,
-                  color: "rgba(156, 163, 175, 0.8)" 
-                }} 
+                  color: "rgba(156, 163, 175, 0.8)"
+                }}
               />
               <input
                 className="input"
@@ -1908,7 +1923,7 @@ function EmpresaDashboard() {
           {/* KPIs - Cards Modernos */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: isMounted && windowWidth < 768 
+            gridTemplateColumns: isMounted && windowWidth < 768
               ? "repeat(auto-fit, minmax(120px, 1fr))"
               : "repeat(5, 1fr)",
             gap: isMounted && windowWidth < 768 ? 12 : 16,
@@ -1924,8 +1939,8 @@ function EmpresaDashboard() {
           {/* Ações em Massa - Layout Moderno */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: isMounted && windowWidth < 768 
-              ? "1fr" 
+            gridTemplateColumns: isMounted && windowWidth < 768
+              ? "1fr"
               : "1fr 1fr",
             gap: 16,
             marginBottom: 20
@@ -1940,7 +1955,7 @@ function EmpresaDashboard() {
                 justifyContent: "center",
                 gap: 8,
                 padding: "16px 24px",
-                background: selectedIds.size > 0 
+                background: selectedIds.size > 0
                   ? "linear-gradient(135deg, #10b981, #059669)"
                   : "rgba(255, 255, 255, 0.1)",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1968,7 +1983,7 @@ function EmpresaDashboard() {
                 justifyContent: "center",
                 gap: 8,
                 padding: "16px 24px",
-                background: selectedIds.size > 0 
+                background: selectedIds.size > 0
                   ? "linear-gradient(135deg, #ef4444, #dc2626)"
                   : "rgba(255, 255, 255, 0.1)",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1989,7 +2004,7 @@ function EmpresaDashboard() {
 
           {/* Ferramentas Avançadas de Fechamento */}
           <div style={{
-            display: "grid", 
+            display: "grid",
             gridTemplateColumns: isMounted && windowWidth < 768 ? "1fr" : "auto 1fr auto",
             gap: 16,
             alignItems: "center",
@@ -2109,19 +2124,19 @@ function EmpresaDashboard() {
 
       {/* TABELA DE SESSÕES - Design Moderno */}
       {activeTab === "sessions" && (
-        <div className="card" style={{ 
-          marginTop: 16, 
+        <div className="card" style={{
+          marginTop: 16,
           padding: 0,
           borderRadius: 16,
           background: "rgba(255, 255, 255, 0.02)",
           border: "1px solid rgba(255, 255, 255, 0.08)",
           overflow: "hidden"
         }}>
-          <div style={{ 
+          <div style={{
             overflowX: "auto",
             WebkitOverflowScrolling: "touch"
           }}>
-            <table className="table" style={{ 
+            <table className="table" style={{
               minWidth: 900,
               background: "transparent"
             }}>
@@ -2130,8 +2145,8 @@ function EmpresaDashboard() {
                   background: "rgba(255, 255, 255, 0.05)",
                   borderBottom: "1px solid rgba(255, 255, 255, 0.1)"
                 }}>
-                  <th style={{ 
-                    width: 36, 
+                  <th style={{
+                    width: 36,
                     padding: "16px 12px",
                     textAlign: "center"
                   }}>
@@ -2163,7 +2178,7 @@ function EmpresaDashboard() {
                   <SortableTh keyName="duration" label="Duração" />
                   <SortableTh keyName="earnings" label="Ganhos" />
                   <SortableTh keyName="status" label="Status" />
-                  <th style={{ 
+                  <th style={{
                     minWidth: 360,
                     padding: "16px",
                     fontSize: "0.875rem",
@@ -2175,8 +2190,8 @@ function EmpresaDashboard() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={7} style={{ 
-                      padding: 40, 
+                    <td colSpan={7} style={{
+                      padding: 40,
                       textAlign: "center",
                       color: "rgba(255, 255, 255, 0.7)",
                       fontSize: "1rem"
@@ -2195,8 +2210,8 @@ function EmpresaDashboard() {
                 )}
                 {!loading && pageRows.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ 
-                      padding: 40, 
+                    <td colSpan={7} style={{
+                      padding: 40,
                       textAlign: "center",
                       color: "rgba(255, 255, 255, 0.7)",
                       fontSize: "1rem"
@@ -2222,12 +2237,12 @@ function EmpresaDashboard() {
                   const endDate = s.end ? toDateSafe(s.end) : null;
 
                   return (
-                    <tr 
+                    <tr
                       key={s.id}
                       style={{
                         borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                        background: selectedIds.has(s.id) 
-                          ? "rgba(59, 130, 246, 0.1)" 
+                        background: selectedIds.has(s.id)
+                          ? "rgba(59, 130, 246, 0.1)"
                           : "transparent",
                         transition: "all 0.2s ease"
                       }}
@@ -2265,9 +2280,9 @@ function EmpresaDashboard() {
                         </Tag>
                       </td>
                       <td style={{ padding: "16px" }}>
-                        <div style={{ 
-                          display: "flex", 
-                          gap: 8, 
+                        <div style={{
+                          display: "flex",
+                          gap: 8,
                           flexWrap: "wrap",
                           alignItems: "center"
                         }}>
@@ -2357,9 +2372,9 @@ function EmpresaDashboard() {
             flexWrap: "wrap",
             gap: 16
           }}>
-            <span style={{ 
-              fontSize: "0.875rem", 
-              color: "rgba(255, 255, 255, 0.7)" 
+            <span style={{
+              fontSize: "0.875rem",
+              color: "rgba(255, 255, 255, 0.7)"
             }}>
               Página {page} de {totalPages} • {filtered.length} registros
             </span>
@@ -2750,23 +2765,23 @@ function EmpresaDashboard() {
               color: "white",
             }}
           >
-              <h2 style={{ fontSize: "1.8rem", fontWeight: "bold", marginBottom: "1rem" }}>
-                📊 Relatórios e Assinatura Eletrônica
-              </h2>
+            <h2 style={{ fontSize: "1.8rem", fontWeight: "bold", marginBottom: "1rem" }}>
+              📊 Relatórios e Assinatura Eletrônica
+            </h2>
 
-              <ElectronicSignature
-                reportId={`monthly_${empresaId}_${currentMonth}`}
-                reportType="monthly"
-                signerName={currentUser?.displayName || currentUser?.email || ""}
-                signerEmail={currentUser?.email || ""}
-                signerRole="Gestor da Empresa"
-                onSignatureComplete={(signature) => {
-                  console.log("Relatório assinado:", signature);
-                  alert("Assinatura salva com sucesso!");
-                }}
-              />
-            </div>
+            <ElectronicSignature
+              reportId={`monthly_${empresaId}_${currentMonth}`}
+              reportType="monthly"
+              signerName={currentUser?.displayName || currentUser?.email || ""}
+              signerEmail={currentUser?.email || ""}
+              signerRole="Gestor da Empresa"
+              onSignatureComplete={(signature) => {
+                console.log("Relatório assinado:", signature);
+                alert("Assinatura salva com sucesso!");
+              }}
+            />
           </div>
+        </div>
       )}
 
       {/* FAB (adicionar colaborador) - Responsivo */}
@@ -2892,7 +2907,7 @@ function EmpresaDashboard() {
                 <select
                   className="input"
                   value={editForm.role || "colaborador"}
-                  onChange={(e) => setEditForm((v) => ({ ...v, role: e.target.value as U["role"] }))}
+                  onChange={(e) => setEditForm((v) => ({ ...v, role: e.target.value as UserData["role"] }))}
                 >
                   <option value="colaborador">Colaborador</option>
                   <option value="gestor">Gestor</option>
@@ -2948,7 +2963,7 @@ function EmpresaDashboard() {
                 <Icon name="users" size={24} style={{ color: "#3b82f6" }} />
                 Adicionar Colaborador
               </h3>
-              <button 
+              <button
                 onClick={() => setShowAddUserModal(false)}
                 style={{
                   background: "rgba(255, 255, 255, 0.1)",
@@ -3358,8 +3373,8 @@ function EmpresaDashboard() {
                   style={{
                     flex: 1,
                     padding: "16px 24px",
-                    background: isAddingUser 
-                      ? "rgba(107, 114, 128, 0.5)" 
+                    background: isAddingUser
+                      ? "rgba(107, 114, 128, 0.5)"
                       : "linear-gradient(135deg, #10b981, #059669)",
                     border: "none",
                     borderRadius: "12px",
@@ -3377,13 +3392,13 @@ function EmpresaDashboard() {
                   }}
                   onMouseEnter={(e) => {
                     if (!isAddingUser) {
-                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.transform = "scale(1.02)";
                       e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.4)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isAddingUser) {
-                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.transform = "scale(1)";
                       e.currentTarget.style.boxShadow = "0 4px 16px rgba(16, 185, 129, 0.3)";
                     }
                   }}

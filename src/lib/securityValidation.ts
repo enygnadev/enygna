@@ -14,7 +14,7 @@ export interface SecurityValidationResult {
 const THREAT_PATTERNS = {
   critical: [
     /\x00/, // Null bytes
-    /<script[^>]*>.*?<\/script>/gis, // Script tags
+    /<script[^>]*>.*?<\/script>/gi, // Script tags
     /javascript:/gi, // JavaScript protocol
     /data:text\/html/gi, // HTML data URIs
     /vbscript:/gi, // VBScript protocol
@@ -39,7 +39,7 @@ const THREAT_PATTERNS = {
     /\.\./g, // Path traversal
     /%2e%2e/gi, // Encoded path traversal
     /%00/g, // Encoded null
-    /<!--.*?-->/gs, // HTML comments
+    /<!--.*?-->/g, // HTML comments
   ]
 };
 
