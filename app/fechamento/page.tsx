@@ -4,7 +4,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { endOfMonth, format, startOfMonth } from 'date-fns';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 type S = { id:string; start:string; end?:string|null; durationSec?:number|null; earnings?:number|null; status?:string; };

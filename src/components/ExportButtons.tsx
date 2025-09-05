@@ -1,6 +1,6 @@
 'use client';
 import { saveAs } from './fileUtils';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 type Row = { start: string; end?: string | null; durationSec?: number | null; earnings?: number | null; };
