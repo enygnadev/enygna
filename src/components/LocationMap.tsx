@@ -1,518 +1,582 @@
+
 'use client';
 
-import dynamic from 'next/dynamic';
 import React from 'react';
 
-// React Leaflet (SSR off)
-const MapContainer: any = dynamic(
-  () => import('react-leaflet').then(m => m.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import('react-leaflet').then(m => m.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import('react-leaflet').then(m => m.Marker),
-  { ssr: false }
-);
-const Popup = dynamic(
-  () => import('react-leaflet').then(m => m.Popup),
-  { ssr: false }
-);
-
-// -------- Tipos --------
-type LatLng = { lat: number; lng: number; acc?: number; label?: string };
-
 type Props = {
-  /** Posição inicial (fallback/âncora) */
   lat: number;
   lng: number;
   label?: string;
-
-  /** Precisão (±m) da posição inicial, opcional */
   accuracy?: number;
-
-  /** Ponto de comparação (ex.: local do “início do ponto”) */
   compareTo?: { lat: number; lng: number; label?: string };
-
-  /** Raio (m) para considerar “mesmo local” */
   samePlaceRadius?: number;
-
-  /** Atualização automática (ms). Padrão: 5 min */
   autoRefreshMs?: number;
-
-  /** Caminho do doc no Firestore para ouvir atualizações em tempo real, ex.: "users/<uid>/sessions/<sid>" */
   docPath?: string;
-
-  /** Priorizar geolocalização do usuário (GPS/Wi-Fi) */
   preferClientLocation?: boolean;
-
-  /** Usar GPS do dispositivo (watchPosition) com alta precisão */
   useGeoWatch?: boolean;
-
-  /** Recentrar o mapa ao receber atualização */
   autoRecenter?: boolean;
 };
-
-// -------- Util: distância haversine em metros --------
-function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371000; // m
-  const φ1 = (a.lat * Math.PI) / 180;
-  const φ2 = (b.lat * Math.PI) / 180;
-  const Δφ = ((b.lat - a.lat) * Math.PI) / 180;
-  const Δλ = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-  return R * c;
-}
-
-/**
- * Helper p/ círculos em metros com Leaflet puro (evita conflito de tipos do <Circle />).
- */
-function LeafletCircleMeters({
-  map,
-  center,
-  radius,
-  options,
-}: {
-  map: any;
-  center: [number, number];
-  radius: number;
-  options?: any;
-}) {
-  const key = JSON.stringify({ center, radius, options });
-  React.useEffect(() => {
-    if (!map) return;
-    let layer: any;
-    let active = true;
-    (async () => {
-      const L = (await import('leaflet')).default;
-      if (!active) return;
-      layer = L.circle(center, { radius, ...(options || {}) }).addTo(map);
-    })();
-    return () => {
-      active = false;
-      if (layer) {
-        try {
-          map.removeLayer(layer);
-        } catch {}
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key]);
-  return null;
-}
 
 export default function LocationMap({
   lat,
   lng,
-  label,
+  label = "Localização",
   accuracy,
   compareTo,
-  samePlaceRadius = 120,         // ~1 quadra
-  autoRefreshMs = 300000,        // 5 min
-  docPath,
-  preferClientLocation = true,
-  useGeoWatch = true,            // ativa GPS por padrão
-  autoRecenter = true,
+  samePlaceRadius = 120,
 }: Props) {
-  const [leafletMap, setLeafletMap] = React.useState<any>(null);
+  const [isClient, setIsClient] = React.useState(false);
 
-  // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
-  const firstLatRef = React.useRef<number>(lat);
-  const firstLngRef = React.useRef<number>(lng);
-  const anchor = compareTo ?? {
-    lat: firstLatRef.current,
-    lng: firstLngRef.current,
-    label: label || 'Âncora',
-  };
-
-  // Estado da posição “atual” mostrada no mapa
-  const [pos, setPos] = React.useState<LatLng>({ lat, lng, acc: accuracy, label });
-  const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
-  const [source, setSource] = React.useState<'gps' | 'firestore' | 'props' | 'poll'>('props');
-  const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
-
-  // --- Permissão de geolocalização (Permissions API) ---
   React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        if (typeof navigator !== 'undefined' && (navigator as any).permissions) {
-          const st = await (navigator as any).permissions.query({ name: 'geolocation' as PermissionName });
-          if (!mounted) return;
-          setPerm(st.state as any);
-          st.onchange = () => setPerm(st.state as any);
-        } else {
-          setPerm('unknown');
-        }
-      } catch {
-        setPerm('unknown');
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    setIsClient(true);
   }, []);
 
-  // --- Recentrar ao atualizar ---
-  React.useEffect(() => {
-    if (!leafletMap || !autoRecenter) return;
-    try {
-      leafletMap.setView([pos.lat, pos.lng]);
-    } catch {}
-  }, [pos.lat, pos.lng, autoRecenter, leafletMap]);
+  // Calcular distância se tiver ponto de comparação
+  const distance = React.useMemo(() => {
+    if (!compareTo) return null;
 
-  // --- Geolocalização do dispositivo (alta precisão) ---
-  React.useEffect(() => {
-    if (!preferClientLocation || !useGeoWatch) return;
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    const R = 6371000; // Raio da Terra em metros
+    const φ1 = (lat * Math.PI) / 180;
+    const φ2 = (compareTo.lat * Math.PI) / 180;
+    const Δφ = ((compareTo.lat - lat) * Math.PI) / 180;
+    const Δλ = ((compareTo.lng - lng) * Math.PI) / 180;
 
-    // seed inicial (gatilha prompt)
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setPos({
-          lat: p.coords.latitude,
-          lng: p.coords.longitude,
-          acc: p.coords.accuracy,
-          label: 'GPS inicial',
-        });
-        setLastUpdated(new Date());
-        setSource('gps');
-      },
-      () => {
-        // silencioso; watch abaixo pode assumir
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-    );
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    // watchPosition para tempo quase-real
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        setPos({
-          lat: p.coords.latitude,
-          lng: p.coords.longitude,
-          acc: p.coords.accuracy,
-          label: 'GPS (watch)',
-        });
-        setLastUpdated(new Date());
-        setSource('gps');
-      },
-      () => {
-        // silencioso; polling/Firestore continuam válidos
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [preferClientLocation, useGeoWatch]);
+    return R * c;
+  }, [lat, lng, compareTo]);
 
-  // --- Firestore em tempo real (opcional) ---
-  React.useEffect(() => {
-    if (!docPath) return;
-    let unsub: undefined | (() => void);
-    (async () => {
-      try {
-        const { db } = await import('@/lib/firebase');
-        const { doc, onSnapshot, getDoc } = await import('firebase/firestore');
+  const isInsideRadius = distance !== null && distance <= samePlaceRadius;
 
-        const ref = doc(db, docPath);
-
-        // snapshot em tempo real
-        unsub = onSnapshot(ref, (snap) => {
-          const d: any = snap.data() || {};
-          const live = d?.liveLocation || d?.locationEnd || d?.locationStart;
-          if (live?.lat && live?.lng) {
-            // Se preferimos o GPS do cliente, não sobrescreva um fix "gps" recente (últimos 20s)
-            const tooSoon =
-              preferClientLocation && source === 'gps' && Date.now() - lastUpdated.getTime() < 20000;
-            if (tooSoon) return;
-
-            setPos({
-              lat: Number(live.lat),
-              lng: Number(live.lng),
-              acc: Number(live.acc) || undefined,
-              label: 'Firestore',
-            });
-            setLastUpdated(new Date());
-            setSource('firestore');
-          }
-        });
-
-        // fetch inicial para garantir dado imediato
-        const fd = await getDoc(ref);
-        const d: any = fd.data() || {};
-        const live = d?.liveLocation || d?.locationEnd || d?.locationStart;
-        if (live?.lat && live?.lng) {
-          const tooSoon =
-            preferClientLocation && source === 'gps' && Date.now() - lastUpdated.getTime() < 20000;
-          if (!tooSoon) {
-            setPos({
-              lat: Number(live.lat),
-              lng: Number(live.lng),
-              acc: Number(live.acc) || undefined,
-              label: 'Firestore',
-            });
-            setLastUpdated(new Date());
-            setSource('firestore');
-          }
-        }
-      } catch {
-        // ignora; GPS/polling cobrem
-      }
-    })();
-    return () => {
-      if (unsub) unsub();
+  // Converter coordenadas para posição no mapa visual
+  const convertCoordToPosition = (latitude: number, longitude: number) => {
+    const x = ((longitude + 180) / 360) * 100;
+    const y = ((90 - latitude) / 180) * 100;
+    return {
+      x: Math.max(10, Math.min(90, x)),
+      y: Math.max(10, Math.min(90, y))
     };
-  }, [docPath, preferClientLocation, source, lastUpdated]);
+  };
 
-  // --- Polling (backup) a cada X ms ---
-  React.useEffect(() => {
-    if (!autoRefreshMs) return;
-    const timer = setInterval(async () => {
-      // 1) tenta Firestore
-      if (docPath) {
-        try {
-          const { db } = await import('@/lib/firebase');
-          const { doc, getDoc } = await import('firebase/firestore');
-          const d = await getDoc(doc(db, docPath));
-          const data: any = d.data() || {};
-          const live = data?.liveLocation || data?.locationEnd || data?.locationStart;
-          if (live?.lat && live?.lng) {
-            const tooSoon =
-              preferClientLocation && source === 'gps' && Date.now() - lastUpdated.getTime() < 20000;
-            if (!tooSoon) {
-              setPos({
-                lat: Number(live.lat),
-                lng: Number(live.lng),
-                acc: Number(live.acc) || undefined,
-                label: 'Firestore (poll)',
-              });
-              setLastUpdated(new Date());
-              setSource('poll');
-            }
-            return;
-          }
-        } catch {
-          // segue para GPS
-        }
-      }
+  const mainPosition = convertCoordToPosition(lat, lng);
+  const comparePosition = compareTo ? convertCoordToPosition(compareTo.lat, compareTo.lng) : null;
 
-      // 2) fallback: GPS único
-      if (typeof window !== 'undefined' && 'geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (p) => {
-            setPos({
-              lat: p.coords.latitude,
-              lng: p.coords.longitude,
-              acc: p.coords.accuracy,
-              label: 'GPS (poll)',
-            });
-            setLastUpdated(new Date());
-            setSource('poll');
-          },
-          () => {},
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
-        );
-      }
-    }, autoRefreshMs);
-    return () => clearInterval(timer);
-  }, [autoRefreshMs, docPath, preferClientLocation, source, lastUpdated]);
-
-  // Distância até a âncora
-  const dist = React.useMemo(
-    () => distanceMeters({ lat: pos.lat, lng: pos.lng }, { lat: anchor.lat, lng: anchor.lng }),
-    [pos.lat, pos.lng, anchor.lat, anchor.lng]
-  );
-  const inside = dist <= samePlaceRadius;
-
-  // Ações manuais
-  const doRefreshNow = React.useCallback(async () => {
-    // 1) tenta Firestore
-    if (docPath) {
-      try {
-        const { db } = await import('@/lib/firebase');
-        const { doc, getDoc } = await import('firebase/firestore');
-        const d = await getDoc(doc(db, docPath));
-        const data: any = d.data() || {};
-        const live = data?.liveLocation || data?.locationEnd || data?.locationStart;
-        if (live?.lat && live?.lng) {
-          const tooSoon =
-            preferClientLocation && source === 'gps' && Date.now() - lastUpdated.getTime() < 20000;
-          if (!tooSoon) {
-            setPos({
-              lat: Number(live.lat),
-              lng: Number(live.lng),
-              acc: Number(live.acc) || undefined,
-              label: 'Firestore (manual)',
-            });
-            setLastUpdated(new Date());
-            setSource('poll');
-            return;
-          }
-        }
-      } catch {}
-    }
-    // 2) GPS único
-    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          setPos({
-            lat: p.coords.latitude,
-            lng: p.coords.longitude,
-            acc: p.coords.accuracy,
-            label: 'GPS (manual)',
-          });
-          setLastUpdated(new Date());
-          setSource('poll');
-        },
-        () => {},
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
+  // Gerar elementos urbanos baseados nas coordenadas
+  const generateUrbanElements = () => {
+    const elements = [];
+    const seed = Math.abs(lat * lng * 1000) % 1000;
+    
+    // Gerar ruas principais
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * 45) + (seed % 30);
+      const length = 60 + (seed % 40);
+      elements.push(
+        <div
+          key={`street-${i}`}
+          className="street"
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: `${length}%`,
+            height: '3px',
+            background: 'linear-gradient(90deg, #9ca3af, #d1d5db)',
+            transformOrigin: '0 50%',
+            transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+            opacity: 0.8,
+            zIndex: 1
+          }}
+        />
       );
     }
-  }, [docPath, preferClientLocation, source, lastUpdated]);
 
-  const recenter = React.useCallback(() => {
-    if (!leafletMap) return;
-    try {
-      leafletMap.setView([pos.lat, pos.lng]);
-    } catch {}
-  }, [leafletMap, pos.lat, pos.lng]);
+    // Gerar quarteirões
+    for (let i = 0; i < 12; i++) {
+      const x = 15 + ((seed + i * 37) % 70);
+      const y = 15 + ((seed + i * 23) % 70);
+      const size = 8 + ((seed + i * 17) % 12);
+      elements.push(
+        <div
+          key={`block-${i}`}
+          className="city-block"
+          style={{
+            position: 'absolute',
+            left: `${x}%`,
+            top: `${y}%`,
+            width: `${size}%`,
+            height: `${size * 0.8}%`,
+            background: 'linear-gradient(135deg, #f3f4f6, #e5e7eb)',
+            border: '1px solid #d1d5db',
+            borderRadius: '2px',
+            zIndex: 2
+          }}
+        />
+      );
+    }
 
-  // UI de ajuda para permissão negada/pendente
-  const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
+    // Gerar áreas verdes (parques)
+    for (let i = 0; i < 3; i++) {
+      const x = 20 + ((seed + i * 67) % 60);
+      const y = 20 + ((seed + i * 43) % 60);
+      const size = 12 + ((seed + i * 29) % 8);
+      elements.push(
+        <div
+          key={`park-${i}`}
+          className="park"
+          style={{
+            position: 'absolute',
+            left: `${x}%`,
+            top: `${y}%`,
+            width: `${size}%`,
+            height: `${size * 0.7}%`,
+            background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+            border: '1px solid #86efac',
+            borderRadius: '50%',
+            zIndex: 2
+          }}
+        />
+      );
+    }
+
+    // Gerar prédios importantes
+    for (let i = 0; i < 5; i++) {
+      const x = 25 + ((seed + i * 53) % 50);
+      const y = 25 + ((seed + i * 41) % 50);
+      elements.push(
+        <div
+          key={`building-${i}`}
+          className="important-building"
+          style={{
+            position: 'absolute',
+            left: `${x}%`,
+            top: `${y}%`,
+            width: '6px',
+            height: '6px',
+            background: '#4f46e5',
+            borderRadius: '2px',
+            border: '1px solid #6366f1',
+            zIndex: 3
+          }}
+        />
+      );
+    }
+
+    return elements;
+  };
+
+  if (!isClient) {
+    return (
+      <div style={{
+        width: '100%',
+        height: 320,
+        background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
+        border: '1px solid #e2e8f0'
+      }}>
+        <div style={{ textAlign: 'center', color: '#64748b' }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            border: '3px solid #e2e8f0',
+            borderTop: '3px solid #3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 12px'
+          }} />
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Carregando localização...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%' }}>
-      {/* Barra de status */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          alignItems: 'center',
-          marginBottom: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span
-          style={{
-            borderRadius: 999,
-            padding: '4px 10px',
-            border: `1px solid ${inside ? 'rgba(16,185,129,.35)' : 'rgba(239,68,68,.35)'}`,
-            background: inside ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)',
-            fontSize: 12,
-          }}
-        >
-          {inside ? 'Dentro da área' : 'Fora da área'} • dist: {Math.round(dist)}m • raio: {samePlaceRadius}m
-        </span>
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        @keyframes ripple {
+          0% { transform: scale(0.5); opacity: 1; }
+          100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .map-marker {
+          position: absolute;
+          transform: translate(-50%, -50%);
+          z-index: 20;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .map-marker:hover {
+          transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .marker-pulse {
+          position: absolute;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          animation: ripple 2s infinite;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+        }
+        
+        .accuracy-circle {
+          position: absolute;
+          border: 2px dashed #3b82f6;
+          border-radius: 50%;
+          background: rgba(59, 130, 246, 0.1);
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          z-index: 15;
+        }
+        
+        .geofence-circle {
+          position: absolute;
+          border: 2px dashed #10b981;
+          border-radius: 50%;
+          background: rgba(16, 185, 129, 0.1);
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          z-index: 15;
+        }
+        
+        .connection-line {
+          position: absolute;
+          height: 2px;
+          background: linear-gradient(90deg, #3b82f6, #10b981);
+          transform-origin: left center;
+          pointer-events: none;
+          opacity: 0.6;
+          z-index: 10;
+        }
 
-        <span style={{ fontSize: 12, opacity: 0.8 }}>
-          {source === 'gps' ? 'GPS/Wi-Fi' : source === 'firestore' ? 'Firestore' : 'Atualização'} • {lastUpdated.toLocaleTimeString()}
-        </span>
+        .street {
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
 
-        {typeof pos.acc === 'number' && (
-          <span style={{ fontSize: 12, opacity: 0.8 }}>precisão: ±{Math.round(pos.acc)}m</span>
-        )}
+        .city-block {
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          <button
-            onClick={doRefreshNow}
-            style={{
-              borderRadius: 8,
-              padding: '6px 10px',
-              border: '1px solid rgba(255,255,255,.2)',
-              background: 'rgba(255,255,255,.06)',
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-            title="Buscar agora (Firestore/GPS)"
-          >
-            Atualizar agora
-          </button>
+        .park {
+          box-shadow: inset 0 1px 2px rgba(34, 197, 94, 0.2);
+        }
 
-          <button
-            onClick={recenter}
-            style={{
-              borderRadius: 8,
-              padding: '6px 10px',
-              border: '1px solid rgba(255,255,255,.2)',
-              background: 'rgba(255,255,255,.06)',
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-            title="Centralizar no colaborador"
-          >
-            Centralizar
-          </button>
-        </div>
-      </div>
+        .important-building {
+          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+        }
+      `}</style>
 
-      {showPermHint && (
+      {/* Status bar */}
+      {compareTo && distance !== null && (
         <div
           style={{
-            marginBottom: 8,
-            fontSize: 12,
-            opacity: 0.85,
-            background: 'rgba(59,130,246,.12)',
-            border: '1px solid rgba(59,130,246,.35)',
-            padding: '8px 10px',
-            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 12,
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: isInsideRadius 
+              ? 'linear-gradient(135deg, #ecfdf5, #d1fae5)' 
+              : 'linear-gradient(135deg, #fef2f2, #fecaca)',
+            border: `2px solid ${isInsideRadius ? '#10b981' : '#ef4444'}`,
+            fontSize: 13,
+            fontWeight: 500,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
           }}
         >
-          Para precisão máxima, permita a localização do dispositivo (HTTPS necessário). No desktop, o navegador usa Wi-Fi/celular quando disponível.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>
+              {isInsideRadius ? '✅' : '⚠️'}
+            </span>
+            <span style={{ color: isInsideRadius ? '#065f46' : '#991b1b' }}>
+              {isInsideRadius ? 'Dentro da área permitida' : 'Fora da área permitida'}
+            </span>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            gap: 16, 
+            color: isInsideRadius ? '#065f46' : '#991b1b',
+            opacity: 0.8,
+            fontSize: 12
+          }}>
+            <span>📏 {Math.round(distance)}m</span>
+            <span>🎯 Raio: {samePlaceRadius}m</span>
+            {accuracy && <span>📍 ±{Math.round(accuracy)}m</span>}
+          </div>
         </div>
       )}
 
-      <MapContainer
-        center={[pos.lat, pos.lng]}
-        zoom={16}
-        scrollWheelZoom
-        style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
-        whenCreated={setLeafletMap}
-      >
-        {/* OSM tiles — string literal (sem erro TS2304) */}
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {/* Mapa visual realista */}
+      <div style={{ position: 'relative' }}>
+        <div 
+          style={{ 
+            width: '100%', 
+            height: 320,
+            borderRadius: 16,
+            overflow: 'hidden',
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            position: 'relative'
+          }} 
+        >
+          {/* Base do mapa com textura */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
+              radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 70% 70%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+              linear-gradient(45deg, transparent 25%, rgba(156, 163, 175, 0.03) 25%, rgba(156, 163, 175, 0.03) 50%, transparent 50%, transparent 75%, rgba(156, 163, 175, 0.03) 75%)
+            `,
+            backgroundSize: '100px 100px'
+          }} />
 
-        {/* Geofence (âncora) */}
-        <LeafletCircleMeters
-          map={leafletMap}
-          center={[anchor.lat, anchor.lng]}
-          radius={samePlaceRadius}
-          options={{ color: inside ? '#16a34a' : '#ef4444', opacity: 0.8 }}
-        />
-        <Marker position={[anchor.lat, anchor.lng]}>
-          <Popup>
-            {anchor.label || 'Âncora'}
-            <br />
-            {anchor.lat.toFixed(5)}, {anchor.lng.toFixed(5)}
-          </Popup>
-        </Marker>
+          {/* Grid de ruas menores */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `
+              linear-gradient(rgba(156, 163, 175, 0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(156, 163, 175, 0.3) 1px, transparent 1px)
+            `,
+            backgroundSize: '25px 25px',
+            zIndex: 1
+          }} />
 
-        {/* Posição atual + precisão */}
-        <Marker position={[pos.lat, pos.lng]}>
-          <Popup>
-            {pos.label || 'Atual'}
-            <br />
-            {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
-            {typeof pos.acc === 'number' ? (
-              <>
-                <br />±{Math.round(pos.acc)}m
-              </>
-            ) : null}
-          </Popup>
-        </Marker>
+          {/* Avenidas principais */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `
+              linear-gradient(rgba(75, 85, 99, 0.6) 3px, transparent 3px),
+              linear-gradient(90deg, rgba(75, 85, 99, 0.6) 3px, transparent 3px)
+            `,
+            backgroundSize: '80px 80px',
+            zIndex: 2
+          }} />
 
-        {typeof pos.acc === 'number' && pos.acc > 0 && (
-          <LeafletCircleMeters
-            map={leafletMap}
-            center={[pos.lat, pos.lng]}
-            radius={pos.acc}
-            options={{ color: '#3b82f6', opacity: 0.4 }}
-          />
-        )}
-      </MapContainer>
+          {/* Elementos urbanos gerados */}
+          {generateUrbanElements()}
+
+          {/* Linha de conexão entre pontos */}
+          {comparePosition && (
+            <div
+              className="connection-line"
+              style={{
+                left: `${mainPosition.x}%`,
+                top: `${mainPosition.y}%`,
+                width: Math.sqrt(
+                  Math.pow((comparePosition.x - mainPosition.x) * 3.2, 2) + 
+                  Math.pow((comparePosition.y - mainPosition.y) * 3.2, 2)
+                ),
+                transform: `rotate(${Math.atan2(
+                  (comparePosition.y - mainPosition.y) * 3.2,
+                  (comparePosition.x - mainPosition.x) * 3.2
+                ) * 180 / Math.PI}deg)`
+              }}
+            />
+          )}
+
+          {/* Círculo de precisão */}
+          {accuracy && accuracy > 0 && (
+            <div
+              className="accuracy-circle"
+              style={{
+                left: `${mainPosition.x}%`,
+                top: `${mainPosition.y}%`,
+                width: Math.min(accuracy / 2, 100),
+                height: Math.min(accuracy / 2, 100),
+                border: '2px dashed #3b82f6',
+                background: 'rgba(59, 130, 246, 0.1)'
+              }}
+            />
+          )}
+
+          {/* Área de geofencing */}
+          {comparePosition && (
+            <div
+              className="geofence-circle"
+              style={{
+                left: `${comparePosition.x}%`,
+                top: `${comparePosition.y}%`,
+                width: Math.min(samePlaceRadius / 3, 120),
+                height: Math.min(samePlaceRadius / 3, 120)
+              }}
+            />
+          )}
+
+          {/* Marcador principal */}
+          <div
+            className="map-marker"
+            style={{
+              left: `${mainPosition.x}%`,
+              top: `${mainPosition.y}%`
+            }}
+            title={`${label} - ${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+          >
+            <div style={{
+              width: 32,
+              height: 32,
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              border: '3px solid white',
+              borderRadius: '50% 50% 50% 0',
+              transform: 'rotate(-45deg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
+              position: 'relative'
+            }}>
+              <span style={{
+                transform: 'rotate(45deg)',
+                fontSize: 16,
+                color: 'white',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+                fontWeight: 'bold'
+              }}>📍</span>
+            </div>
+            <div className="marker-pulse" style={{
+              background: 'rgba(59, 130, 246, 0.3)'
+            }} />
+          </div>
+
+          {/* Marcador de comparação */}
+          {comparePosition && (
+            <div
+              className="map-marker"
+              style={{
+                left: `${comparePosition.x}%`,
+                top: `${comparePosition.y}%`
+              }}
+              title={`${compareTo!.label || 'Referência'} - ${compareTo!.lat.toFixed(5)}, ${compareTo!.lng.toFixed(5)}`}
+            >
+              <div style={{
+                width: 28,
+                height: 28,
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                border: '3px solid white',
+                borderRadius: '50% 50% 50% 0',
+                transform: 'rotate(-45deg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 6px 16px rgba(239, 68, 68, 0.4)',
+                position: 'relative'
+              }}>
+                <span style={{
+                  transform: 'rotate(45deg)',
+                  fontSize: 14,
+                  color: 'white',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+                  fontWeight: 'bold'
+                }}>🏢</span>
+              </div>
+              <div className="marker-pulse" style={{
+                background: 'rgba(239, 68, 68, 0.3)'
+              }} />
+            </div>
+          )}
+
+          {/* Legenda no canto */}
+          <div style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 8,
+            padding: '8px 12px',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            fontSize: 11,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 25
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: '#374151' }}>
+              {label}
+            </div>
+            <div style={{ color: '#6b7280', lineHeight: 1.3 }}>
+              📍 {lat.toFixed(4)}, {lng.toFixed(4)}
+            </div>
+            {accuracy && (
+              <div style={{ color: '#059669', fontSize: 10, marginTop: 2 }}>
+                🎯 ±{Math.round(accuracy)}m
+              </div>
+            )}
+          </div>
+
+          {/* Informações do mapa */}
+          <div style={{
+            position: 'absolute',
+            bottom: 12,
+            left: 12,
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 8,
+            padding: '8px 12px',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            fontSize: 11,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 25
+          }}>
+            <div style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+              🗺️ Mapa da Cidade
+            </div>
+            <div style={{ color: '#6b7280', fontSize: 10, marginTop: 2 }}>
+              Ruas, quarteirões e pontos de interesse
+            </div>
+          </div>
+
+          {/* Legenda dos elementos */}
+          <div style={{
+            position: 'absolute',
+            bottom: 12,
+            right: 12,
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 8,
+            padding: '6px 8px',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            fontSize: 9,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 25,
+            maxWidth: 120
+          }}>
+            <div style={{ color: '#9ca3af', marginBottom: 2 }}>━ Ruas</div>
+            <div style={{ color: '#d1d5db', marginBottom: 2 }}>▢ Quarteirões</div>
+            <div style={{ color: '#22c55e', marginBottom: 2 }}>● Áreas Verdes</div>
+            <div style={{ color: '#4f46e5' }}>▪ Edifícios</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
