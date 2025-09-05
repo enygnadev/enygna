@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext } from 'react';
@@ -6,6 +7,17 @@ import { onAuthStateChanged, User, signOut as firebaseSignOut, getIdTokenResult 
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { UserData, UserPermissions } from '@/src/lib/types';
 import { AuthClaims, SecureUser } from '@/lib/securityHelpers';
+
+// Define the new SessionProfile type
+export type SessionProfile = {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
+  empresaId?: string;
+  sistemasAtivos?: string[];
+  claims?: AuthClaims; // New field for custom claims
+};
 
 // Redefine AuthContextType to include the new profile structure and claims
 interface AuthContextType {
@@ -19,17 +31,6 @@ interface AuthContextType {
   refreshUserData: () => Promise<void>; // May need to be renamed or adapted to refreshProfile
 }
 
-// Define the new SessionProfile type
-export type SessionProfile = {
-  uid: string;
-  email?: string;
-  displayName?: string;
-  role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
-  empresaId?: string;
-  sistemasAtivos?: string[];
-  claims?: AuthClaims; // New field for custom claims
-};
-
 // New helper functions (as provided in the edited snippet)
 export function isAdminMaster(profile: SessionProfile | null): boolean {
   return profile?.role === 'adminmaster' ||
@@ -42,7 +43,7 @@ export function hasAdminAccess(profile: SessionProfile | null): boolean {
 }
 
 // Create the AuthContext with the new type
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 // Existing useAuth hook, modified to return profile instead of userData
 export const useAuth = () => {
@@ -106,8 +107,8 @@ export const useSessionProfile = () => {
   return { loading, profile };
 };
 
-// The AuthProvider component needs to be updated to use useSessionProfile and provide the new context
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+// Hook for auth data without JSX components
+export const useAuthData = (): AuthContextType => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<SessionProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +134,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (user?.email) {
       setLoading(true);
       const data = await loadUserData(user.email);
-      setProfile(prev => prev ? { ...prev, ...data } : data); // Merge with existing profile if available
+      if (data && profile) {
+        setProfile({ ...profile, ...data });
+      }
       setLoading(false);
     }
   };
@@ -176,7 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const hasPermission = (system: keyof UserPermissions): boolean => {
     if (!profile || !profile.claims?.permissions) return false;
@@ -195,19 +198,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setProfile(null);
   };
 
-  const value: AuthContextType = {
+  return {
     user,
     profile,
     loading,
     hasPermission,
     isRole,
     signOut,
-    refreshUserData, // This method might need refactoring to refreshProfile based on new structure
+    refreshUserData,
   };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
 };
