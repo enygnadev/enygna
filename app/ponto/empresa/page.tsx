@@ -641,7 +641,7 @@ function EmpresaDashboard() {
         };
       });
       list.sort((a, b) =>
-        (a.displayName || a.email).localeCompare(b.displayName || b.email)
+        (a.displayName || a.email || '').localeCompare(b.displayName || b.email || '')
       );
       setUsers(list);
     } catch (error) {

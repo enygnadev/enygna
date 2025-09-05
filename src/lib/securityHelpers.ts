@@ -167,7 +167,7 @@ export async function getUserProfile(user: User): Promise<SessionProfile> {
         )
       ]);
       
-      if (userDoc && typeof userDoc.exists === 'function' && userDoc.exists()) {
+      if (userDoc && userDoc.exists) {
         userData = userDoc.data() || {};
       }
     } catch (error) {

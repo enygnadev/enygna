@@ -24,19 +24,14 @@ export const storage = getStorage(app);
 export const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
 
 // Configurar emuladores para desenvolvimento
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && typeof window === 'undefined') {
   try {
-    if (!auth._delegate._config.emulator) {
-      connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-    }
-    if (!db._delegate._databaseId.database.includes('localhost')) {
-      connectFirestoreEmulator(db, '127.0.0.1', 8080);
-    }
-    if (!storage._location.host.includes('127.0.0.1')) {
-      connectStorageEmulator(storage, '127.0.0.1', 9199);
-    }
+    // Conectar aos emuladores se não estiverem conectados
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
   } catch (error) {
     // Emuladores já conectados ou não disponíveis
-    console.log('Emuladores não disponíveis ou já conectados');
+    console.log('Emuladores não disponíveis ou já conectados:', error);
   }
 }
