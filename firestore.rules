@@ -377,14 +377,12 @@ service cloud.firestore {
       );
       allow create: if isAuthenticated() && (
         collection in ['feedback', 'support_requests']
-      ) && hasRequiredFields(['userId', 'timestamp']);
+      ) && hasRequiredFields(['userId', 'timestamp']) && request.resource.data.userId == request.auth.uid;
       allow read: if isAuthenticated() && isEmpresa() && 
         collection in ['system_info', 'help_docs', 'announcements'];
     }
 
-    // CORREÇÃO: Remover backdoor de subcoleções, manter apenas para superadmin
-    match /{path=**}/{subcollection}/{document} {
-      allow read, write: if isSuperAdmin();
-    }
+    // Regras específicas para subcoleções - sem wildcards permissivos
+    // Todas as subcoleções devem ter regras explícitas definidas acima
   }
 }

@@ -243,6 +243,19 @@ type U = {
   effectiveHourlyRate?: number;
   monthlySalary?: number;
   role?: "superadmin" | "admin" | "gestor" | "colaborador";
+  claims?: {
+    role?: string;
+    empresaId?: string;
+    permissions?: {
+      canAccessSystems?: string[];
+      admin?: boolean;
+      bootstrapAdmin?: boolean;
+    };
+  };
+  permissions?: {
+    canAccessSystems?: string[];
+    admin?: boolean;
+  };
 };
 
 type S = {
@@ -399,191 +412,143 @@ function EmpresaDashboard() {
         // Debug info
         console.log("User claims:", { role, empIdFromClaims, uid: u.uid });
 
-        // Permite acesso para superadmin, admin e gestor
-        if (!["superadmin", "admin", "gestor"].includes(role || "")) {
-          // Tenta buscar dados do Firestore como fallback
-          try {
-            // Verifica se o usuário já existe no 'users' e se tem permissão
-            const userDocRef = doc(db, "users", u.uid);
-            const userDocSnap = await getDoc(userDocRef);
+        // Tenta buscar dados do Firestore como fallback e para verificar permissões
+        try {
+          const userDocRef = doc(db, "users", u.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          let userData: U | null = null;
 
-            if (userDocSnap.exists()) {
-              const userData = userDocSnap.data() as any;
-              console.log("Dados do usuário encontrados:", userData);
+          if (userDocSnap.exists()) {
+            userData = userDocSnap.data() as U;
+            console.log("Dados do usuário encontrados:", userData);
+          } else {
+            // Se o usuário não existe no 'users', busca na coleção 'empresas' para verificar se é um admin de empresa
+            try {
+              console.log("Usuário não encontrado na coleção users, buscando em empresas...");
+              const empresasQuery = query(
+                collection(db, "empresas"), 
+                where("email", "==", u.email) // Busca empresa pelo email do usuário
+              );
+              const empresasSnap = await getDocs(empresasQuery);
 
-              // Verifica se o usuário tem role de admin/gestor OU se tem sistema ponto ativo
-              const hasAdminRole = ["superadmin", "admin", "gestor"].includes(userData.role);
-              const hasPontoAccess = userData.sistemasAtivos?.includes('ponto');
-              const isEmpresaType = userData.tipo === 'empresa';
+              if (!empresasSnap.empty) {
+                const empresaDoc = empresasSnap.docs[0];
+                const empresaData = empresaDoc.data() as any;
+                console.log("Empresa encontrada:", empresaDoc.id, empresaData);
 
-              console.log("Verificação de acesso:", {
-                hasAdminRole,
-                hasPontoAccess,
-                isEmpresaType,
-                role: userData.role,
-                sistemasAtivos: userData.sistemasAtivos,
-                tipo: userData.tipo,
-                empresaId: userData.empresaId
-              });
-
-              if (hasAdminRole || hasPontoAccess || isEmpresaType) {
-                setMeRole(userData.role || 'admin');
-
-                // Priorizar empresaId da URL se existir
-                const fromQS = params.get("empresaId");
-                if (fromQS) {
-                  setEmpresaId(fromQS);
-                } else {
-                  setEmpresaId(userData.empresaId);
-                }
-
-                // Carrega a configuração de geofencing da empresa
-                const empresaIdToUse = fromQS || userData.empresaId;
-                if (empresaIdToUse) {
-                  try {
-                    const companyDoc = await getDoc(doc(db, "empresas", empresaIdToUse));
-                    if (companyDoc.exists()) {
-                      const companyData = companyDoc.data() as any;
-                      if (companyData.geofencing) {
-                        setCompanyLocation(companyData.geofencing);
-                      }
-
-                      // Verificar se a empresa realmente tem sistema ponto ativo
-                      const sistemasAtivos = companyData.sistemasAtivos || [];
-                      if (!sistemasAtivos.includes('ponto')) {
-                        console.log("Empresa não tem sistema de ponto ativo");
-                        alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
-                        window.location.href = "/sistemas";
-                        return;
-                      }
-                    }
-                  } catch (companyError) {
-                    console.error("Erro ao carregar dados da empresa:", companyError);
-                  }
-                }
-              } else {
-                console.log("Acesso negado - critérios não atendidos");
-                alert("Acesso negado. Usuário não tem permissão para acessar o sistema de ponto.");
-                window.location.href = "/ponto/colaborador";
-                return;
-              }
-            } else {
-              console.log("Usuário não encontrado na coleção users");
-              // Se o usuário não existe no 'users', verifica se foi criado via admin para empresa
-              // Busca pelo email na coleção de empresas para verificar se é uma empresa do sistema de ponto
-              try {
-                console.log("Buscando empresa por email:", u.email);
-
-                // Buscar empresa por email
-                const empresasQuery = query(
-                  collection(db, "empresas"), 
-                  where("email", "==", u.email)
-                );
-                const empresasSnap = await getDocs(empresasQuery);
-
-                if (!empresasSnap.empty) {
-                  const empresaDoc = empresasSnap.docs[0];
-                  const empresaData = empresaDoc.data();
-
-                  console.log("Empresa encontrada:", empresaDoc.id, empresaData);
-
-                  // Verificar se tem sistema ponto nos sistemas ativos
-                  const sistemasAtivos = empresaData.sistemasAtivos || [];
-                  if (!sistemasAtivos.includes('ponto')) {
-                    console.log("Empresa não tem sistema de ponto ativo");
-                    alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
-                    window.location.href = "/sistemas";
-                    return;
-                  }
-
-                  // Cria documento do usuário
-                  await setDoc(userDocRef, {
-                    email: u.email,
-                    displayName: u.displayName || empresaData.nome || u.email,
-                    role: 'admin',
-                    tipo: 'empresa',
-                    empresaId: empresaDoc.id,
-                    sistemasAtivos: sistemasAtivos,
-                    createdAt: new Date().toISOString(),
-                    lastLogin: new Date().toISOString()
-                  });
-
-                  setMeRole('admin');
-
-                  // Priorizar empresaId da URL se existir
-                  const fromQS = params.get("empresaId");
-                  setEmpresaId(fromQS || empresaDoc.id);
-
-                  // Carrega configuração de geofencing
-                  if (empresaData.geofencing) {
-                    setCompanyLocation(empresaData.geofencing);
-                  }
-                } else {
-                  console.log("Empresa não encontrada no sistema");
-                  alert("Acesso negado. Empresa não encontrada no sistema ou não possui sistema de ponto ativo.");
+                const sistemasAtivos = empresaData.sistemasAtivos || [];
+                if (!sistemasAtivos.includes('ponto')) {
+                  console.log("Empresa não tem sistema de ponto ativo");
+                  alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
                   window.location.href = "/sistemas";
                   return;
                 }
-              } catch (searchError) {
-                console.error("Erro ao buscar empresa:", searchError);
-                alert("Erro ao verificar permissões da empresa.");
-                window.location.href = "/sistemas";
-                return;
-              }
-            }
-          } catch (error) {
-            console.error("Erro ao verificar permissões:", error);
-            alert("Erro ao verificar permissões. Redirecionando...");
-            window.location.href = "/sistemas";
-            return;
-          }
-        } else {
-          setMeRole(role);
 
-          // 1) Prioriza ?empresaId= da URL
-          const fromQS = params.get("empresaId");
-          if (fromQS) {
-            setEmpresaId(fromQS);
-             // Carrega a configuração de geofencing da empresa
-             try {
-               const companyDoc = await getDoc(doc(db, "empresas", fromQS));
-               if (companyDoc.exists()) {
-                 const companyData = companyDoc.data() as any;
-                 if (companyData.geofencing) {
-                   setCompanyLocation(companyData.geofencing);
-                 }
-               }
-             } catch (error) {
-               console.error("Erro ao carregar dados da empresa:", error);
-             }
-          } else {
-            // 2) Usa empresaId dos claims (se houver)
-            setEmpresaId(empIdFromClaims);
-            if (empIdFromClaims) {
-              // Carrega a configuração de geofencing da empresa
+                // Cria documento do usuário com perfil de admin da empresa
+                const newUserPayload = {
+                  email: u.email,
+                  displayName: empresaData.nome || u.displayName || u.email,
+                  role: 'admin' as const, // Admin da empresa
+                  tipo: 'empresa' as const,
+                  empresaId: empresaDoc.id,
+                  sistemasAtivos: sistemasAtivos,
+                  permissions: {
+                    canAccessSystems: sistemasAtivos,
+                    admin: true, // Concede permissão de admin dentro da empresa
+                  },
+                  createdAt: serverTimestamp(),
+                  lastLogin: serverTimestamp()
+                };
+                await setDoc(userDocRef, newUserPayload);
+                userData = newUserPayload;
+                console.log("Documento de usuário criado para admin de empresa:", userData);
+              } else {
+                console.log("Empresa não encontrada para o email do usuário.");
+              }
+            } catch (searchError) {
+              console.error("Erro ao buscar empresa ou criar usuário:", searchError);
+            }
+          }
+
+          // Lógica de autorização baseada nos dados do Firestore e claims
+          let userHasAccess = false;
+          if (userData) {
+            // Admins (superadmin, adminmaster, bootstrapAdmin) sempre têm acesso
+            if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.claims?.bootstrapAdmin) {
+              userHasAccess = true;
+            }
+            // Verificar permissões específicas do sistema de ponto
+            if (!userHasAccess && userData.claims?.permissions?.canAccessSystems?.includes('ponto')) {
+              userHasAccess = true;
+            }
+            // Para colaboradores, o acesso é implícito se o sistema está ativo na empresa
+            if (userData.role === 'colaborador' && userData.empresaId) {
               try {
-                const companyDoc = await getDoc(doc(db, "empresas", empIdFromClaims));
-                if (companyDoc.exists()) {
-                  const companyData = companyDoc.data() as any;
-                  if (companyData.geofencing) {
-                    setCompanyLocation(companyData.geofencing);
+                const empresaDoc = await getDoc(doc(db, "empresas", userData.empresaId));
+                if (empresaDoc.exists()) {
+                  const empresaData = empresaDoc.data() as any;
+                  if ((empresaData.sistemasAtivos || []).includes('ponto')) {
+                    userHasAccess = true;
+                  } else {
+                    console.log(`Sistema de ponto não ativo para a empresa: ${userData.empresaId}`);
                   }
                 }
-              } catch (error) {
-                console.error("Erro ao carregar dados da empresa:", error);
+              } catch (empresaError) {
+                console.error(`Erro ao verificar sistema ativo para empresa ${userData.empresaId}:`, empresaError);
               }
             }
           }
+
+          if (!userHasAccess) {
+            console.log("Acesso negado com base nos dados do Firestore.");
+            alert("Acesso negado. Você não possui permissão para acessar este sistema.");
+            window.location.href = "/"; // Redireciona para a página inicial ou de login
+            return;
+          }
+
+          // Define o role do usuário logado
+          setMeRole(userData?.role || role); // Prioriza role do Firestore, senão usa claims
+
+          // Define o ID da empresa
+          const fromQS = params.get("empresaId");
+          const empresaIdToUse = fromQS || userData?.empresaId || empIdFromClaims;
+          setEmpresaId(empresaIdToUse);
+
+          // Carrega a configuração de geofencing se houver empresaId
+          if (empresaIdToUse) {
+            try {
+              const companyDoc = await getDoc(doc(db, "empresas", empresaIdToUse));
+              if (companyDoc.exists()) {
+                const companyData = companyDoc.data() as any;
+                if (companyData.geofencing) {
+                  setCompanyLocation(companyData.geofencing);
+                }
+                // Verifica se o sistema de ponto está ativo na empresa
+                const sistemasAtivos = companyData.sistemasAtivos || [];
+                if (!sistemasAtivos.includes('ponto')) {
+                  console.log("Empresa não tem sistema de ponto ativo");
+                  alert("Esta empresa não tem permissão para acessar o sistema de ponto.");
+                  window.location.href = "/sistemas";
+                  return;
+                }
+              }
+            } catch (companyError) {
+              console.error("Erro ao carregar dados da empresa para geofencing:", companyError);
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao obter claims ou verificar permissões:", error);
+          alert("Erro de autenticação ou permissão. Redirecionando...");
+          window.location.href = "/";
         }
       } catch (error) {
-        console.error("Erro ao obter claims:", error);
-        alert("Erro de autenticação. Tentando novamente...");
-        window.location.href = "/dashboard";
+        console.error("Erro ao obter token de ID:", error);
+        alert("Erro ao obter informações do usuário. Redirecionando...");
+        window.location.href = "/";
       }
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [params]); // Adicionado params como dependência
 
   /** -----------------------------------------------------------
    * Carrega lista de EMPRESAS para superadmin (para poder selecionar)
@@ -591,13 +556,17 @@ function EmpresaDashboard() {
   useEffect(() => {
     if (meRole === "superadmin") {
       (async () => {
-        const snap = await getDocs(collection(db, "empresas"));
-        const list = snap.docs.map((d) => ({
-          id: d.id,
-          nome: ((d.data() as any).nome as string) || d.id,
-        }));
-        list.sort((a, b) => a.nome.localeCompare(b.nome));
-        setEmpresas(list);
+        try {
+          const snap = await getDocs(collection(db, "empresas"));
+          const list = snap.docs.map((d) => ({
+            id: d.id,
+            nome: ((d.data() as any).nome as string) || d.id,
+          }));
+          list.sort((a, b) => a.nome.localeCompare(b.nome));
+          setEmpresas(list);
+        } catch (error) {
+          console.error("Erro ao carregar lista de empresas:", error);
+        }
       })();
     }
   }, [meRole]);
@@ -607,18 +576,17 @@ function EmpresaDashboard() {
    * (funciona para admin/gestor e para superadmin após selecionar)
    * ----------------------------------------------------------- */
   useEffect(() => {
-    loadUsers(); // Chama a função loadUsers para carregar colaboradores
+    loadUsers();
   }, [empresaId]);
 
   // Função para carregar usuários (colaboradores) da empresa selecionada
   const loadUsers = async () => {
     if (!empresaId) {
-      setUsers([]); // Limpa usuários se a empresa for desmarcada
+      setUsers([]);
+      setSelectedUser(null); // Reseta usuário selecionado ao desmarcar empresa
+      setSessions([]); // Limpa sessões também
       return;
     };
-    // reset seleção de usuário/sessions ao trocar empresa
-    setSelectedUser(null);
-    setSessions([]);
     setLoading(true);
     try {
       const snap = await getDocs(
@@ -633,12 +601,17 @@ function EmpresaDashboard() {
           effectiveHourlyRate: v.effectiveHourlyRate,
           monthlySalary: v.monthlySalary,
           role: (v.role || "colaborador") as U["role"],
+          // claims e permissions podem não estar na subcoleção 'colaboradores'
+          // Se precisar, precisaria buscar no doc principal 'users' por UID
         };
       });
       list.sort((a, b) =>
         (a.displayName || a.email).localeCompare(b.displayName || b.email)
       );
       setUsers(list);
+    } catch (error) {
+      console.error("Erro ao carregar colaboradores:", error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -658,6 +631,9 @@ function EmpresaDashboard() {
       setSessions(
         snap.docs.map((d) => ({ id: d.id, uid: u.id, ...(d.data() as any) }))
       );
+    } catch (error) {
+      console.error("Erro ao carregar sessões:", error);
+      setSessions([]);
     } finally {
       setLoading(false);
     }
@@ -689,14 +665,19 @@ function EmpresaDashboard() {
       monthlySalary: Number(editForm.monthlySalary) || 0,
       role: (editForm.role as U["role"]) || "colaborador",
     };
-    await setDoc(ref, payload, { merge: true });
-    setUsers((prev) =>
-      prev.map((u) => (u.id === editForm.id ? { ...u, ...payload } : u))
-    );
-    if (selectedUser?.id === editForm.id)
-      setSelectedUser({ ...selectedUser, ...payload });
-    setEditOpen(false);
-    showToast("Colaborador atualizado!");
+    try {
+      await setDoc(ref, payload, { merge: true });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editForm.id ? { ...u, ...payload } : u))
+      );
+      if (selectedUser?.id === editForm.id)
+        setSelectedUser({ ...selectedUser, ...payload });
+      setEditOpen(false);
+      showToast("Colaborador atualizado!");
+    } catch (error) {
+      console.error("Erro ao salvar edição:", error);
+      showToast("Erro ao salvar edição.");
+    }
   }
 
   // Função utilitária para criar usuário sem afetar sessão atual
@@ -704,30 +685,30 @@ function EmpresaDashboard() {
     const { createUserWithEmailAndPassword, updateProfile, signOut } = await import("firebase/auth");
     const { initializeApp, getApps } = await import("firebase/app");
     const { getAuth } = await import("firebase/auth");
-    
+
     // Configuração do Firebase (usar as mesmas credenciais)
     const secondaryAppConfig = {
-      apiKey: "AIzaSyAps78YtMFxMtqXKJBj5E7v9zbCWjYJ8eo",
-      authDomain: "eny-gna.firebaseapp.com",
-      projectId: "eny-gna",
-      storageBucket: "eny-gna.firebasestorage.app",
-      messagingSenderId: "531017876423",
-      appId: "1:531017876423:web:b1da5b8cf97bee0ca5cf4d"
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!
     };
 
     // Verificar se já existe uma app secundária
     let secondaryApp;
     const existingApps = getApps();
     const secondaryAppExists = existingApps.find(app => app.name === 'secondary');
-    
+
     if (secondaryAppExists) {
       secondaryApp = secondaryAppExists;
     } else {
       secondaryApp = initializeApp(secondaryAppConfig, 'secondary');
     }
-    
+
     const secondaryAuth = getAuth(secondaryApp);
-    
+
     // Criar usuário usando a instância secundária
     const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const newUser = userCredential.user;
@@ -739,12 +720,16 @@ function EmpresaDashboard() {
 
     // Deslogar o usuário da instância secundária (não afeta o usuário principal)
     await signOut(secondaryAuth);
-    
+
     return newUser;
   }
 
   // Função para adicionar colaborador usando apenas client SDK
   async function handleAddColaborador() {
+    if (!empresaId) {
+      alert("Erro: ID da empresa não definido.");
+      return;
+    }
     if (!newUserEmail.trim()) {
       alert("Email é obrigatório");
       return;
@@ -758,29 +743,33 @@ function EmpresaDashboard() {
       return;
     }
 
-    // Validar pelo menos um tipo de salário
-    const hasHourly = newUserSalaryType === 'hourly' && newUserHourlyRate.trim();
-    const hasDaily = newUserSalaryType === 'daily' && newUserDailyRate.trim();
-    const hasMonthly = newUserSalaryType === 'monthly' && newUserMonthlyRate.trim();
+    const parsedHourly = parseFloat(newUserHourlyRate);
+    const parsedDaily = parseFloat(newUserDailyRate);
+    const parsedMonthly = parseFloat(newUserMonthlyRate);
 
-    if (!hasHourly && !hasDaily && !hasMonthly) {
-      alert("Preencha pelo menos um valor de salário");
+    const hasValidHourly = newUserSalaryType === 'hourly' && !isNaN(parsedHourly) && parsedHourly > 0;
+    const hasValidDaily = newUserSalaryType === 'daily' && !isNaN(parsedDaily) && parsedDaily > 0;
+    const hasValidMonthly = newUserSalaryType === 'monthly' && !isNaN(parsedMonthly) && parsedMonthly > 0;
+
+    if (!hasValidHourly && !hasValidDaily && !hasValidMonthly) {
+      alert("Preencha um valor de salário válido de acordo com o tipo selecionado.");
       return;
     }
 
     setIsAddingUser(true);
-    
+
     try {
       // Buscar sistemas ativos da empresa
-      const empresaDoc = await getDoc(doc(db, "empresas", empresaId!));
+      const empresaDoc = await getDoc(doc(db, "empresas", empresaId));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
       const sistemasAtivos = empresaData.sistemasAtivos || [];
 
-      // Criar usuário sem afetar a sessão atual
+      // Criar usuário no Firebase Auth
       const newUser = await createUserSecondaryAuth(newUserEmail, newUserPassword, newUserName);
 
       // Criar documento na coleção principal 'users'
-      await setDoc(doc(db, 'users', newUser.uid), {
+      const userDocRef = doc(db, 'users', newUser.uid);
+      await setDoc(userDocRef, {
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -788,32 +777,34 @@ function EmpresaDashboard() {
         empresaId: empresaId,
         sistemasAtivos: sistemasAtivos,
         permissions: {
-          canAccessSystems: sistemasAtivos
+          canAccessSystems: sistemasAtivos,
+          admin: false // Usuário padrão é colaborador, não admin
         },
-        hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
-        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        monthlyBaseHours: 220,
-        toleranceMinutes: 0,
-        lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
+        hourlyRate: hasValidHourly ? parsedHourly : 0,
+        monthlySalary: hasValidMonthly ? parsedMonthly : 0,
+        monthlyBaseHours: 220, // Valor padrão, pode ser ajustado
+        toleranceMinutes: 0, // Valor padrão
+        lunchBreakMinutes: 0, // Valor padrão
+        lunchThresholdMinutes: 360, // Valor padrão
         ativo: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       // Criar documento na subcoleção da empresa
-      await setDoc(doc(db, 'empresas', empresaId!, 'colaboradores', newUser.uid), {
+      const colaboradorDocRef = doc(db, 'empresas', empresaId!, 'colaboradores', newUser.uid);
+      await setDoc(colaboradorDocRef, {
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
         empresaId: empresaId,
         workDaysPerMonth: newUserWorkDays || 22,
         salaryType: newUserSalaryType,
-        hourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
-        dailyRate: newUserSalaryType === 'daily' ? Number(newUserDailyRate) || 0 : 0,
-        monthlyRate: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        monthlySalary: newUserSalaryType === 'monthly' ? Number(newUserMonthlyRate) || 0 : 0,
-        effectiveHourlyRate: newUserSalaryType === 'hourly' ? Number(newUserHourlyRate) || 0 : 0,
+        hourlyRate: hasValidHourly ? parsedHourly : 0,
+        dailyRate: hasValidDaily ? parsedDaily : 0,
+        monthlyRate: hasValidMonthly ? parsedMonthly : 0,
+        monthlySalary: hasValidMonthly ? parsedMonthly : 0, // Duplica para compatibilidade
+        effectiveHourlyRate: newUserSalaryType === 'hourly' ? parsedHourly : (hasValidMonthly ? (parsedMonthly / 220) : 0), // Calcula hourly rate se for mensal
         monthlyBaseHours: 220,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
@@ -822,10 +813,10 @@ function EmpresaDashboard() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      
+
       // Sucesso - usuário principal permanece logado
       showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
-      
+
       // Limpar formulário
       setNewUserEmail("");
       setNewUserPassword("");
@@ -843,17 +834,18 @@ function EmpresaDashboard() {
     } catch (error: any) {
       console.error("Erro ao adicionar colaborador:", error);
       let errorMessage = "Erro ao adicionar colaborador: ";
-      
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage += "Este email já está em uso.";
       } else if (error.code === 'auth/weak-password') {
         errorMessage += "A senha é muito fraca.";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage += "Email inválido.";
+      } else if (error.code === 'auth/missing-password') {
+        errorMessage += "Senha não fornecida.";
       } else {
         errorMessage += error.message;
       }
-      
       alert(errorMessage);
     } finally {
       setIsAddingUser(false);
@@ -887,6 +879,7 @@ function EmpresaDashboard() {
           if (isAfter(sDate, to)) return false;
         }
       } else {
+        // Se não tem data de início, filtra se houver filtro de data
         if (dateFrom || dateTo) return false;
       }
       return true;
@@ -996,6 +989,9 @@ function EmpresaDashboard() {
       showToast(
         status === "approved" ? "Registros aprovados!" : "Registros rejeitados!"
       );
+    } catch (error) {
+      console.error("Erro ao executar ação em massa:", error);
+      showToast("Erro ao executar ação em massa.");
     } finally {
       setLoading(false);
     }
@@ -1298,22 +1294,34 @@ function EmpresaDashboard() {
    * ----------------------------------------------------------- */
   const handleApprove = async (sessionId: string, userId: string) => {
     if (!empresaId) return;
-    await updateDoc(doc(db, "empresas", empresaId, "colaboradores", userId, "sessions", sessionId), {
-      status: "approved",
-      approvedAt: serverTimestamp(),
-      approvedBy: currentUser?.uid,
-    });
-    if (selectedUser) loadSessions(selectedUser);
+    try {
+      await updateDoc(doc(db, "empresas", empresaId, "colaboradores", userId, "sessions", sessionId), {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        approvedBy: currentUser?.uid,
+      });
+      if (selectedUser) loadSessions(selectedUser);
+      showToast("Sessão aprovada!");
+    } catch (error) {
+      console.error("Erro ao aprovar sessão:", error);
+      showToast("Erro ao aprovar sessão.");
+    }
   };
 
   const handleReject = async (sessionId: string, userId: string) => {
     if (!empresaId) return;
-    await updateDoc(doc(db, "empresas", empresaId, "colaboradores", userId, "sessions", sessionId), {
-      status: "rejected",
-      rejectedAt: serverTimestamp(),
-      rejectedBy: currentUser?.uid,
-    });
-    if (selectedUser) loadSessions(selectedUser);
+    try {
+      await updateDoc(doc(db, "empresas", empresaId, "colaboradores", userId, "sessions", sessionId), {
+        status: "rejected",
+        rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser?.uid,
+      });
+      if (selectedUser) loadSessions(selectedUser);
+      showToast("Sessão rejeitada!");
+    } catch (error) {
+      console.error("Erro ao rejeitar sessão:", error);
+      showToast("Erro ao rejeitar sessão.");
+    }
   };
 
   const saveGeofencing = async () => {
@@ -1523,7 +1531,6 @@ function EmpresaDashboard() {
             onChange={(e) => {
               const val = e.target.value;
               setEmpresaId(val || null);
-              // Ao selecionar uma empresa, reseta os dados e carrega config.
               if (val) {
                 setSelectedUser(null);
                 setSessions([]);
@@ -1534,12 +1541,12 @@ function EmpresaDashboard() {
                     if (companyData.geofencing) {
                       setCompanyLocation(companyData.geofencing);
                     } else {
-                      setCompanyLocation(null); // Limpa se não houver config.
+                      setCompanyLocation(null);
                     }
                   }
                 });
               } else {
-                setCompanyLocation(null); // Limpa se desmarcar empresa
+                setCompanyLocation(null);
               }
             }}
           >
@@ -2367,160 +2374,6 @@ function EmpresaDashboard() {
               >
                 Próximo
                 <Icon name="back" size={14} style={{ transform: "rotate(180deg)" }} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TABELA DE SESSÕES */}
-      {activeTab === "sessions" && (
-        <div className="card" style={{ marginTop: 14, padding: 0 }}>
-          <div style={{ overflowX: "auto" }}>
-            <table className="table" style={{ minWidth: 900 }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 36 }}>
-                    <input
-                      type="checkbox"
-                      aria-label="Selecionar todos da página"
-                      checked={(() => {
-                        const ids = pageRows.map((r) => r.id);
-                        return ids.every((id) => selectedIds.has(id)) && ids.length > 0;
-                      })()}
-                      onChange={(e) => {
-                        const ids = pageRows.map((r) => r.id);
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          ids.forEach((id) =>
-                            e.currentTarget.checked ? next.add(id) : next.delete(id)
-                          );
-                          return next;
-                        });
-                      }}
-                    />
-                  </th>
-                  <SortableTh keyName="start" label="Início" />
-                  <SortableTh keyName="end" label="Fim" />
-                  <SortableTh keyName="duration" label="Duração" />
-                  <SortableTh keyName="earnings" label="Ganhos" />
-                  <SortableTh keyName="status" label="Status" />
-                  <th style={{ minWidth: 360 }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: 18, opacity: 0.7 }}>
-                      Carregando...
-                    </td>
-                  </tr>
-                )}
-                {!loading && pageRows.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: 18, opacity: 0.7 }}>
-                      Nenhum registro com os filtros atuais.
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  pageRows.map((s) => {
-                    const startD = toDateSafe(s.start);
-                    const endD = s.end ? toDateSafe(s.end) : null;
-                    const sec =
-                      s.durationSec ??
-                      (startD && endD
-                        ? Math.max(0, Math.floor((endD.getTime() - startD.getTime()) / 1000))
-                        : 0);
-                    const dur = `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
-                    const tone =
-                      (s.status || "pending") === "approved"
-                        ? "success"
-                        : (s.status || "pending") === "rejected"
-                        ? "danger"
-                        : "warning";
-                    return (
-                      <tr key={s.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label="Selecionar registro"
-                            checked={selectedIds.has(s.id)}
-                            onChange={() => toggleOne(s.id)}
-                          />
-                        </td>
-                        <td>{startD ? format(startD, "dd/MM/yyyy HH:mm") : "—"}</td>
-                        <td>{endD ? format(endD, "dd/MM/yyyy HH:mm") : "—"}</td>
-                        <td>{dur}</td>
-                        <td>{(s.earnings ?? 0).toFixed(2)}</td>
-                        <td>
-                          <Tag tone={tone as any}>
-                            {(s.status || "pending") === "approved" ? (
-                              <>Aprovado</>
-                            ) : (s.status || "pending") === "rejected" ? (
-                              <>Rejeitado</>
-                            ) : (
-                              <>Pendente</>
-                            )}
-                          </Tag>
-                        </td>
-                        <td className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                          <button
-                            className="button button-ghost"
-                            onClick={() => handleApprove(s.id, s.uid)}
-                          >
-                            <Icon name="check" /> Aprovar
-                          </button>
-                          <button
-                            className="button button-ghost"
-                            onClick={() => handleReject(s.id, s.uid)}
-                          >
-                            <Icon name="x" /> Rejeitar
-                          </button>
-
-                          {/* Ver localização */}
-                          <button
-                            className="button button-ghost"
-                            title="Ver localização"
-                            onClick={() => openLocModal(s)}
-                          >
-                            <Icon name="mapPin" /> Ver localização
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Paginação */}
-          <div
-            className="row"
-            style={{
-              justifyContent: "space-between",
-              padding: 12,
-              flexWrap: "wrap",
-              gap: 8,
-            }}
-          >
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              Página {page} de {totalPages} — {filtered.length} registro(s) no filtro
-            </div>
-            <div className="row" style={{ gap: 8 }}>
-              <button
-                className="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </button>
-              <button
-                className="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Próxima
               </button>
             </div>
           </div>
