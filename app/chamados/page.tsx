@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -18,52 +19,19 @@ import EmpresaManager from '@/src/components/EmpresaManager';
 // Force dynamic rendering to prevent SSR issues
 export const dynamic = 'force-dynamic';
 
-// AuthProvider wrapper component
-function AuthProvider({ children }: { children: React.ReactNode }) {
-  const authData = useAuthData();
-  
-  // Aguardar carregamento dos dados de autenticação
-  if (authData.loading) {
-    return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🔄</div>
-          <div>Carregando autenticação...</div>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <AuthContext.Provider value={authData}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
 function ChamadosPage() {
   const router = useRouter();
-  const { loading: authLoading, profile } = useChamadosSessionProfile();
+  
+  // Todos os hooks devem estar no topo e sempre na mesma ordem
   const { user, profile: userProfile, loading: generalAuthLoading } = useAuth();
+  const { loading: authLoading, profile } = useChamadosSessionProfile();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TicketFilter>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('tickets');
   
   const itemsPerPage = 20;
-
-  // Função local para verificar acesso aos sistemas
-  const hasAccess = (sistema: string) => {
-    return userProfile?.sistemasAtivos?.includes(sistema) || false;
-  };
-
-  // Menu lateral (exemplo, pode ser substituído por um componente de navegação real)
-  const [activeTab, setActiveTab] = useState('tickets'); // Estado para controlar a aba ativa
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -72,7 +40,12 @@ function ChamadosPage() {
     { id: 'empresas', label: 'Empresas', icon: '🏢' },
   ];
 
-  // Verificar autenticação e acesso
+  // Função local para verificar acesso aos sistemas
+  const hasAccess = (sistema: string) => {
+    return userProfile?.sistemasAtivos?.includes(sistema) || false;
+  };
+
+  // Verificar autenticação e acesso - sempre executado
   useEffect(() => {
     console.log('🔍 Verificando acesso ao sistema chamados para:', user?.email);
     
@@ -105,31 +78,12 @@ function ChamadosPage() {
     }
   }, [authLoading, generalAuthLoading, user, userProfile, router]);
 
-  // Mostrar loading durante autenticação
-  if (authLoading || generalAuthLoading) {
-    return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <div>Carregando...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirecionar se não autenticado ou sem acesso
-  if (!user || !userProfile || !hasAccess('chamados')) {
-    return null;
-  }
-
-  // Carregar tickets
+  // Carregar tickets - sempre executado
   useEffect(() => {
-    if (!profile || !userProfile) return;
+    // Só executar se tiver os dados necessários
+    if (!profile || !userProfile || authLoading || generalAuthLoading) {
+      return;
+    }
 
     setLoading(true);
 
@@ -189,7 +143,29 @@ function ChamadosPage() {
     });
 
     return () => unsubscribe();
-  }, [filter, searchTerm, profile, userProfile, user]); // Adicionado userProfile como dependência
+  }, [filter, searchTerm, profile, userProfile, user, authLoading, generalAuthLoading]);
+
+  // Estados de carregamento e verificação de acesso
+  if (authLoading || generalAuthLoading) {
+    return (
+      <div className="container" style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
+          <div>Carregando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirecionar se não autenticado ou sem acesso
+  if (!user || !userProfile || !hasAccess('chamados')) {
+    return null;
+  }
 
   const getPriorityBadge = (ticket: Ticket) => {
     const priority = ticket.analysis?.prioridade.prioridade_resultante;
@@ -318,18 +294,20 @@ function ChamadosPage() {
                 {stats.total} chamados • {stats.abertos} abertos • {stats.emAndamento} em andamento
               </p>
             )}
-            <p style={{ 
-              margin: '4px 0 0 0', 
-              color: 'var(--color-text-secondary)',
-              fontSize: '0.8rem'
-            }}>
-              Olá, {profile?.displayName || profile?.email} • {profile?.role}
-              {profile?.departamento && ` • ${profile.departamento}`}
-            </p>
+            {profile && (
+              <p style={{ 
+                margin: '4px 0 0 0', 
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.8rem'
+              }}>
+                Olá, {profile.displayName || profile.email} • {profile.role}
+                {profile.departamento && ` • ${profile.departamento}`}
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--gap-sm)' }}>
-            {activeTab === 'tickets' && canCreateTickets(profile) && (
+            {activeTab === 'tickets' && profile && canCreateTickets(profile) && (
               <Link href="/chamados/novo" className="button button-primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -338,7 +316,7 @@ function ChamadosPage() {
               </Link>
             )}
 
-            {activeTab === 'tickets' && canManageTickets(profile) && (
+            {activeTab === 'tickets' && profile && canManageTickets(profile) && (
               <Link href="/chamados/admin" className="button button-secondary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15l3-3-3-3M9 15l3-3-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -361,7 +339,7 @@ function ChamadosPage() {
 
         {/* Conteúdo da Aba Selecionada */}
 
-        {/* Aba Dashboard (Exemplo) */}
+        {/* Aba Dashboard */}
         {activeTab === 'dashboard' && (
           <div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>📊 Dashboard</h3>
@@ -603,12 +581,12 @@ function ChamadosPage() {
         )}
 
         {/* Aba Empresas */}
-        {activeTab === 'empresas' && (
+        {activeTab === 'empresas' && profile && (
           <EmpresaManager 
             sistema="chamados"
-            allowCreate={profile?.role === 'admin' || profile?.role === 'superadmin'}
-            allowEdit={profile?.role === 'admin' || profile?.role === 'superadmin'}
-            allowDelete={profile?.role === 'superadmin'}
+            allowCreate={profile.role === 'admin' || profile.role === 'superadmin'}
+            allowEdit={profile.role === 'admin' || profile.role === 'superadmin'}
+            allowDelete={profile.role === 'superadmin'}
             onEmpresaSelect={(empresa) => {
               console.log('Empresa selecionada para chamados:', empresa);
               // Implementar filtros de tickets por empresa se necessário
@@ -617,6 +595,34 @@ function ChamadosPage() {
         )}
       </main>
     </div>
+  );
+}
+
+// AuthProvider wrapper component
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authData = useAuthData();
+  
+  // Aguardar carregamento dos dados de autenticação
+  if (authData.loading) {
+    return (
+      <div className="container" style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🔄</div>
+          <div>Carregando autenticação...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <AuthContext.Provider value={authData}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
