@@ -5,7 +5,7 @@ import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User, signOut as firebaseSignOut, getIdTokenResult } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { UserData, UserPermissions } from '@/src/lib/types';
-import { AuthClaims, SecureUser } from '@/src/lib/securityHelpers';
+import { AuthClaims } from '@/src/lib/securityHelpers';
 import SecurityMonitor from '../lib/securityMonitor';
 
 // Define the new SessionProfile type

@@ -1,4 +1,3 @@
-
 import { auth, db } from './firebase';
 import { User } from 'firebase/auth';
 import { query, where, Query, DocumentReference, collection } from 'firebase/firestore';
@@ -6,16 +5,14 @@ import { UserData, UserPermissions } from '@/src/lib/types';
 
 // ===== TIPOS DE SEGURANÇA =====
 export interface AuthClaims {
-  bootstrapAdmin?: boolean;
   role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
   empresaId?: string;
-  company?: string;
-  permissions?: UserPermissions;
   sistemasAtivos?: string[];
-  canAccessSystems?: string[];
-  isEmpresa?: boolean;
-  tipo?: string;
+  permissions?: UserPermissions;
+  bootstrapAdmin?: boolean;
   email_verified?: boolean;
+  custom_claims_set?: boolean;
+  security_level?: 'low' | 'medium' | 'high';
 }
 
 export interface SecureUser {
@@ -45,7 +42,7 @@ export function isAdmin(claims: AuthClaims): boolean {
 
 export function hasSystemAccess(claims: AuthClaims, system: string): boolean {
   if (isSuperAdmin(claims) || isAdmin(claims)) return true;
-  
+
   return (claims.sistemasAtivos?.includes(system) || 
           claims.canAccessSystems?.includes(system)) === true;
 }
@@ -57,7 +54,7 @@ export function belongsToCompany(claims: AuthClaims, empresaId: string): boolean
 
 export function canAccessRoute(user: User | null, claims: AuthClaims | null, route: string): boolean {
   if (!user || !claims) return false;
-  
+
   if (isSuperAdmin(claims)) return true;
 
   const routeSystemMap: Record<string, string> = {
@@ -79,24 +76,24 @@ export function canAccessRoute(user: User | null, claims: AuthClaims | null, rou
 
 export function hasAccess(profile: any, requiredRole: string, requiredSystem?: string): boolean {
   if (!profile) return false;
-  
+
   const claims = profile.claims || {};
-  
+
   // Verificar se é superadmin
   if (isSuperAdmin(claims)) return true;
-  
+
   // Verificar role
   const roles = ['colaborador', 'gestor', 'admin', 'superadmin', 'adminmaster'];
   const userRoleIndex = roles.indexOf(profile.role || 'colaborador');
   const requiredRoleIndex = roles.indexOf(requiredRole);
-  
+
   if (userRoleIndex < requiredRoleIndex) return false;
-  
+
   // Verificar sistema se especificado
   if (requiredSystem && !hasSystemAccess(claims, requiredSystem)) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -112,18 +109,30 @@ export function isEmailVerified(profile: any): boolean {
 // ===== FUNÇÕES ADICIONAIS =====
 export async function getClaims(user: User): Promise<AuthClaims | null> {
   if (!user) return null;
-  
+
   const cacheKey = user.uid;
   const cached = claimsCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CLAIMS_CACHE_DURATION) {
     return cached.claims;
   }
-  
+
   try {
     const tokenResult = await user.getIdTokenResult(true);
     const claims = tokenResult.claims as AuthClaims;
-    
+
+    // Adiciona lógica para verificar se as claims personalizadas foram definidas
+    if (!claims.custom_claims_set) {
+      console.warn(`Claims personalizadas não definidas para o usuário ${user.uid}. Definindo claims padrão.`);
+      // Aqui você pode definir claims padrão, por exemplo:
+      claims.role = 'colaborador';
+      claims.empresaId = null; // Ou um valor padrão apropriado
+      claims.sistemasAtivos = [];
+      claims.email_verified = user.emailVerified;
+      claims.custom_claims_set = true;
+      claims.security_level = 'low'; // Nível de segurança padrão
+    }
+
     claimsCache.set(cacheKey, { claims, timestamp: Date.now() });
     return claims;
   } catch (error) {
@@ -134,7 +143,7 @@ export async function getClaims(user: User): Promise<AuthClaims | null> {
 
 export async function refreshClaims(user: User): Promise<AuthClaims | null> {
   if (!user) return null;
-  
+
   claimsCache.delete(user.uid);
   return getClaims(user);
 }
@@ -151,12 +160,12 @@ export function withEmpresa(empresaId: string) {
 
 export function secureQuery(baseQuery: Query, claims: AuthClaims): Query {
   if (isSuperAdmin(claims)) return baseQuery;
-  
+
   const empresaId = claims.empresaId || claims.company;
   if (empresaId) {
     return query(baseQuery, where('empresaId', '==', empresaId));
   }
-  
+
   return baseQuery;
 }
 
@@ -170,11 +179,11 @@ export function canEditFinanceiro(claims: AuthClaims): boolean {
 
 export function canEditPonto(claims: AuthClaims, pontoUserId: string, pontoTimestamp: number): boolean {
   if (isAdmin(claims)) return true;
-  
+
   // Usuário pode editar próprio ponto dentro de 5 minutos
   const agora = Date.now();
   const cincoMinutos = 5 * 60 * 1000;
-  
+
   return claims.empresaId === pontoUserId && 
          (agora - pontoTimestamp) < cincoMinutos;
 }

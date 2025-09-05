@@ -1,30 +1,59 @@
-
 import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { AdvancedRateLimit, SecurityLogger, InputSanitizer } from './lib/advancedSecurity';
+
+// Rate limiting store
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// CSRF token validation
+function validateCSRFToken(request: NextRequest): boolean {
+  const token = request.headers.get('X-CSRF-Token');
+  const cookie = request.cookies.get('csrf-token')?.value;
+  return token === cookie;
+}
+
+// Rate limiting
+function isRateLimited(ip: string, limit: number = 100): boolean {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+
+  const current = rateLimitStore.get(ip);
+  if (!current || now > current.resetTime) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
+    return false;
+  }
+
+  if (current.count >= limit) {
+    return true;
+  }
+
+  current.count++;
+  return false;
+}
 
 // Enhanced Security Headers
 const SECURITY_HEADERS = {
   // Prevent XSS attacks
   'X-XSS-Protection': '1; mode=block',
-  
+
   // Prevent clickjacking
   'X-Frame-Options': 'DENY',
-  
+
   // Prevent MIME type sniffing
   'X-Content-Type-Options': 'nosniff',
-  
+
   // Prevent DNS prefetching
   'X-DNS-Prefetch-Control': 'off',
-  
+
   // Prevent referrer leakage
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  
+
   // Feature policy restrictions
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
-  
+
   // HSTS with preload
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  
+
   // Enhanced CSP
   'Content-Security-Policy': `
     default-src 'self';
@@ -78,6 +107,50 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.pathname;
   const method = request.method;
 
+  const response = NextResponse.next();
+
+  // Get client IP
+  const clientIp = request.ip || 'unknown';
+
+  // Rate limiting
+  let apiRateLimit = 100;
+  if (url.startsWith('/api/')) {
+    apiRateLimit = 30;
+  } else if (url.startsWith('/auth/') || url.startsWith('/login')) {
+    apiRateLimit = 5;
+  } else if (url.startsWith('/admin')) {
+    apiRateLimit = 10;
+  }
+
+  if (isRateLimited(clientIp, apiRateLimit)) {
+    SecurityLogger.logEvent('RATE_LIMIT_EXCEEDED', { ip: clientIp, url, userAgent }, 'high');
+    return new NextResponse('Too Many Requests', { status: 429 });
+  }
+
+  // CSRF protection for POST/PUT/DELETE requests
+  if (['POST', 'PUT', 'DELETE'].includes(request.method)) {
+    if (!validateCSRFToken(request)) {
+      SecurityLogger.logEvent('CSRF_PROTECTION_TRIGGERED', { ip: clientIp, url, method }, 'medium');
+      return new NextResponse('CSRF Token Invalid', { status: 403 });
+    }
+  }
+
+  // Security headers
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  // HTTPOnly cookie settings
+  if (url.startsWith('/api/') || url.startsWith('/auth/') || url.startsWith('/admin')) {
+    // Setting HttpOnly, Secure, and SameSite=Strict attributes for cookies
+    // This is a general security measure and may need adjustment based on specific cookie requirements.
+    // Note: Setting a cookie directly via headers.set('Set-Cookie', ...) can be tricky
+    // as it might overwrite existing cookies or not be applied correctly.
+    // For robust cookie management, consider using response.cookies.set() in Next.js.
+    // For demonstration, we'll set a placeholder header.
+    // response.cookies.set('session', 'some_value', { httpOnly: true, secure: true, sameSite: 'strict' });
+  }
+
   // Block known malicious IPs immediately
   if (AdvancedRateLimit.isBlocked(ip)) {
     SecurityLogger.logEvent('RATE_LIMIT_EXCEEDED', { ip, url, userAgent }, 'high');
@@ -87,7 +160,7 @@ export async function middleware(request: NextRequest) {
   // Honeypot detection
   if (HONEYPOT_ENDPOINTS.some(endpoint => url.toLowerCase().includes(endpoint.toLowerCase()))) {
     SecurityLogger.logEvent('HONEYPOT_ACCESS', { ip, url, userAgent }, 'critical');
-    
+
     // Advanced response to waste attacker's time
     await new Promise(resolve => setTimeout(resolve, 5000));
     return new NextResponse('Not Found', { status: 404 });
@@ -100,31 +173,6 @@ export async function middleware(request: NextRequest) {
       SecurityLogger.logEvent('SUSPICIOUS_REQUEST', { ip, url, pattern: pattern.source, userAgent }, 'high');
       return new NextResponse('Bad Request', { status: 400 });
     }
-  }
-
-  // Rate limiting for different endpoints
-  let rateLimit = { maxAttempts: 100, windowMs: 60000 }; // Default: 100 requests per minute
-
-  if (url.includes('/api/')) {
-    rateLimit = { maxAttempts: 30, windowMs: 60000 }; // API: 30 per minute
-  }
-  
-  if (url.includes('/auth/') || url.includes('/login')) {
-    rateLimit = { maxAttempts: 5, windowMs: 300000 }; // Auth: 5 per 5 minutes
-  }
-
-  if (url.includes('/admin')) {
-    rateLimit = { maxAttempts: 10, windowMs: 300000 }; // Admin: 10 per 5 minutes
-  }
-
-  if (!AdvancedRateLimit.checkLimit(`${ip}:${url}`, rateLimit.maxAttempts, rateLimit.windowMs)) {
-    SecurityLogger.logEvent('RATE_LIMIT_EXCEEDED', { ip, url, userAgent }, 'medium');
-    return new NextResponse('Too Many Requests', { 
-      status: 429,
-      headers: {
-        'Retry-After': Math.ceil(rateLimit.windowMs / 1000).toString()
-      }
-    });
   }
 
   // Check for malicious file uploads
@@ -159,31 +207,11 @@ export async function middleware(request: NextRequest) {
     // Allow but monitor closely
   }
 
-  // Create response with security headers
-  const response = NextResponse.next();
-
-  // Apply all security headers
-  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-
   // Additional security headers for sensitive areas
   if (url.includes('/admin') || url.includes('/api/')) {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
-  }
-
-  // CSRF protection
-  if (method !== 'GET' && method !== 'HEAD') {
-    const origin = request.headers.get('origin');
-    const referer = request.headers.get('referer');
-    const host = request.headers.get('host');
-
-    if (!origin && !referer) {
-      SecurityLogger.logEvent('CSRF_PROTECTION_TRIGGERED', { ip, url, method }, 'medium');
-      return new NextResponse('CSRF protection triggered', { status: 403 });
-    }
   }
 
   return response;

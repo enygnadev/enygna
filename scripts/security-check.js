@@ -114,13 +114,15 @@ class SecurityChecker {
 
   async checkEnvironmentVars() {
     try {
+      // Load .env.local for checking
+      const envLocal = await fs.readFile('.env.local', 'utf-8').catch(() => '');
       const envExample = await fs.readFile('.env.local.example', 'utf-8');
       const requiredVars = envExample.match(/^[A-Z_]+=.*/gm) || [];
       
       let missingVars = [];
       requiredVars.forEach(line => {
         const varName = line.split('=')[0];
-        if (!process.env[varName]) {
+        if (!envLocal.includes(`${varName}=`) && !process.env[varName]) {
           missingVars.push(varName);
         }
       });
