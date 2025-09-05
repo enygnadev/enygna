@@ -8,7 +8,7 @@ import { useAuthData } from '@/src/hooks/useAuth';
 
 // Import dinâmico do Firebase para evitar erros SSR
 let auth: any, db: any;
-let onAuthStateChanged: any, doc: any, getDoc: any, addDoc: any, collection: any, query: any, where: any, getDocs: any, orderBy: any, deleteDoc: any, updateDoc: any;
+let onAuthStateChanged: any, doc: any, getDoc: any, addDoc: any, collection: any, query: any, where: any, getDocs: any, orderBy: any, deleteDoc: any, updateDoc: any, serverTimestamp: any;
 
 if (typeof window !== 'undefined') {
   Promise.all([
@@ -29,6 +29,7 @@ if (typeof window !== 'undefined') {
     orderBy = firestoreModule.orderBy;
     deleteDoc = firestoreModule.deleteDoc;
     updateDoc = firestoreModule.updateDoc;
+    serverTimestamp = firestoreModule.serverTimestamp;
   }).catch(error => {
     console.error('Erro ao carregar Firebase:', error);
   });
@@ -83,6 +84,7 @@ export default function DocumentosPage() {
   const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas'>('generator');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [generatedContent, setGeneratedContent] = useState<string>('');
@@ -897,11 +899,18 @@ Data: ${currentDate}`,
 
   const deleteDocument = async (documentId: string) => {
     if (!confirm('Deseja realmente excluir este documento?')) return;
+    if (!profile?.empresaId) return;
 
     try {
       if (db && deleteDoc && doc) {
-        await deleteDoc(doc(db, 'generated_documents', documentId));
-        await loadDocuments(profile?.empresaId || ''); // Use empresaId from profile
+        // Tentar deletar da estrutura empresa primeiro
+        try {
+          await deleteDoc(doc(db, `documentos_empresas/${profile.empresaId}/documentos`, documentId));
+        } catch (error1) {
+          // Se falhar, tentar da coleção direta
+          await deleteDoc(doc(db, 'documentos', documentId));
+        }
+        await loadDocuments(profile.empresaId);
       }
     } catch (error) {
       console.error('Erro ao excluir documento:', error);
@@ -1521,7 +1530,20 @@ Data: ${currentDate}`,
         <div className="card">
           <h3>📂 Histórico de Documentos</h3>
 
-          {documents.length > 0 ? (
+          {loadingDocs ? (
+            <div style={{ textAlign: 'center', padding: '3rem' }}>
+              <div className="spinner" style={{
+                width: '40px',
+                height: '40px',
+                border: '4px solid var(--color-border)',
+                borderTop: '4px solid var(--color-primary)',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 1rem'
+              }}></div>
+              <p>Carregando documentos...</p>
+            </div>
+          ) : documents.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {documents.map((document) => (
                 <div
