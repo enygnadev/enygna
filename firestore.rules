@@ -32,13 +32,7 @@ service cloud.firestore {
       );
     }
 
-    function isEmpresa() {
-      return request.auth != null && request.auth.token != null && (
-        request.auth.token.tipo == 'empresa' || 
-        request.auth.token.role == 'empresa' || 
-        request.auth.token.isEmpresa == true
-      );
-    }
+    
 
     function isAuthenticated() { 
       return request.auth != null && request.auth.uid != null; 
@@ -70,22 +64,9 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(requiredFields);
     }
 
-    function hasUserSystemAccess(sistema) {
-      return request.auth != null && request.auth.token != null && (
-        isSuperAdmin() || isAdmin() ||
-        (request.auth.token.sistemasAtivos != null && 
-         sistema in request.auth.token.sistemasAtivos) ||
-        (request.auth.token.canAccessSystems != null && 
-         sistema in request.auth.token.canAccessSystems)
-      );
-    }
+    
 
-    function validUserUpdate() {
-      return request.resource.data.keys().hasAll(['email']) &&
-             request.resource.data.email == resource.data.email &&
-             (!('role' in request.resource.data) || isSuperAdmin() || isAdmin()) &&
-             (!('empresaId' in request.resource.data) || isSuperAdmin() || isAdmin());
-    }
+    
 
     function sameCompany(empresaId) {
       return request.auth != null && request.auth.token != null && (
@@ -99,10 +80,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.token != null && roles.hasAny([request.auth.token.role]);
     }
 
-    function belongsToCompany(empresaId) {
-      return request.auth != null && request.auth.token != null && 
-             (request.auth.token.empresaId == empresaId || request.auth.token.company == empresaId);
-    }
+    
 
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
