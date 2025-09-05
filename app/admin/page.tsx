@@ -4431,7 +4431,7 @@ export default function AdminMasterPage() {
                                      event.severity === 'high' ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.3)',
                           color: event.severity === 'critical' ? '#fca5a5' :
                                 event.severity === 'high' ? '#fbbf24' : '#93c5fd',
-                          borderRadius: '6px ,
+                          borderRadius: '6px',
                           fontSize: '10px',
                           fontWeight: 'bold'
                         }}>
