@@ -75,7 +75,7 @@ interface ChatMessage {
 }
 
 export default function DocumentosPage() {
-  const { user, profile, loading } = useAuthData();
+  const { user, profile, loading: authLoading } = useAuthData();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
@@ -163,23 +163,18 @@ export default function DocumentosPage() {
     const checkAccess = async () => {
       try {
         console.log('🔍 Iniciando verificação de acesso ao sistema documentos...');
-        console.log('📊 Loading:', loading, 'User:', !!user, 'Profile:', !!profile);
+        console.log('📊 Loading:', authLoading, 'User:', !!user, 'Profile:', !!profile);
 
-        if (loading) {
+        if (authLoading) {
           console.log('⏳ Ainda carregando dados de autenticação...');
           return;
         }
 
-        if (!user) {
-          console.log('❌ Usuário não autenticado, redirecionando para auth');
+        if (!user || !profile) {
+          console.log('❌ Usuário não autenticado ou perfil indisponível, redirecionando para auth');
           if (mounted) {
             window.location.href = '/documentos/auth';
           }
-          return;
-        }
-
-        if (!profile) {
-          console.log('❌ Perfil do usuário não disponível, aguardando...');
           return;
         }
 
@@ -202,7 +197,12 @@ export default function DocumentosPage() {
           // Inicializar dados do sistema
           try {
             await loadTemplates();
-            await loadDocuments();
+            // Chama loadDocuments apenas se houver um empresaId válido
+            if (profile.empresaId) {
+              await loadDocuments(profile.empresaId);
+            } else {
+              console.log("ℹ️ EmpresaId não encontrado no perfil, pulando loadDocuments.");
+            }
             initializeChatWelcome();
           } catch (error) {
             console.error('Erro ao carregar dados do sistema:', error);
@@ -229,7 +229,7 @@ export default function DocumentosPage() {
     return () => {
       mounted = false;
     };
-  }, [loading, user, profile]);
+  }, [authLoading, user, profile]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -420,24 +420,56 @@ CPF: {{cpf}}`,
     }
   };
 
-  const loadDocuments = async () => {
-    if (!user?.uid || !db || !collection || !query || !where || !orderBy || !getDocs) return;
+  const loadDocuments = async (companyId: string) => {
+    if (!companyId) return;
 
+    setLoadingDocs(true);
     try {
-      const documentsQuery = query(
-        collection(db, 'generated_documents'),
-        where('createdBy', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(documentsQuery);
-      const documentsData = snapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data()
-      })) as GeneratedDocument[];
-      setDocuments(documentsData);
+      console.log("📄 Carregando documentos para empresa:", companyId);
+
+      // Tentar carregar de múltiplas coleções possíveis
+      let docs: any[] = [];
+
+      try {
+        // Primeira tentativa: coleção estruturada
+        const docsRef = collection(db, `documentos_empresas/${companyId}/documentos`);
+        const querySnapshot = await getDocs(docsRef);
+        docs = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+        }));
+
+        console.log("✅ Documentos carregados da estrutura empresas:", docs.length);
+      } catch (error1) {
+        console.log("Tentativa 1 falhou, tentando coleção direta...");
+
+        try {
+          // Segunda tentativa: coleção direta com filtro
+          const docsRef = collection(db, 'documentos');
+          const docsQuery = query(docsRef, where('empresaId', '==', companyId));
+          const querySnapshot = await getDocs(docsQuery);
+          docs = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+          }));
+
+          console.log("✅ Documentos carregados da coleção direta:", docs.length);
+        } catch (error2) {
+          console.error("Erro em ambas as tentativas:", error2);
+          throw new Error("Não foi possível carregar os documentos");
+        }
+      }
+
+      setDocuments(docs);
     } catch (error) {
-      console.error('Erro ao carregar documentos:', error);
-      setDocuments([]);
+      console.error("Erro ao carregar documentos:", error);
+      alert(`Erro ao carregar documentos: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setLoadingDocs(false);
     }
   };
 
@@ -608,7 +640,7 @@ Data: ${currentDate}`,
       };
 
       await addDoc(collection(db, 'generated_documents'), documentToSave);
-      await loadDocuments();
+      await loadDocuments(profile?.empresaId || ''); // Use empresaId from profile
       console.log('✅ Documento salvo com sucesso');
     } catch (error) {
       console.error('Erro ao salvar documento:', error);
@@ -753,7 +785,7 @@ Data: ${currentDate}`,
       setGeneratedContent(content);
       setGeneratedHtml(htmlContent);
 
-      if (db && addDoc && collection) {
+      if (db && addDoc && collection && profile?.empresaId) {
         const documentData = {
           templateId: selectedTemplate.id,
           templateName: selectedTemplate.name,
@@ -765,8 +797,8 @@ Data: ${currentDate}`,
           createdBy: user.uid
         };
 
-        await addDoc(collection(db, 'generated_documents'), documentData);
-        await loadDocuments();
+        await saveDocument(documentData);
+        await loadDocuments(profile.empresaId);
       }
 
     } catch (error) {
@@ -774,6 +806,50 @@ Data: ${currentDate}`,
       alert('Erro ao gerar documento. Tente novamente.');
     }
     setIsGenerating(false);
+  };
+
+  const saveDocument = async (documentData: any) => {
+    if (!profile?.empresaId || !user) return;
+
+    const empresaId = profile.empresaId;
+
+    try {
+      const docData = {
+        ...documentData,
+        empresaId,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        status: 'ativo'
+      };
+
+      let docRef;
+
+      try {
+        // Primeira tentativa: estrutura de empresa
+        docRef = await addDoc(
+          collection(db, `documentos_empresas/${empresaId}/documentos`),
+          docData
+        );
+        console.log("✅ Documento salvo na estrutura empresa:", docRef.id);
+      } catch (error1) {
+        console.log("Tentando salvar na coleção direta...");
+
+        // Segunda tentativa: coleção direta
+        docRef = await addDoc(
+          collection(db, 'documentos'),
+          docData
+        );
+        console.log("✅ Documento salvo na coleção direta:", docRef.id);
+      }
+
+      await loadDocuments(empresaId);
+      return docRef.id;
+    } catch (error) {
+      console.error("Erro ao salvar documento:", error);
+      throw error;
+    }
   };
 
   const printDocument = () => {
@@ -825,7 +901,7 @@ Data: ${currentDate}`,
     try {
       if (db && deleteDoc && doc) {
         await deleteDoc(doc(db, 'generated_documents', documentId));
-        await loadDocuments();
+        await loadDocuments(profile?.empresaId || ''); // Use empresaId from profile
       }
     } catch (error) {
       console.error('Erro ao excluir documento:', error);
@@ -843,7 +919,7 @@ Data: ${currentDate}`,
   ];
 
   // Loading state
-  if (isCheckingAccess || loading) {
+  if (authLoading || isCheckingAccess) {
     return (
       <div className="container" style={{
         display: 'flex',
@@ -867,8 +943,8 @@ Data: ${currentDate}`,
     );
   }
 
-  // Access denied
-  if (hasAccess === false) {
+  // Access denied or user not logged in
+  if (hasAccess === false || !user || !profile) {
     return (
       <div className="container">
         <div style={{
@@ -883,7 +959,7 @@ Data: ${currentDate}`,
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
           <h1 style={{ marginBottom: '1rem' }}>Acesso Negado</h1>
           <p style={{ marginBottom: '2rem', maxWidth: '500px' }}>
-            Você não tem permissão para acessar o sistema de documentos.
+            Você não tem permissão para acessar o sistema de documentos ou precisa estar logado.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <Link href="/documentos/auth" className="button button-primary">
