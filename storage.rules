@@ -2,229 +2,98 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Funções auxiliares
-    function authed() { 
-      return request.auth != null; 
+    // Arquivos por empresa - isolamento completo
+    match /empresas/{companyId}/{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+
+      // Apenas usuários da mesma empresa
+      allow read, write: if isAuthenticated() && 
+        sameCompany(companyId) && 
+        validFileType() && 
+        validFileSize();
     }
-    
-    function hasRole(roles) { 
-      return authed() && (request.auth.token.role in roles); 
+
+    // Documentos específicos por sistema
+    match /documentos/{companyId}/{sistema}/{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+
+      allow read, write: if isAuthenticated() && 
+        sameCompany(companyId) && 
+        hasSystemAccess(sistema) && 
+        validFileType() && 
+        validFileSize();
     }
-    
-    function sameCompany(empresaId) { 
-      return authed() && request.auth.token.empresaId == empresaId; 
+
+    // Fotos de perfil
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+        (request.auth.uid == userId || isSuperAdmin()) && 
+        isImageFile() && 
+        resource.size < 5 * 1024 * 1024; // 5MB
     }
-    
-    function isOwner(userId) {
-      return authed() && request.auth.uid == userId;
-    }
-    
-    // Validação de tipo de arquivo
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
-    }
-    
-    function isPDF() {
-      return request.resource.contentType == 'application/pdf';
-    }
-    
-    function isDocument() {
-      return request.resource.contentType.matches('application/(pdf|msword|vnd.*|x-.*|octet-stream)') ||
-             request.resource.contentType.matches('text/.*');
-    }
-    
-    // Limites de tamanho
-    function maxSize(mb) {
-      return request.resource.size <= mb * 1024 * 1024;
-    }
-    
-    // ========================================
-    // ARQUIVOS PÚBLICOS
-    // ========================================
-    
-    match /public/{allPaths=**} { 
+
+    // Arquivos públicos (logos, etc)
+    match /public/{allPaths=**} {
       allow read: if true;
-      allow write: if hasRole(['adminmaster', 'superadmin']) && maxSize(10);
+      allow write: if isSuperAdmin();
     }
-    
-    // ========================================
-    // LOGOS E IMAGENS DO SITE
-    // ========================================
-    
-    match /site/{allPaths=**} {
-      allow read: if true;
-      allow write: if hasRole(['adminmaster', 'superadmin', 'admin']) && 
-                     isImage() && maxSize(5);
-    }
-    
-    // ========================================
-    // ARQUIVOS POR EMPRESA (Multi-tenant)
-    // ========================================
-    
-    match /empresas/{empresaId}/{allPaths=**} {
-      // Leitura para membros da empresa
-      allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
-      
-      // Upload com restrições
-      allow create: if sameCompany(empresaId) && 
-                      hasRole(['admin', 'gestor', 'colaborador']) &&
-                      maxSize(20) && 
-                      (isImage() || isPDF() || isDocument());
-      
-      // Atualização apenas por admins da empresa
-      allow update: if sameCompany(empresaId) && 
-                      hasRole(['admin', 'gestor']) &&
-                      maxSize(20);
-      
-      // Deleção restrita
-      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
-    }
-    
-    // ========================================
-    // AVATARES DE USUÁRIO
-    // ========================================
-    
-    match /users/{userId}/avatar/{fileName} {
-      allow read: if authed(); // Qualquer usuário autenticado pode ver avatares
-      
-      // Usuário pode fazer upload do próprio avatar
-      allow create, update: if isOwner(userId) && 
-                              isImage() && 
-                              maxSize(2) &&
-                              fileName.matches('.*\\.(jpg|jpeg|png|gif|webp)');
-      
-      allow delete: if isOwner(userId) || hasRole(['adminmaster', 'superadmin']);
-    }
-    
-    // ========================================
-    // DOCUMENTOS FINANCEIROS (Acesso Restrito)
-    // ========================================
-    
-    match /financeiro/{empresaId}/{year}/{month}/{fileName} {
-      allow read: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin', 'gestor']);
-      
-      allow create: if sameCompany(empresaId) && 
-                      hasRole(['adminmaster', 'admin', 'gestor']) &&
-                      (isPDF() || isDocument()) &&
-                      maxSize(50);
-      
-      allow update: if false; // Documentos financeiros são imutáveis
-      
-      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster']);
-    }
-    
-    // ========================================
-    // BACKUPS (Somente SuperAdmin)
-    // ========================================
-    
+
+    // Backup (apenas superadmin)
     match /backups/{allPaths=**} {
-      allow read, write: if hasRole(['adminmaster', 'superadmin']);
+      allow read, write: if isSuperAdmin();
     }
-    
-    // ========================================
-    // TEMPORÁRIO (Auto-limpeza após 24h)
-    // ========================================
-    
-    match /temp/{userId}/{fileName} {
-      allow read: if isOwner(userId);
-      
-      // Upload temporário com limite menor
-      allow create: if isOwner(userId) && maxSize(10);
-      
-      // Permitir deletar próprios arquivos temporários
-      allow delete: if isOwner(userId) || hasRole(['adminmaster', 'superadmin']);
-      
-      allow update: if false; // Não permitir modificação
-    }
-    
-    // ========================================
-    // LOGS DE AUDITORIA (Write-only)
-    // ========================================
-    
-    match /audit-logs/{allPaths=**} {
-      allow read: if hasRole(['adminmaster', 'superadmin']);
-      allow create: if authed(); // Qualquer usuário autenticado pode criar logs
-      allow update, delete: if false; // Logs são imutáveis
-    }
-    
-    // ========================================
-    // DENY ALL - Negar todo o resto
-    // ========================================
-    
+
+    // Negar tudo o mais
     match /{allPaths=**} {
       allow read, write: if false;
     }
   }
-}
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Função para verificar se é superadmin
-    function isSuperAdmin() {
-      return request.auth != null && request.auth.token != null && (
-        request.auth.token.bootstrapAdmin == true ||
-        request.auth.token.role == 'superadmin' ||
-        request.auth.token.role == 'adminmaster'
-      );
-    }
-    
-    // Função para verificar se pertence à mesma empresa
-    function sameCompany(empresaId) {
-      return request.auth != null && request.auth.token != null && (
-        isSuperAdmin() ||
-        request.auth.token.empresaId == empresaId ||
-        request.auth.token.company == empresaId
-      );
-    }
-    
-    // Função para verificar acesso ao sistema
-    function hasSystemAccess(sistema) {
-      return request.auth != null && request.auth.token != null && (
-        isSuperAdmin() ||
-        request.auth.token.role in ['admin', 'gestor'] ||
-        (request.auth.token.sistemasAtivos != null && 
-         sistema in request.auth.token.sistemasAtivos)
-      );
-    }
 
-    // SuperAdmins têm acesso total
-    match /{allPaths=**} {
-      allow read, write: if isSuperAdmin();
-    }
+  // ===== FUNÇÕES DE SEGURANÇA =====
+  function isSuperAdmin() {
+    return request.auth != null && request.auth.token != null && (
+      request.auth.token.bootstrapAdmin == true ||
+      request.auth.token.role == 'superadmin' ||
+      request.auth.token.role == 'adminmaster'
+    );
+  }
 
-    // Documentos por empresa
-    match /documentos/{empresaId}/{allPaths=**} {
-      allow read, write: if request.auth != null && 
-        sameCompany(empresaId) && 
-        hasSystemAccess('documentos');
-    }
+  function isAuthenticated() { 
+    return request.auth != null && request.auth.uid != null; 
+  }
 
-    // Avatars de usuários
-    match /avatars/{userId}/{allPaths=**} {
-      allow read: if true; // Avatars são públicos para leitura
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
+  function sameCompany(companyId) {
+    return request.auth != null && request.auth.token != null && (
+      isSuperAdmin() || 
+      request.auth.token.empresaId == companyId ||
+      request.auth.token.company == companyId
+    );
+  }
 
-    // Logos de empresas
-    match /logos/{empresaId}/{allPaths=**} {
-      allow read: if true; // Logos são públicos
-      allow write: if request.auth != null && sameCompany(empresaId);
-    }
+  function hasSystemAccess(sistema) {
+    return request.auth != null && request.auth.token != null && (
+      isSuperAdmin() ||
+      request.auth.token.role == 'admin' ||
+      request.auth.token.role == 'gestor' ||
+      (request.auth.token.sistemasAtivos != null && 
+       sistema in request.auth.token.sistemasAtivos)
+    );
+  }
 
-    // Uploads temporários
-    match /temp/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
+  function validFileType() {
+    return request.resource.contentType.matches('image/.*') ||
+           request.resource.contentType.matches('application/pdf') ||
+           request.resource.contentType.matches('text/.*') ||
+           request.resource.contentType.matches('application/vnd.ms-excel') ||
+           request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
 
-    // Backups (apenas superadmins)
-    match /backups/{allPaths=**} {
-      allow read, write: if isSuperAdmin();
-    }
+  function isImageFile() {
+    return request.resource.contentType.matches('image/.*');
+  }
 
-    // Deny por padrão
-    match /{allPaths=**} {
-      allow read, write: if false;
-    }
+  function validFileSize() {
+    return request.resource.size < 50 * 1024 * 1024; // 50MB
   }
 }
