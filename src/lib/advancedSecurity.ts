@@ -1,6 +1,6 @@
 
 import { auth } from './firebase';
-import * as CryptoJS from 'crypto-js';
+import CryptoJS from 'crypto-js';
 
 // Advanced Security Configuration
 export interface SecurityConfig {

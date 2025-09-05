@@ -1,10 +1,10 @@
-
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
@@ -18,6 +18,25 @@ const firebaseConfig = {
 export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 // Analytics só funciona no client (navegador)
 export const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
+
+// Configurar emuladores para desenvolvimento
+if (process.env.NODE_ENV === 'development') {
+  try {
+    if (!auth._delegate._config.emulator) {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    }
+    if (!db._delegate._databaseId.database.includes('localhost')) {
+      connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    }
+    if (!storage._location.host.includes('127.0.0.1')) {
+      connectStorageEmulator(storage, '127.0.0.1', 9199);
+    }
+  } catch (error) {
+    // Emuladores já conectados ou não disponíveis
+    console.log('Emuladores não disponíveis ou já conectados');
+  }
+}
