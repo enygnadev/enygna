@@ -24,7 +24,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function NovoTicketPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { userData } = useAuth(); // Get user data from auth hook
+  const { user, profile } = useAuth();
+  const userData = profile;
 
   const handleAnalyze = async (formData: any): Promise<{ markdown: string; json: TicketAnalysis }> => {
     const response = await fetch('/api/ai/assist', {

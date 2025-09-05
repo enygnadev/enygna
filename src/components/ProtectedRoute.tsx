@@ -39,7 +39,7 @@ export default function ProtectedRoute({
       try {
         // Verificar email verificado se necessário
         if (requireEmailVerified) {
-          const emailVerified = await isEmailVerified();
+          const emailVerified = isEmailVerified(profile);
           if (!emailVerified) {
             setHasPermission(false);
             setAccessError('Email não verificado. Verifique seu email antes de continuar.');
@@ -49,7 +49,7 @@ export default function ProtectedRoute({
 
         // Verificar se possui empresa se necessário
         if (requireEmpresa) {
-          const empresaId = await getCurrentEmpresaId();
+          const empresaId = getCurrentEmpresaId(profile);
           if (!empresaId) {
             setHasPermission(false);
             setAccessError('Usuário não está associado a uma empresa');
@@ -58,7 +58,7 @@ export default function ProtectedRoute({
         }
 
         // Verificar acesso aos sistemas e roles
-        const canAccess = await canAccessRoute(requiredSystems, requiredRoles);
+        const canAccess = canAccessRoute(user, profile?.claims || null, window.location.pathname);
         
         if (!canAccess) {
           setHasPermission(false);
@@ -243,13 +243,13 @@ export function useRouteProtection(
   useEffect(() => {
     async function check() {
       try {
-        if (requireEmailVerified && !(await isEmailVerified())) {
+        if (requireEmailVerified && !isEmailVerified(profile)) {
           setCanAccess(false);
           setError('Email não verificado');
           return;
         }
 
-        const access = await canAccessRoute(requiredSystems, requiredRoles);
+        const access = canAccessRoute(user, profile?.claims || null, window.location.pathname);
         setCanAccess(access);
         
         if (!access) {

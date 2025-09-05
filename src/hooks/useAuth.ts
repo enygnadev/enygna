@@ -6,7 +6,7 @@ import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User, signOut as firebaseSignOut, getIdTokenResult } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { UserData, UserPermissions } from '@/src/lib/types';
-import { AuthClaims, SecureUser } from '@/lib/securityHelpers';
+import { AuthClaims, SecureUser } from '@/src/lib/securityHelpers';
 
 // Define the new SessionProfile type
 export type SessionProfile = {
@@ -74,15 +74,15 @@ export const useSessionProfile = () => {
 
         // Obter dados do usuário do Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.exists() ? userDoc.data() as UserData : {}; // Cast to UserData if necessary
+        const userData = userDoc.exists() ? userDoc.data() as UserData : {} as UserData;
 
         setProfile({
           uid: user.uid,
           email: user.email || undefined,
-          displayName: user.displayName || userData.displayName,
-          role: claims.role || userData.role || 'colaborador',
-          empresaId: claims.empresaId || userData.empresaId,
-          sistemasAtivos: claims.sistemasAtivos || userData.sistemasAtivos || [],
+          displayName: user.displayName || userData?.displayName,
+          role: (claims.role || userData?.role || 'colaborador') as 'colaborador' | 'admin' | 'gestor' | 'superadmin' | 'adminmaster',
+          empresaId: claims.empresaId || userData?.empresaId,
+          sistemasAtivos: claims.sistemasAtivos || userData?.sistemasAtivos || [],
           claims
         });
       } catch (error) {
@@ -135,7 +135,13 @@ export const useAuthData = (): AuthContextType => {
       setLoading(true);
       const data = await loadUserData(user.email);
       if (data && profile) {
-        setProfile({ ...profile, ...data });
+        setProfile(prev => prev ? {
+          ...prev,
+          displayName: data.displayName || prev.displayName,
+          role: (data.role || prev.role) as 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster',
+          empresaId: data.empresaId || prev.empresaId,
+          sistemasAtivos: data.sistemasAtivos || prev.sistemasAtivos || []
+        } : null);
       }
       setLoading(false);
     }
@@ -151,15 +157,15 @@ export const useAuthData = (): AuthContextType => {
           const claims = tokenResult.claims as AuthClaims;
 
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          const userData = userDoc.exists() ? userDoc.data() as UserData : {};
+          const userData = userDoc.exists() ? userDoc.data() as UserData : {} as UserData;
 
           setProfile({
             uid: firebaseUser.uid,
             email: firebaseUser.email || undefined,
-            displayName: firebaseUser.displayName || userData.displayName,
-            role: claims.role || userData.role || 'colaborador',
-            empresaId: claims.empresaId || userData.empresaId,
-            sistemasAtivos: claims.sistemasAtivos || userData.sistemasAtivos || [],
+            displayName: firebaseUser.displayName || userData?.displayName,
+            role: (claims.role || userData?.role || 'colaborador') as 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster',
+            empresaId: claims.empresaId || userData?.empresaId,
+            sistemasAtivos: claims.sistemasAtivos || userData?.sistemasAtivos || [],
             claims
           });
         } catch (error) {

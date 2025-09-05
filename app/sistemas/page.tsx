@@ -15,7 +15,8 @@ import { useAuthData } from '@/src/hooks/useAuth';
 export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
-  const { user, userData, loading, signOut } = useAuthData();
+  const { user, profile, loading, signOut } = useAuthData();
+  const userData = profile;
 
   // Função para verificar acesso aos sistemas
   const hasAccess = (sistema: string): boolean => {
@@ -176,7 +177,7 @@ export default function SistemasPage() {
     }
   };
 
-  
+
 
   return (
       <div className="container" style={{

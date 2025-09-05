@@ -27,6 +27,8 @@ export {
   type SecureUser
 } from './security';
 
+import { AuthClaims } from './security';
+
 // Manter funções específicas que já existiam
 export interface SessionProfile {
   uid: string;

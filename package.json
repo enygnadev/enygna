@@ -22,7 +22,9 @@
     "seed:emu": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 AUTH_EMULATOR_HOST=127.0.0.1:9099 ts-node scripts/seed.ts"
   },
   "dependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@google/generative-ai": "^0.24.1",
+    "@types/jest": "^30.0.0",
     "@types/leaflet": "^1.9.20",
     "@types/papaparse": "^5.3.16",
     "@types/react-dom": "^19.1.7",
