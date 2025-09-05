@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -347,7 +346,7 @@ export default function SistemasPage() {
           }
 
           .main-title {
-            font-size: 3rem;
+            font-size: clamp(2rem, 5vw, 3.5rem);
             font-weight: 700;
             margin-bottom: 1rem;
             background: linear-gradient(45deg, #fff, #f0f8ff);
@@ -357,7 +356,7 @@ export default function SistemasPage() {
           }
 
           .subtitle {
-            font-size: 1.3rem;
+            font-size: clamp(1rem, 3vw, 1.5rem);
             opacity: 0.9;
             margin-bottom: 0;
           }
@@ -374,12 +373,12 @@ export default function SistemasPage() {
           }
 
           .welcome-section h2 {
-            font-size: 2rem;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
             margin-bottom: 1rem;
           }
 
           .welcome-section p {
-            font-size: 1.1rem;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
             opacity: 0.9;
             max-width: 600px;
             margin: 0 auto;
@@ -387,7 +386,7 @@ export default function SistemasPage() {
 
           .sistemas-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
             gap: 1.5rem;
             margin-bottom: 3rem;
           }
@@ -517,7 +516,7 @@ export default function SistemasPage() {
 
           .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
             gap: 1.5rem;
           }
 
@@ -546,14 +545,6 @@ export default function SistemasPage() {
           }
 
           @media (max-width: 768px) {
-            .main-title {
-              font-size: 2.5rem;
-            }
-
-            .sistemas-grid {
-              grid-template-columns: 1fr;
-            }
-
             .auth-buttons {
               flex-direction: column;
             }
@@ -569,239 +560,221 @@ export default function SistemasPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-      color: 'white',
-      padding: '2rem 1rem'
-    }}>
-      <Tutorial
-        steps={homeTutorialSteps}
-        tutorialKey="home"
-        onComplete={() => console.log('Tutorial home completado')}
-        onSkip={() => console.log('Tutorial home pulado')}
-      />
-
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '2rem',
-        padding: '1rem',
-        background: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: '12px',
-        backdropFilter: 'blur(10px)'
+      <div className="container" style={{
+        background: 'linear-gradient(135deg, var(--gradient-primary))',
+        minHeight: '100vh',
+        padding: 'var(--gap-xl)'
       }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <Link href="/" style={{
-            color: 'white',
-            textDecoration: 'none',
-            padding: '0.5rem 1rem',
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px',
-            transition: 'all 0.3s ease'
-          }}>
-            ← Voltar ao Início
-          </Link>
-          <div style={{
-            padding: '0.5rem 1rem',
-            background: isOnline ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>
-            {isOnline ? '🟢 Online' : '🔴 Offline'}
-          </div>
-          <div style={{
-            padding: '0.5rem 1rem',
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>
-            📱 {isPWA ? 'PWA Ativo' : 'Web'}
-          </div>
-          {user && (
-            <div style={{
-              padding: '0.5rem 1rem',
-              background: 'rgba(34, 197, 94, 0.3)',
-              borderRadius: '20px',
-              fontSize: '0.9rem'
-            }}>
-              👤 {userData?.displayName || user.email?.split('@')[0]}
+        <Tutorial
+          steps={homeTutorialSteps}
+          tutorialKey="home"
+          onComplete={() => console.log('Tutorial home completado')}
+          onSkip={() => console.log('Tutorial home pulado')}
+        />
+
+        {/* Header */}
+        <div
+          className="responsive-flex"
+          style={{
+            marginBottom: 'var(--gap-sm)',
+            padding: 'var(--gap-sm)',
+            background: 'var(--gradient-surface)',
+            borderRadius: 'var(--radius)',
+            zIndex: 1000,
+            border: 'clamp(1px, 0.2vw, 2px) solid var(--color-border)',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+          <div className="row" style={{ gap: 'var(--gap-lg)' }}>
+            <Link href="/" className="button button-ghost">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Voltar ao Início
+            </Link>
+            <div className="badge">
+              <span
+                className="status-indicator status-online"
+                style={{
+                  background: isOnline
+                    ? 'var(--color-success)'
+                    : 'var(--color-error)',
+                }}
+              ></span>
+              {isOnline ? 'Conectado' : 'Offline'}
             </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <ThemeSelector />
-          {user && (
+            <div className="badge">📱 PWA: {isPWA ? 'Ativo' : 'Web'}</div>
+
+            {/* Status de Login */}
+            {!loading && (
+              <div className="badge">
+                <span
+                  className="status-indicator"
+                  style={{
+                    background: user ? 'var(--color-success)' : 'var(--color-error)',
+                  }}
+                ></span>
+                {user ? `👤 ${userData?.displayName || user.email?.split('@')[0]}` : '🔒 Não logado'}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--gap-md)', flexWrap: 'wrap' }}>
+            <ThemeSelector />
             <button
-              onClick={signOut}
-              style={{
-                background: 'rgba(239, 68, 68, 0.3)',
-                border: '1px solid rgba(239, 68, 68, 0.5)',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.9rem'
-              }}
+              onClick={() => console.log('Tutorial clicked')} // Dummy function for now
+              className="button button-ghost"
+              style={{ fontSize: '0.9rem' }}
             >
-              Sair
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              Tutorial
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* Hero Section */}
-      <div style={{
-        textAlign: 'center',
-        marginBottom: '3rem',
-        padding: '3rem 2rem',
-        background: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: '20px',
-        backdropFilter: 'blur(20px)'
-      }}>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏢</div>
-        <h1 style={{
-          fontSize: '3rem',
-          fontWeight: '800',
-          marginBottom: '1rem',
-          background: 'linear-gradient(45deg, #fff, #f0f8ff)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          Selecione o Sistema
-        </h1>
-        <p style={{ fontSize: '1.3rem', opacity: 0.9, marginBottom: '2rem' }}>
-          Escolha o sistema que deseja acessar
-        </p>
-
-        {/* Sistemas Ativos do Usuário */}
-        {user && userData && (
-          <div style={{
-            marginBottom: '2rem',
-            padding: '1.5rem',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '16px',
-            border: '1px solid rgba(255,255,255,0.2)'
-          }}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: '#3b82f6' }}>
-              🎯 Seus Sistemas Ativos
-            </h3>
-            <div style={{
-              display: 'flex',
-              gap: '0.5rem',
-              flexWrap: 'wrap',
-              justifyContent: 'center'
-            }}>
-              {hasAccess('ponto') && <span style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>🕒 Ponto</span>}
-              {hasAccess('chamados') && <span style={{
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>🎫 Chamados</span>}
-              {hasAccess('frota') && <span style={{
-                background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>🚗 Frota</span>}
-              {hasAccess('documentos') && <span style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>📄 Documentos</span>}
-              {hasAccess('financeiro') && <span style={{
-                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>💰 Financeiro</span>}
-              {(hasAccess('crm') || hasAccess('vendas')) && <span style={{
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '15px',
-                fontSize: '0.8rem'
-              }}>💼 CRM/Vendas</span>}
-            </div>
+            {/* Botão de Sair */}
+            {user && (
+              <button
+                onClick={signOut}
+                className="button button-ghost"
+                style={{
+                  fontSize: '0.9rem',
+                  color: 'var(--color-error)',
+                  borderColor: 'var(--color-error)'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Sair
+              </button>
+            )}
           </div>
-        )}
-
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-          justifyContent: 'center'
-        }}>
-          <span style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>🔐 Segurança Enterprise</span>
-          <span style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>☁️ Cloud Native</span>
-          <span style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>📊 Analytics Avançado</span>
         </div>
-      </div>
 
-      {/* Systems Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '2rem',
-        marginBottom: '3rem'
-      }}>
-        {sistemasDisponiveis.map((system) => {
-          const hasSystemAccess = user && userData && hasAccess(system.key);
-          const isAccessible = user ? (hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.key)) : false;
+        {/* Hero Section */}
+        <div className="card fade-in" style={{
+          textAlign: 'center',
+          marginBottom: 'var(--gap-2xl)',
+          background: 'var(--gradient-card)',
+          border: '2px solid var(--color-border)',
+          borderRadius: '24px',
+          padding: 'var(--gap-2xl)',
+          backdropFilter: 'blur(30px)'
+        }}>
+          <div style={{
+            fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+            marginBottom: 'var(--gap-lg)',
+            background: 'var(--gradient-primary)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            🏢
+          </div>
+          <h1 className="h1" style={{
+            marginBottom: 'var(--gap-md)',
+            fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+            fontWeight: '800',
+            background: 'var(--gradient-primary)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Selecione o Sistema
+          </h1>
+          <p className="h2" style={{
+            marginBottom: 'var(--gap-xl)',
+            fontSize: 'clamp(1rem, 2vw, 1.5rem)',
+            opacity: 0.9
+          }}>
+            Escolha o sistema que deseja acessar
+          </p>
 
-          return (
-            <div
-              key={system.key}
-              onClick={() => handleSystemSelect(system.key)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: `2px solid ${system.borderColor}`,
-                borderRadius: '20px',
-                padding: '2rem',
-                cursor: ['vendas', 'estoque', 'rh'].includes(system.key) ? 'not-allowed' : 'pointer',
-                transition: 'all 0.3s ease',
-                backdropFilter: 'blur(20px)',
-                position: 'relative',
-                overflow: 'hidden',
-                opacity: ['vendas', 'estoque', 'rh'].includes(system.key) ? 0.5 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
-                  e.currentTarget.style.transform = 'translateY(-5px)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
+          {/* Sistemas Ativos do Usuário */}
+          {user && userData && (
+            <div style={{
+              marginBottom: 'var(--gap-xl)',
+              padding: 'var(--gap-lg)',
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <h3 style={{
+                fontSize: 'clamp(1rem, 2vw, 1.2rem)',
+                marginBottom: 'var(--gap-md)',
+                color: 'var(--color-primary)'
+              }}>
+                🎯 Seus Sistemas Ativos
+              </h3>
+              <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
+                {hasAccess('ponto') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>🕒 Ponto</span>}
+                {hasAccess('chamados') && <span className="tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>🎫 Chamados</span>}
+                {hasAccess('frota') && <span className="tag" style={{ background: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)' }}>🚗 Frota</span>}
+                {hasAccess('documentos') && <span className="tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>📄 Documentos</span>}
+                {hasAccess('financeiro') && <span className="tag" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>💰 Financeiro</span>}
+                {(hasAccess('crm') || hasAccess('vendas')) && <span className="tag" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💼 CRM/Vendas</span>}
+                {userData.claims?.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
+                {(!userData.sistemasAtivos?.length && !userData.claims?.sistemasAtivos?.length && !userData.claims?.canAccessSystems?.length) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+              </div>
+            </div>
+          )}
+
+          <div className="row center" style={{ gap: 'var(--gap-sm)', flexWrap: 'wrap' }}>
+            <span className="tag">🔐 Segurança Enterprise</span>
+            <span className="tag">☁️ Cloud Native</span>
+            <span className="tag">📊 Analytics Avançado</span>
+            <span className="tag">🚀 Alta Performance</span>
+          </div>
+        </div>
+
+        {/* Systems Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(280px, 25vw, 360px), 1fr))',
+          gap: 'var(--gap-xl)',
+          marginBottom: 'var(--gap-2xl)'
+        }}>
+          {sistemasDisponiveis.map((system) => {
+            const hasSystemAccess = user && userData && hasAccess(system.key);
+            // Para usuários não logados, sistemas são mostrados mas não acessíveis
+            // Para usuários logados, verificar permissões
+            const isAccessible = user ? (hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.key)) : false;
+
+            return (
+              <div
+                key={system.key}
+                className="system-card"
+                onClick={() => handleSystemSelect(system.key)}
+                style={{
+                  background: 'var(--gradient-card)',
+                  border: `2px solid ${system.borderColor}`,
+                  borderRadius: '20px',
+                  padding: 'var(--gap-xl)',
+                  cursor: ['vendas', 'estoque', 'rh'].includes(system.key) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backdropFilter: 'blur(20px)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: ['vendas', 'estoque', 'rh'].includes(system.key) ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
+                    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
+                    e.currentTarget.style.borderColor = system.borderColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                  }
+                }}
+              >
               {/* Background gradient overlay */}
               <div style={{
                 position: 'absolute',
@@ -816,39 +789,39 @@ export default function SistemasPage() {
 
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{
-                  fontSize: '3rem',
-                  marginBottom: '1rem',
+                  fontSize: 'clamp(2.5rem, 6vw, 3.5rem)',
+                  marginBottom: 'var(--gap-md)',
                   textAlign: 'center'
                 }}>
                   {system.icon}
                 </div>
 
                 <h3 style={{
-                  fontSize: '1.4rem',
+                  fontSize: 'clamp(1.2rem, 2.5vw, 1.5rem)',
                   fontWeight: '700',
-                  marginBottom: '0.5rem',
+                  marginBottom: 'var(--gap-sm)',
                   textAlign: 'center',
-                  color: 'white'
+                  color: 'var(--color-text)'
                 }}>
                   {system.name}
                 </h3>
 
                 <p style={{
-                  fontSize: '0.9rem',
-                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: 'clamp(0.9rem, 1.5vw, 1rem)',
+                  color: 'var(--color-textSecondary)',
                   textAlign: 'center',
                   lineHeight: 1.5,
-                  marginBottom: '1.5rem'
+                  marginBottom: 'var(--gap-lg)'
                 }}>
-                  Sistema empresarial especializado
+                  {(system as any).description || 'Sistema empresarial'}
                 </p>
 
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem 1rem',
+                  gap: 'var(--gap-sm)',
+                  padding: 'var(--gap-sm) var(--gap-md)',
                   background: isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
                   borderRadius: '12px',
                   color: 'white',
@@ -858,85 +831,70 @@ export default function SistemasPage() {
                   {['vendas', 'estoque', 'rh'].includes(system.key) ? (
                     <>
                       <span>🚧 Em Breve</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
                     </>
                   ) : (
                     <>
                       <span>✅ Acessar Sistema</span>
-                      <span>→</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </>
                   )}
                 </div>
               </div>
             </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <footer className="card" style={{
+          textAlign: 'center',
+          background: 'var(--gradient-surface)',
+          borderTop: '2px solid var(--color-primary)',
+          borderRadius: '20px',
+          padding: 'var(--gap-xl)'
+        }}>
+          <div className="stack" style={{ gap: 'var(--gap-md)' }}>
+            <div className="row center" style={{ gap: 'var(--gap-lg)' }}>
+              <div className="badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" fill="currentColor" opacity="0.2"/>
+                </svg>
+                Deploy Instantâneo
+              </div>
+              <div className="badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="9" y1="9" x2="9.01" y2="9" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="15" y1="9" x2="15.01" y2="9" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Suporte 24/7
+              </div>
+            </div>
+
+            <div className="row center" style={{ gap: 'var(--gap-md)', fontSize: 'clamp(0.8rem, 1.5vw, 1rem)', color: 'var(--color-textSecondary)' }}>
+              <a href="/privacy" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '600' }}>
+                Política de Privacidade
+              </a>
+              <span>·</span>
+              <span style={{ fontWeight: '600' }}>v3.0.0</span>
+              <span>·</span>
+              <span>© {new Date().getFullYear()}</span>
+            </div>
+
+            <div style={{ fontSize: 'clamp(0.7rem, 1.3vw, 0.9rem)', color: 'var(--color-textSecondary)', opacity: 0.8 }}>
+              Desenvolvido com ❤️ usando Next.js + Firebase por ENY-GNA Lab
+              <br />
+              Global Network Architecture
+            </div>
+          </div>
+        </footer>
       </div>
-
-      {/* Footer */}
-      <footer style={{
-        textAlign: 'center',
-        background: 'rgba(255, 255, 255, 0.1)',
-        borderTop: '2px solid rgba(255, 255, 255, 0.2)',
-        borderRadius: '20px',
-        padding: '2rem'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '2rem',
-          marginBottom: '1rem',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>
-            ⚡ Deploy Instantâneo
-          </div>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
-          }}>
-            🛡️ Suporte 24/7
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '1rem',
-          fontSize: '0.9rem',
-          color: 'rgba(255, 255, 255, 0.8)',
-          flexWrap: 'wrap'
-        }}>
-          <a href="/privacy" style={{
-            color: 'rgba(255, 255, 255, 0.9)',
-            textDecoration: 'none',
-            fontWeight: '600'
-          }}>
-            Política de Privacidade
-          </a>
-          <span>·</span>
-          <span style={{ fontWeight: '600' }}>v3.0.0</span>
-          <span>·</span>
-          <span>© {new Date().getFullYear()}</span>
-        </div>
-
-        <div style={{
-          fontSize: '0.8rem',
-          color: 'rgba(255, 255, 255, 0.7)',
-          opacity: 0.8,
-          marginTop: '1rem'
-        }}>
-          Desenvolvido com ❤️ usando Next.js + Firebase
-          <br />
-          ENY-GNA Lab - Global Network Architecture
-        </div>
-      </footer>
-    </div>
-  );
+    );
 }
