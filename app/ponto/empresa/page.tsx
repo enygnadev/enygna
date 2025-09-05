@@ -2460,15 +2460,57 @@ O colaborador pode fazer login em /ponto/auth`);
       )}
 
       {/* TABELA DE COLABORADORES */}
-      {activeTab === "users" && hasAdminAccess(profile?.claims || null) && (
+      {activeTab === "users" && empresaId && (
         <div className="card" style={{ marginTop: 14, padding: 16 }}>
-          <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+            flexWrap: "wrap",
+            gap: 16
+          }}>
+            <h3 style={{
+              margin: 0,
+              fontSize: "1.25rem",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}>
+              <Icon name="users" size={20} />
+              Colaboradores ({users.length})
+            </h3>
+            
             <button
               className="button"
               onClick={() => setShowAddUserModal(true)}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "12px 20px",
+                background: "linear-gradient(135deg, #10b981, #059669)",
+                border: "none",
+                borderRadius: 12,
+                color: "white",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: "0 4px 16px rgba(16, 185, 129, 0.3)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 16px rgba(16, 185, 129, 0.3)";
+              }}
             >
-              <Icon name="plus" /> Adicionar colaborador
+              <Icon name="plus" size={16} />
+              Adicionar Colaborador
             </button>
           </div>
           <div style={{ overflowX: "auto" }}>
@@ -2821,8 +2863,8 @@ O colaborador pode fazer login em /ponto/auth`);
         </div>
       )}
 
-      {/* FAB (adicionar colaborador) - Responsivo */}
-      {activeTab === "users" && hasAdminAccess(profile?.claims || null) && (
+      {/* FAB (adicionar colaborador) - Responsivo - Backup mobile */}
+      {activeTab === "users" && empresaId && isMounted && windowWidth < 768 && (
         <div style={{
           position: "fixed",
           right: "clamp(16px, 4vw, 22px)",
