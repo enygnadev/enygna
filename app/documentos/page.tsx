@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ThemeSelector from '@/src/components/ThemeSelector';
 import EmpresaManager from '@/src/components/EmpresaManager';
 
-// Import dinâmlico do Firebase para evitar erros SSR
+// Import dinâmico do Firebase para evitar erros SSR
 let auth: any, db: any;
 let onAuthStateChanged: any, doc: any, getDoc: any, addDoc: any, collection: any, query: any, where: any, getDocs: any, orderBy: any, deleteDoc: any, updateDoc: any;
 
@@ -62,7 +62,6 @@ interface GeneratedDocument {
   data: Record<string, any>;
   createdAt: number;
   createdBy: string;
-  empresaId: string;
   htmlContent?: string;
   aiGenerated?: boolean;
 }
@@ -74,30 +73,13 @@ interface ChatMessage {
   timestamp: number;
 }
 
-interface UserData {
-  uid: string;
-  email: string;
-  role: string;
-  empresaId: string;
-  sistemasAtivos: string[];
-  ativo: boolean;
-  nome: string;
-  permissions?: {
-    isEmpresa?: boolean;
-    canAccessSystems?: string[];
-  };
-}
-
 export default function DocumentosPage() {
   const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [empresaData, setEmpresaData] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null); // State to store user role
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas'>('generator');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
-  const [indexStatus, setIndexStatus] = useState<'checking' | 'ready' | 'building'>('checking');
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [generatedContent, setGeneratedContent] = useState<string>('');
@@ -121,6 +103,7 @@ export default function DocumentosPage() {
 
     const initFirebase = async () => {
       try {
+        // Aguardar o carregamento do Firebase
         if (typeof window === 'undefined') return;
 
         const [firebase, authModule, firestoreModule] = await Promise.all([
@@ -132,6 +115,7 @@ export default function DocumentosPage() {
         if (!mounted) return;
 
         const authInstance = firebase.auth;
+        const dbInstance = firestoreModule; // Use firestoreModule directly for functions
 
         unsubscribe = authModule.onAuthStateChanged(authInstance, async (currentUser) => {
           if (!mounted) return;
@@ -139,155 +123,101 @@ export default function DocumentosPage() {
           try {
             if (currentUser) {
               console.log('🔍 Verificando acesso ao sistema documentos para:', currentUser.email);
-
-              // Buscar dados do usuário
-              const userDocRef = firestoreModule.doc(firebase.db, 'users', currentUser.uid);
+              
+              // 1. Primeiro verificar se existe na coleção documentos_users
+              const userDocRef = firestoreModule.doc(firebase.db, 'documentos_users', currentUser.uid);
               const userDoc = await firestoreModule.getDoc(userDocRef);
 
-              if (!userDoc.exists()) {
-                console.error('❌ Usuário não encontrado no sistema');
-                if (mounted) {
-                  window.location.href = '/documentos/auth';
-                }
-                return;
-              }
+              let hasAccess = false;
+              let userData = null;
 
-              const userDataFromDB = userDoc.data() as UserData;
-              console.log('📊 Dados do usuário encontrados:', userDataFromDB);
+              if (userDoc.exists() && userDoc.data()?.isActive) {
+                console.log('✅ Acesso encontrado na coleção documentos_users');
+                hasAccess = true;
+                userData = userDoc.data();
+              } else {
+                console.log('🔍 Não encontrado em documentos_users, verificando no sistema geral...');
+                
+                // 2. Verificar se o usuário existe na coleção 'users' principal
+                const mainUserDocRef = firestoreModule.doc(firebase.db, 'users', currentUser.uid);
+                const mainUserDoc = await firestoreModule.getDoc(mainUserDocRef);
 
-              // Verificar se o usuário está ativo
-              if (!userDataFromDB.ativo) {
-                console.error('❌ Usuário inativo');
-                if (mounted) {
-                  window.location.href = '/documentos/auth';
-                }
-                return;
-              }
+                if (mainUserDoc.exists()) {
+                  const mainUserData = mainUserDoc.data();
+                  console.log('📊 Dados do usuário encontrados:', mainUserData);
+                  
+                  // Verificar se tem acesso ao sistema de documentos
+                  const sistemasAtivos = mainUserData.sistemasAtivos || [];
+                  const hasDocumentosAccess = sistemasAtivos.includes('documentos');
+                  
+                  if (hasDocumentosAccess) {
+                    console.log('✅ Acesso encontrado no documento do usuário');
+                    hasAccess = true;
+                    userData = {
+                      role: mainUserData.role || 'colaborador',
+                      isActive: true,
+                      empresaId: mainUserData.empresaId,
+                      sistemasAtivos: sistemasAtivos
+                    };
 
-              // Verificar acesso ao sistema de documentos
-              const hasDocumentosAccess = userDataFromDB.sistemasAtivos?.includes('documentos') ||
-                                        userDataFromDB.permissions?.canAccessSystems?.includes('documentos') ||
-                                        userDataFromDB.role === 'superadmin' ||
-                                        userData.role === 'adminmaster';
-
-
-              if (!hasDocumentosAccess) {
-                console.error('❌ Usuário sem acesso ao sistema de documentos');
-                if (mounted) {
-                  window.location.href = '/documentos/auth';
-                }
-                return;
-              }
-
-              console.log('✅ Acesso ao sistema de documentos confirmado');
-
-              // Buscar dados da empresa se existir empresaId
-              let empresaInfo = null;
-              if (userDataFromDB.empresaId) {
-                try {
-                  const empresaDocRef = firestoreModule.doc(firebase.db, 'empresas', userDataFromDB.empresaId);
-                  const empresaDoc = await firestoreModule.getDoc(empresaDocRef);
-
-                  if (empresaDoc.exists()) {
-                    empresaInfo = { id: empresaDoc.id, ...empresaDoc.data() };
-                    console.log('🏢 Dados da empresa carregados:', empresaInfo);
+                    // Criar entrada na coleção documentos_users para futuras consultas
+                    try {
+                      await firestoreModule.setDoc(userDocRef, {
+                        uid: currentUser.uid,
+                        email: currentUser.email,
+                        role: userData.role,
+                        isActive: true,
+                        empresaId: userData.empresaId,
+                        createdAt: new Date(),
+                        source: 'empresa_admin'
+                      });
+                      console.log('✅ Entrada criada em documentos_users');
+                    } catch (createError) {
+                      console.log('⚠️ Erro ao criar entrada em documentos_users:', createError);
+                    }
+                  } else {
+                    console.log('❌ Sistema documentos não está ativo para este usuário');
                   }
-                } catch (error) {
-                  console.warn('⚠️ Erro ao carregar dados da empresa:', error);
+                } else {
+                  console.log('❌ Usuário não encontrado no sistema principal');
                 }
               }
 
-              if (mounted) {
+              if (hasAccess && mounted) {
                 setUser(currentUser);
-                setUserData(userDataFromDB);
-                setEmpresaData(empresaInfo);
+                setUserRole(userData?.role || null);
 
                 // Carregar templates com fallback para templates locais
                 try {
-                  console.log('🔧 Carregando templates...');
+                  const templatesQuery = firestoreModule.query(
+                    firestoreModule.collection(firebase.db, 'document_templates'),
+                    firestoreModule.orderBy('name', 'asc')
+                  );
+                  const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
+                  const templatesData = templatesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                  }));
 
-                  // Tentar query com índice primeiro
-                  let templatesData: any[] = [];
-                  let useLocalTemplates = false;
-
-                  try {
-                    const templatesQuery = query(
-                      collection(firestoreModule.db, 'document_templates'),
-                      where('empresaId', '==', userDataFromDB.empresaId),
-                      orderBy('name')
-                    );
-
-                    console.log('📋 Query de templates criada');
-
-                    if (!getDocs || !query || !where || !orderBy || !collection) {
-                      console.error('Módulos do Firestore não carregados');
-                      useLocalTemplates = true;
-                    } else {
-                      const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
-                      templatesData = templatesSnapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                      }));
-                    }
-                  } catch (indexError: any) {
-                    console.warn('Índice ainda sendo criado, usando query alternativa:', indexError.message);
-
-                    // Fallback: carregar todos os templates e filtrar no cliente
-                    try {
-                      const allTemplatesQuery = query(
-                        collection(firestoreModule.db, 'document_templates')
-                      );
-
-                      const allTemplatesSnapshot = await firestoreModule.getDocs(allTemplatesQuery);
-                      const allTemplates = allTemplatesSnapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                      }));
-
-                      // Filtrar e ordenar no cliente
-                      templatesData = allTemplates
-                        .filter((template: any) => template.empresaId === userDataFromDB.empresaId)
-                        .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
-
-                      console.log('✅ Templates carregados com query alternativa');
-                    } catch (fallbackError) {
-                      console.error('Erro mesmo com query alternativa:', fallbackError);
-                      useLocalTemplates = true;
-                    }
-                  }
-
-                  // Se não há templates no Firestore ou erro, usar templates locais
-                  if (useLocalTemplates || templatesData.length === 0) {
-                    console.log('📝 Usando templates locais como fallback');
+                  // Se não há templates no Firestore, usar templates locais
+                  if (templatesData.length === 0) {
                     setTemplates(getLocalTemplates());
                   } else {
                     setTemplates(templatesData as DocumentTemplate[]);
                   }
                 } catch (error) {
-                  console.error('Erro geral ao carregar templates:', error);
+                  console.error('Erro ao carregar templates:', error);
+                  // Usar templates locais como fallback
                   setTemplates(getLocalTemplates());
                 }
 
-                // Carregar documentos do usuário
+                // Carregar documentos com tratamento de erro melhorado
                 try {
-                  let documentsQuery;
-
-                  if (userDataFromDB.empresaId) {
-                    // Buscar documentos da empresa
-                    documentsQuery = firestoreModule.query(
-                      firestoreModule.collection(firebase.db, 'generated_documents'),
-                      firestoreModule.where('empresaId', '==', userDataFromDB.empresaId),
-                      firestoreModule.orderBy('createdAt', 'desc')
-                    );
-                  } else {
-                    // Buscar documentos do usuário
-                    documentsQuery = firestoreModule.query(
-                      firestoreModule.collection(firebase.db, 'generated_documents'),
-                      firestoreModule.where('createdBy', '==', currentUser.uid),
-                      firestoreModule.orderBy('createdAt', 'desc')
-                    );
-                  }
-
+                  const documentsQuery = firestoreModule.query(
+                    firestoreModule.collection(firebase.db, 'generated_documents'),
+                    firestoreModule.where('createdBy', '==', currentUser.uid),
+                    firestoreModule.orderBy('createdAt', 'desc')
+                  );
                   const documentsSnapshot = await firestoreModule.getDocs(documentsQuery);
                   const documentsData = documentsSnapshot.docs.map((doc: any) => ({
                     id: doc.id,
@@ -300,9 +230,16 @@ export default function DocumentosPage() {
                 }
 
                 initializeChatWelcome();
+              } else {
+                // Se não tem acesso, redirecionar para autenticação
+                console.log('❌ Acesso negado, redirecionando para autenticação');
+                if (mounted) {
+                  window.location.href = '/documentos/auth';
+                }
+                return;
               }
             } else {
-              console.log('❌ Usuário não autenticado');
+              // Usuário não autenticado
               if (mounted) {
                 window.location.href = '/documentos/auth';
               }
@@ -311,6 +248,7 @@ export default function DocumentosPage() {
           } catch (error) {
             console.error('Erro ao verificar acesso do usuário:', error);
             if (mounted) {
+              // Em caso de erro, redirecionar para autenticação
               window.location.href = '/documentos/auth';
             }
             return;
@@ -346,7 +284,7 @@ export default function DocumentosPage() {
     setChatMessages([{
       id: '1',
       role: 'assistant',
-      content: `👋 Olá${userData?.nome ? `, ${userData.nome}` : ''}! Sou seu assistente inteligente para geração de documentos.
+      content: `👋 Olá! Sou seu assistente inteligente para geração de documentos.
 
 Posso ajudar você a:
 • 📝 Criar qualquer tipo de documento
@@ -418,6 +356,84 @@ ________________________`,
         updatedAt: Date.now()
       },
       {
+        id: 'procuracao-publica',
+        name: 'Procuração Pública',
+        type: 'custom',
+        description: 'Procuração com poderes amplos para cartório',
+        fields: [
+          { name: 'outorgante_cpf', label: 'CPF/CNPJ do Outorgante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'outorgante_nome', label: 'Nome do Outorgante', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'outorgante_nacionalidade', label: 'Nacionalidade', type: 'text', required: true, placeholder: 'brasileiro' },
+          { name: 'outorgante_estado_civil', label: 'Estado Civil', type: 'select', required: true, options: ['solteiro(a)', 'casado(a)', 'divorciado(a)', 'viúvo(a)'] },
+          { name: 'outorgante_profissao', label: 'Profissão', type: 'text', required: true, placeholder: 'Engenheiro' },
+          { name: 'outorgante_rg', label: 'RG', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'outorgante_endereco', label: 'Endereço', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'procurador_cpf', label: 'CPF do Procurador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'procurador_nome', label: 'Nome do Procurador', type: 'text', required: true, placeholder: 'Maria Santos Silva' },
+          { name: 'procurador_endereco', label: 'Endereço do Procurador', type: 'text', required: true, placeholder: 'Avenida Central, 456' },
+          { name: 'poderes_especificos', label: 'Poderes Específicos', type: 'textarea', required: true, placeholder: 'Descreva os poderes outorgados' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `PROCURAÇÃO PÚBLICA
+
+Saibam quantos este público instrumento de procuração bastante virem que, no ano de {{data_atual}}, nesta cidade de {{cidade}}, perante mim, Tabelião, compareceu {{outorgante_nome}}, {{outorgante_nacionalidade}}, {{outorgante_estado_civil}}, {{outorgante_profissao}}, portador(a) do RG nº {{outorgante_rg}} e CPF nº {{outorgante_cpf}}, residente e domiciliado(a) à {{outorgante_endereco}}, como outorgante, que nomeia e constitui seu bastante procurador {{procurador_nome}}, residente à {{procurador_endereco}}, portador do CPF nº {{procurador_cpf}}, para os seguintes fins:
+
+{{poderes_especificos}}
+
+Esta procuração terá validade por 01 (um) ano a contar desta data, podendo ser revogada a qualquer tempo por declaração expressa do outorgante.
+
+Do que, para constar, lavrei a presente procuração.
+
+{{cidade}}, {{data_atual}}
+
+_________________________________
+Tabelião`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'termo-confidencialidade',
+        name: 'Termo de Confidencialidade (NDA)',
+        type: 'custom',
+        description: 'Acordo de confidencialidade para proteção de informações',
+        fields: [
+          { name: 'parte1_cnpj_cpf', label: 'CNPJ/CPF da Parte 1', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'parte1_nome', label: 'Nome/Razão Social da Parte 1', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'parte1_endereco', label: 'Endereço da Parte 1', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'parte2_cnpj_cpf', label: 'CNPJ/CPF da Parte 2', type: 'text', required: true, placeholder: '98.765.432/0001-10' },
+          { name: 'parte2_nome', label: 'Nome/Razão Social da Parte 2', type: 'text', required: true, placeholder: 'Tech Solutions S.A.' },
+          { name: 'parte2_endereco', label: 'Endereço da Parte 2', type: 'text', required: true, placeholder: 'Av. Tecnologia, 200' },
+          { name: 'objeto_confidencialidade', label: 'Objeto da Confidencialidade', type: 'textarea', required: true, placeholder: 'Descreva as informações confidenciais' },
+          { name: 'prazo_anos', label: 'Prazo de Vigência (anos)', type: 'number', required: true, placeholder: '5' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `TERMO DE CONFIDENCIALIDADE (NDA)
+
+PARTES:
+PARTE 1: {{parte1_nome}}, inscrita no CNPJ/CPF nº {{parte1_cnpj_cpf}}, com sede à {{parte1_endereco}}
+PARTE 2: {{parte2_nome}}, inscrita no CNPJ/CPF nº {{parte2_cnpj_cpf}}, com sede à {{parte2_endereco}}
+
+OBJETO: As partes acordam manter sigilo absoluto sobre: {{objeto_confidencialidade}}
+
+OBRIGAÇÕES:
+1. Não divulgar informações confidenciais a terceiros
+2. Utilizar informações apenas para fins acordados
+3. Devolver ou destruir documentos confidenciais ao término
+
+PRAZO: {{prazo_anos}} anos a partir desta data
+
+PENALIDADES: Multa de R$ 50.000,00 por quebra de confidencialidade
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    {{parte1_nome}}              {{parte2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== COMERCIAL =====
+      {
         id: 'contrato-servicos',
         name: 'Contrato de Prestação de Serviços',
         type: 'contract',
@@ -426,9 +442,11 @@ ________________________`,
           { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
           { name: 'contratante_nome', label: 'Nome/Razão Social do Contratante', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
           { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'contratante_telefone', label: 'Telefone do Contratante', type: 'text', required: false, placeholder: '(11) 99999-9999' },
           { name: 'contratado_cnpj_cpf', label: 'CNPJ/CPF do Contratado', type: 'text', required: true, placeholder: '987.654.321-00' },
           { name: 'contratado_nome', label: 'Nome/Razão Social do Contratado', type: 'text', required: true, placeholder: 'João Silva' },
           { name: 'contratado_endereco', label: 'Endereço do Contratado', type: 'text', required: true, placeholder: 'Rua dos Prestadores, 50' },
+          { name: 'contratado_telefone', label: 'Telefone do Contratado', type: 'text', required: false, placeholder: '(11) 88888-8888' },
           { name: 'objeto', label: 'Objeto do Contrato', type: 'textarea', required: true, placeholder: 'Prestação de serviços de...' },
           { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '12' },
           { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
@@ -465,6 +483,221 @@ _____________________          _____________________
         updatedAt: Date.now()
       },
       {
+        id: 'contrato-compra-venda',
+        name: 'Contrato de Compra e Venda',
+        type: 'contract',
+        description: 'Contrato para compra e venda de bens',
+        fields: [
+          { name: 'vendedor_cnpj_cpf', label: 'CNPJ/CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cnpj_cpf', label: 'CNPJ/CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'bem_descricao', label: 'Descrição do Bem', type: 'textarea', required: true, placeholder: 'Veículo marca X, modelo Y...' },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '50.000,00' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'textarea', required: true, placeholder: 'À vista, parcelado...' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE COMPRA E VENDA
+
+VENDEDOR: {{vendedor_nome}}, inscrito no CPF/CNPJ nº {{vendedor_cnpj_cpf}}, residente à {{vendedor_endereco}}
+
+COMPRADOR: {{comprador_nome}}, inscrito no CPF/CNPJ nº {{comprador_cnpj_cpf}}, residente à {{comprador_endereco}}
+
+OBJETO: O vendedor vende ao comprador o seguinte bem: {{bem_descricao}}
+
+PREÇO: O valor total da venda é de R$ {{valor_venda}}.
+
+PAGAMENTO: {{forma_pagamento}}
+
+ENTREGA: O bem será entregue no ato da assinatura deste contrato.
+
+GARANTIAS: O vendedor garante a propriedade do bem e ausência de ônus.
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     VENDEDOR                    COMPRADOR`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'contrato-locacao',
+        name: 'Contrato de Locação',
+        type: 'contract',
+        description: 'Contrato de locação residencial ou comercial',
+        fields: [
+          { name: 'locador_cnpj_cpf', label: 'CNPJ/CPF do Locador', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'locador_nome', label: 'Nome do Locador', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'locador_endereco', label: 'Endereço do Locador', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'locatario_cnpj_cpf', label: 'CNPJ/CPF do Locatário', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'locatario_nome', label: 'Nome do Locatário', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'locatario_endereco', label: 'Endereço do Locatário', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'imovel_endereco', label: 'Endereço do Imóvel', type: 'text', required: true, placeholder: 'Rua dos Inquilinos, 789' },
+          { name: 'imovel_tipo', label: 'Tipo do Imóvel', type: 'select', required: true, options: ['Residencial', 'Comercial', 'Sala', 'Apartamento', 'Casa'] },
+          { name: 'valor_aluguel', label: 'Valor do Aluguel (R$)', type: 'text', required: true, placeholder: '2.500,00' },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '30' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE LOCAÇÃO
+
+LOCADOR: {{locador_nome}}, inscrito no CPF/CNPJ {{locador_cnpj_cpf}}, residente à {{locador_endereco}}
+
+LOCATÁRIO: {{locatario_nome}}, inscrito no CPF/CNPJ {{locatario_cnpj_cpf}}, residente à {{locatario_endereco}}
+
+IMÓVEL: {{imovel_tipo}} localizado à {{imovel_endereco}}
+
+PRAZO: {{prazo_meses}} meses, iniciando em {{data_inicio}}
+
+VALOR: R$ {{valor_aluguel}} mensais, vencimento dia 10
+
+OBRIGAÇÕES:
+- Locatário: pagar pontualmente, conservar o imóvel
+- Locador: garantir uso pacífico do imóvel
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     LOCADOR                    LOCATÁRIO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== RECURSOS HUMANOS =====
+      {
+        id: 'contrato-trabalho-clt',
+        name: 'Contrato de Trabalho CLT',
+        type: 'contract',
+        description: 'Contrato de trabalho pela CLT',
+        fields: [
+          { name: 'empregador_cnpj', label: 'CNPJ do Empregador', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empregador_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'empregador_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'empregado_cpf', label: 'CPF do Empregado', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'empregado_nome', label: 'Nome do Empregado', type: 'text', required: true, placeholder: 'João Silva Santos' },
+          { name: 'empregado_endereco', label: 'Endereço do Empregado', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'empregado_rg', label: 'RG do Empregado', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'cargo', label: 'Cargo', type: 'text', required: true, placeholder: 'Analista de Sistemas' },
+          { name: 'salario', label: 'Salário (R$)', type: 'text', required: true, placeholder: '5.000,00' },
+          { name: 'jornada', label: 'Jornada de Trabalho', type: 'text', required: true, placeholder: '44 horas semanais' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE TRABALHO
+
+EMPREGADOR: {{empregador_nome}}, CNPJ {{empregador_cnpj}}, com sede à {{empregador_endereco}}
+
+EMPREGADO: {{empregado_nome}}, CPF {{empregado_cpf}}, RG {{empregado_rg}}, residente à {{empregado_endereco}}
+
+CARGO: {{cargo}}
+
+SALÁRIO: R$ {{salario}} mensais
+
+JORNADA: {{jornada}}
+
+INÍCIO: {{data_inicio}}
+
+OBRIGAÇÕES: Cumprimento da CLT e regulamentos internos
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    EMPREGADOR                  EMPREGADO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: 'contrato-estagio',
+        name: 'Contrato de Estágio',
+        type: 'contract',
+        description: 'Contrato de estágio curricular',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 100' },
+          { name: 'estagiario_cpf', label: 'CPF do Estagiário', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'estagiario_nome', label: 'Nome do Estagiário', type: 'text', required: true, placeholder: 'Ana Silva' },
+          { name: 'estagiario_endereco', label: 'Endereço do Estagiário', type: 'text', required: true, placeholder: 'Rua Estudante, 789' },
+          { name: 'instituicao_ensino', label: 'Instituição de Ensino', type: 'text', required: true, placeholder: 'Universidade XYZ' },
+          { name: 'curso', label: 'Curso', type: 'text', required: true, placeholder: 'Administração' },
+          { name: 'valor_bolsa', label: 'Valor da Bolsa (R$)', type: 'text', required: true, placeholder: '800,00' },
+          { name: 'carga_horaria', label: 'Carga Horária Semanal', type: 'text', required: true, placeholder: '30 horas' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'data_fim', label: 'Data de Término', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE ESTÁGIO
+
+CONCEDENTE: {{empresa_nome}}, CNPJ {{empresa_cnpj}}, com sede à {{empresa_endereco}}
+
+ESTAGIÁRIO: {{estagiario_nome}}, CPF {{estagiario_cpf}}, estudante de {{curso}} na {{instituicao_ensino}}, residente à {{estagiario_endereco}}
+
+PERÍODO: {{data_inicio}} a {{data_fim}}
+
+CARGA HORÁRIA: {{carga_horaria}}
+
+BOLSA-AUXÍLIO: R$ {{valor_bolsa}} mensais
+
+ATIVIDADES: Relacionadas ao curso de {{curso}}
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+    CONCEDENTE                  ESTAGIÁRIO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== VEICULAR =====
+      {
+        id: 'contrato-compra-venda-veiculo',
+        name: 'Contrato de Compra e Venda de Veículo',
+        type: 'contract',
+        description: 'Contrato específico para venda de veículos',
+        fields: [
+          { name: 'vendedor_cpf', label: 'CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cpf', label: 'CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'veiculo_marca', label: 'Marca do Veículo', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_ano', label: 'Ano', type: 'text', required: true, placeholder: '2020' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'veiculo_chassi', label: 'Chassi', type: 'text', required: true, placeholder: '9BWHE21JX24060831' },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '45.000,00' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE COMPRA E VENDA DE VEÍCULO
+
+VENDEDOR: {{vendedor_nome}}, CPF {{vendedor_cpf}}, residente à {{vendedor_endereco}}
+
+COMPRADOR: {{comprador_nome}}, CPF {{comprador_cpf}}, residente à {{comprador_endereco}}
+
+VEÍCULO:
+- Marca: {{veiculo_marca}}
+- Modelo: {{veiculo_modelo}}
+- Ano: {{veiculo_ano}}
+- Placa: {{veiculo_placa}}
+- Chassi: {{veiculo_chassi}}
+
+VALOR: R$ {{valor_venda}}
+
+CONDIÇÕES: Veículo vendido no estado em que se encontra
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+     VENDEDOR                    COMPRADOR`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== FISCAL/CONTÁBIL =====
+      {
         id: 'declaracao-renda',
         name: 'Declaração de Renda',
         type: 'certificate',
@@ -496,6 +729,39 @@ CPF: {{cpf}}`,
         updatedAt: Date.now()
       },
       {
+        id: 'declaracao-residencia',
+        name: 'Declaração de Residência',
+        type: 'certificate',
+        description: 'Declaração de residência',
+        fields: [
+          { name: 'declarante_cpf', label: 'CPF do Declarante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'declarante_nome', label: 'Nome do Declarante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'declarante_rg', label: 'RG do Declarante', type: 'text', required: true, placeholder: '12.345.678-9' },
+          { name: 'residente_cpf', label: 'CPF do Residente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'residente_nome', label: 'Nome do Residente', type: 'text', required: true, placeholder: 'Maria Silva' },
+          { name: 'endereco_residencia', label: 'Endereço da Residência', type: 'text', required: true, placeholder: 'Rua das Flores, 123' },
+          { name: 'tempo_residencia', label: 'Tempo de Residência', type: 'text', required: true, placeholder: '2 anos' },
+          { name: 'finalidade', label: 'Finalidade', type: 'text', required: true, placeholder: 'Comprovação de endereço' }
+        ],
+        template: `DECLARAÇÃO DE RESIDÊNCIA
+
+Eu, {{declarante_nome}}, portador do CPF {{declarante_cpf}} e RG {{declarante_rg}}, DECLARO sob as penas da lei que {{residente_nome}}, portador do CPF {{residente_cpf}}, reside no endereço {{endereco_residencia}} há {{tempo_residencia}}.
+
+Esta declaração é feita para fins de {{finalidade}}.
+
+Por ser verdade, firmo a presente.
+
+{{data_atual}}
+
+_________________________________
+{{declarante_nome}}
+Declarante`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== FINANCEIRO =====
+      {
         id: 'recibo-pagamento',
         name: 'Recibo de Pagamento',
         type: 'form',
@@ -525,29 +791,539 @@ _________________________________
 Recebedor`,
         createdAt: Date.now(),
         updatedAt: Date.now()
+      },
+
+      // ===== CONSTRUÇÃO CIVIL =====
+      {
+        id: 'contrato-construcao',
+        name: 'Contrato de Prestação de Serviços de Construção',
+        type: 'contract',
+        description: 'Contrato para serviços de construção civil',
+        fields: [
+          { name: 'contratante_cnpj_cpf', label: 'CNPJ/CPF do Contratante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'contratante_nome', label: 'Nome do Contratante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'contratante_endereco', label: 'Endereço do Contratante', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'construtor_cnpj_cpf', label: 'CNPJ/CPF do Construtor', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'construtor_nome', label: 'Nome/Razão Social do Construtor', type: 'text', required: true, placeholder: 'Construtora ABC Ltda' },
+          { name: 'construtor_endereco', label: 'Endereço do Construtor', type: 'text', required: true, placeholder: 'Rua Construção, 456' },
+          { name: 'engenheiro_nome', label: 'Nome do Engenheiro Responsável', type: 'text', required: true, placeholder: 'Eng. Carlos Santos' },
+          { name: 'crea_numero', label: 'CREA', type: 'text', required: true, placeholder: 'CREA 123456' },
+          { name: 'obra_endereco', label: 'Endereço da Obra', type: 'text', required: true, placeholder: 'Rua da Obra, 789' },
+          { name: 'tipo_obra', label: 'Tipo de Obra', type: 'select', required: true, options: ['Construção', 'Reforma', 'Ampliação', 'Demolição'] },
+          { name: 'valor_obra', label: 'Valor da Obra (R$)', type: 'text', required: true, placeholder: '150.000,00' },
+          { name: 'prazo_meses', label: 'Prazo (meses)', type: 'number', required: true, placeholder: '6' },
+          { name: 'data_inicio', label: 'Data de Início', type: 'date', required: true },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CONSTRUÇÃO
+
+CONTRATANTE: {{contratante_nome}}, CPF/CNPJ {{contratante_cnpj_cpf}}, residente à {{contratante_endereco}}
+
+CONTRATADO: {{construtor_nome}}, CNPJ/CPF {{construtor_cnpj_cpf}}, com sede à {{construtor_endereco}}
+
+RESPONSÁVEL TÉCNICO: {{engenheiro_nome}}, {{crea_numero}}
+
+OBRA: {{tipo_obra}} no endereço {{obra_endereco}}
+
+VALOR: R$ {{valor_obra}}
+
+PRAZO: {{prazo_meses}} meses a partir de {{data_inicio}}
+
+RESPONSABILIDADES:
+- Fornecimento de materiais e mão de obra
+- Cumprimento de normas técnicas e ambientais
+- Entrega conforme projeto aprovado
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+   CONTRATANTE                  CONTRATADO`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== E-COMMERCE/DIGITAL =====
+      {
+        id: 'termos-uso-lgpd',
+        name: 'Termos de Uso e Política de Privacidade (LGPD)',
+        type: 'custom',
+        description: 'Termos de uso conforme LGPD',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Digital, 123' },
+          { name: 'site_url', label: 'URL do Site', type: 'text', required: true, placeholder: 'www.exemplo.com.br' },
+          { name: 'email_contato', label: 'Email de Contato', type: 'text', required: true, placeholder: 'contato@exemplo.com.br' },
+          { name: 'dpo_nome', label: 'Nome do DPO', type: 'text', required: false, placeholder: 'Ana Silva (opcional)' },
+          { name: 'dpo_email', label: 'Email do DPO', type: 'text', required: false, placeholder: 'dpo@exemplo.com.br' }
+        ],
+        template: `TERMOS DE USO E POLÍTICA DE PRIVACIDADE
+
+{{empresa_nome}}, CNPJ {{empresa_cnpj}}, situada à {{empresa_endereco}}, estabelece os seguintes termos para uso do site {{site_url}}:
+
+1. ACEITAÇÃO DOS TERMOS
+Ao acessar nosso site, você concorda com estes termos.
+
+2. COLETA DE DADOS (LGPD)
+Coletamos apenas dados necessários para prestação dos serviços, conforme Lei Geral de Proteção de Dados.
+
+3. USO DOS DADOS
+Seus dados são utilizados exclusivamente para:
+- Prestação de serviços contratados
+- Comunicação sobre nossos serviços
+- Cumprimento de obrigações legais
+
+4. DIREITOS DO TITULAR
+Você pode solicitar acesso, correção ou exclusão de seus dados através do email {{email_contato}}.
+
+5. ENCARREGADO DE DADOS
+{{dpo_nome}} - {{dpo_email}}
+
+6. CONTATO
+Para dúvidas: {{email_contato}}
+
+Última atualização: {{data_atual}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== SAÚDE/EDUCAÇÃO =====
+      {
+        id: 'atestado-medico',
+        name: 'Atestado Médico',
+        type: 'certificate',
+        description: 'Atestado médico para afastamento',
+        fields: [
+          { name: 'medico_nome', label: 'Nome do Médico', type: 'text', required: true, placeholder: 'Dr. Carlos Silva' },
+          { name: 'medico_crm', label: 'CRM', type: 'text', required: true, placeholder: 'CRM 123456-SP' },
+          { name: 'medico_especialidade', label: 'Especialidade', type: 'text', required: true, placeholder: 'Clínico Geral' },
+          { name: 'paciente_cpf', label: 'CPF do Paciente', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'paciente_nome', label: 'Nome do Paciente', type: 'text', required: true, placeholder: 'João Santos' },
+          { name: 'dias_afastamento', label: 'Dias de Afastamento', type: 'number', required: true, placeholder: '3' },
+          { name: 'cid', label: 'CID (opcional)', type: 'text', required: false, placeholder: 'Z76.1' },
+          { name: 'observacoes', label: 'Observações', type: 'textarea', required: false, placeholder: 'Repouso absoluto' }
+        ],
+        template: `ATESTADO MÉDICO
+
+Atesto para os devidos fins que o(a) paciente {{paciente_nome}}, portador(a) do CPF {{paciente_cpf}}, esteve sob meus cuidados médicos e deverá afastar-se de suas atividades laborais pelo período de {{dias_afastamento}} dias, a contar de {{data_atual}}.
+
+{{cid}}
+
+{{observacoes}}
+
+{{data_atual}}
+
+_____________________
+{{medico_nome}}
+{{medico_especialidade}}
+{{medico_crm}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== UNIÃO ESTÁVEL/DEPENDÊNCIA =====
+      {
+        id: 'declaracao-uniao-estavel',
+        name: 'Declaração de União Estável',
+        type: 'certificate',
+        description: 'Declaração de união estável',
+        fields: [
+          { name: 'companheiro1_cpf', label: 'CPF do Companheiro 1', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'companheiro1_nome', label: 'Nome do Companheiro 1', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'companheiro1_profissao', label: 'Profissão do Companheiro 1', type: 'text', required: true, placeholder: 'Engenheiro' },
+          { name: 'companheiro1_endereco', label: 'Endereço do Companheiro 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'companheiro2_cpf', label: 'CPF do Companheiro 2', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'companheiro2_nome', label: 'Nome do Companheiro 2', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'companheiro2_profissao', label: 'Profissão do Companheiro 2', type: 'text', required: true, placeholder: 'Professora' },
+          { name: 'companheiro2_endereco', label: 'Endereço do Companheiro 2', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'data_inicio_uniao', label: 'Data do Início da União', type: 'date', required: true },
+          { name: 'testemunha1_nome', label: 'Nome da Testemunha 1', type: 'text', required: true, placeholder: 'Carlos Souza' },
+          { name: 'testemunha1_cpf', label: 'CPF da Testemunha 1', type: 'text', required: true, placeholder: '111.222.333-44' },
+          { name: 'testemunha2_nome', label: 'Nome da Testemunha 2', type: 'text', required: true, placeholder: 'Ana Costa' },
+          { name: 'testemunha2_cpf', label: 'CPF da Testemunha 2', type: 'text', required: true, placeholder: '555.666.777-88' }
+        ],
+        template: `DECLARAÇÃO DE UNIÃO ESTÁVEL
+
+Declaramos que {{companheiro1_nome}}, {{companheiro1_profissao}}, CPF {{companheiro1_cpf}}, residente à {{companheiro1_endereco}}, e {{companheiro2_nome}}, {{companheiro2_profissao}}, CPF {{companheiro2_cpf}}, residente à {{companheiro2_endereco}}, vivem em união estável desde {{data_inicio_uniao}}, constituindo família nos moldes do art. 1.723 do Código Civil.
+
+A presente declaração é feita para todos os fins de direito.
+
+{{data_atual}}
+
+_____________________          _____________________
+{{companheiro1_nome}}          {{companheiro2_nome}}
+
+TESTEMUNHAS:
+___________________________    ___________________________
+{{testemunha1_nome}}           {{testemunha2_nome}}
+CPF: {{testemunha1_cpf}}       CPF: {{testemunha2_cpf}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== SEGUROS =====
+      {
+        id: 'comunicacao-sinistro',
+        name: 'Comunicação de Sinistro',
+        type: 'report',
+        description: 'Comunicação de sinistro para seguradora',
+        fields: [
+          { name: 'segurado_cpf', label: 'CPF do Segurado', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'segurado_nome', label: 'Nome do Segurado', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'segurado_endereco', label: 'Endereço do Segurado', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'segurado_telefone', label: 'Telefone do Segurado', type: 'text', required: true, placeholder: '(11) 99999-9999' },
+          { name: 'apolice_numero', label: 'Número da Apólice', type: 'text', required: true, placeholder: '12345678' },
+          { name: 'seguradora_nome', label: 'Nome da Seguradora', type: 'text', required: true, placeholder: 'Seguradora XYZ S.A.' },
+          { name: 'data_sinistro', label: 'Data do Sinistro', type: 'date', required: true },
+          { name: 'local_sinistro', label: 'Local do Sinistro', type: 'text', required: true, placeholder: 'Av. Paulista, 1000' },
+          { name: 'descricao_sinistro', label: 'Descrição do Sinistro', type: 'textarea', required: true, placeholder: 'Descreva o que aconteceu...' },
+          { name: 'danos_estimados', label: 'Danos Estimados (R$)', type: 'text', required: false, placeholder: '5.000,00' }
+        ],
+        template: `COMUNICAÇÃO DE SINISTRO
+
+À {{seguradora_nome}}
+
+SEGURADO: {{segurado_nome}}, CPF {{segurado_cpf}}
+ENDEREÇO: {{segurado_endereco}}
+TELEFONE: {{segurado_telefone}}
+APÓLICE: {{apolice_numero}}
+
+DADOS DO SINISTRO:
+Data: {{data_sinistro}}
+Local: {{local_sinistro}}
+
+DESCRIÇÃO DOS FATOS:
+{{descricao_sinistro}}
+
+DANOS ESTIMADOS: R$ {{danos_estimados}}
+
+Solicito a abertura do processo de sinistro conforme contrato.
+
+{{data_atual}}
+
+_________________________________
+{{segurado_nome}}
+Segurado`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== TERMO DE RESPONSABILIDADE =====
+      {
+        id: 'termo-responsabilidade-veiculo',
+        name: 'Termo de Responsabilidade - Uso de Veículo',
+        type: 'custom',
+        description: 'Termo para uso responsável de veículo da empresa',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Empresa ABC Ltda' },
+          { name: 'funcionario_cpf', label: 'CPF do Funcionário', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'funcionario_nome', label: 'Nome do Funcionário', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'funcionario_endereco', label: 'Endereço do Funcionário', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'veiculo_marca', label: 'Marca do Veículo', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'finalidade_uso', label: 'Finalidade do Uso', type: 'text', required: true, placeholder: 'Serviços externos da empresa' }
+        ],
+        template: `TERMO DE RESPONSABILIDADE - USO DE VEÍCULO
+
+{{empresa_nome}}, CNPJ {{empresa_cnpj}}, autoriza {{funcionario_nome}}, CPF {{funcionario_cpf}}, residente à {{funcionario_endereco}}, a utilizar o veículo {{veiculo_marca}} {{veiculo_modelo}}, placa {{veiculo_placa}}, para {{finalidade_uso}}.
+
+RESPONSABILIDADES DO USUÁRIO:
+- Usar o veículo apenas para fins autorizados
+- Manter carteira de habilitação válida
+- Comunicar imediatamente acidentes ou problemas
+- Zelar pela conservação do veículo
+- Responsabilizar-se por multas de trânsito
+
+RESPONSABILIDADES DA EMPRESA:
+- Manter seguro e documentação em dia
+- Arcar com manutenção preventiva
+
+{{data_atual}}
+
+_____________________          _____________________
+   {{empresa_nome}}            {{funcionario_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== CONTRATO SOCIAL (CONSTITUIÇÃO) =====
+      {
+        id: 'contrato-social-ltda',
+        name: 'Contrato Social - LTDA',
+        type: 'contract',
+        description: 'Contrato social para sociedade limitada',
+        fields: [
+          { name: 'socio1_cpf', label: 'CPF do Sócio 1', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'socio1_nome', label: 'Nome do Sócio 1', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'socio1_endereco', label: 'Endereço do Sócio 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'socio1_participacao', label: 'Participação do Sócio 1 (%)', type: 'number', required: true, placeholder: '70' },
+          { name: 'socio2_cpf', label: 'CPF do Sócio 2', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'socio2_nome', label: 'Nome do Sócio 2', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'socio2_endereco', label: 'Endereço do Sócio 2', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'socio2_participacao', label: 'Participação do Sócio 2 (%)', type: 'number', required: true, placeholder: '30' },
+          { name: 'empresa_nome', label: 'Nome da Empresa', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 789' },
+          { name: 'objeto_social', label: 'Objeto Social', type: 'textarea', required: true, placeholder: 'Desenvolvimento de software...' },
+          { name: 'capital_social', label: 'Capital Social (R$)', type: 'text', required: true, placeholder: '100.000,00' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `CONTRATO SOCIAL
+
+SÓCIOS:
+{{socio1_nome}}, CPF {{socio1_cpf}}, residente à {{socio1_endereco}} - {{socio1_participacao}}%
+{{socio2_nome}}, CPF {{socio2_cpf}}, residente à {{socio2_endereco}} - {{socio2_participacao}}%
+
+DENOMINAÇÃO: {{empresa_nome}}
+
+SEDE: {{empresa_endereco}}
+
+OBJETO SOCIAL: {{objeto_social}}
+
+CAPITAL SOCIAL: R$ {{capital_social}}, dividido em quotas
+
+ADMINISTRAÇÃO: Todos os sócios podem administrar
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+  {{socio1_nome}}              {{socio2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== ACORDOS COMERCIAIS =====
+      {
+        id: 'acordo-parceria',
+        name: 'Acordo de Parceria Comercial',
+        type: 'contract',
+        description: 'Acordo para parceria entre empresas',
+        fields: [
+          { name: 'empresa1_cnpj', label: 'CNPJ da Empresa 1', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa1_nome', label: 'Razão Social da Empresa 1', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa1_endereco', label: 'Endereço da Empresa 1', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'empresa2_cnpj', label: 'CNPJ da Empresa 2', type: 'text', required: true, placeholder: '98.765.432/0001-10' },
+          { name: 'empresa2_nome', label: 'Razão Social da Empresa 2', type: 'text', required: true, placeholder: 'Digital Corp S.A.' },
+          { name: 'empresa2_endereco', label: 'Endereço da Empresa 2', type: 'text', required: true, placeholder: 'Av. B, 456' },
+          { name: 'objeto_parceria', label: 'Objeto da Parceria', type: 'textarea', required: true, placeholder: 'Desenvolvimento conjunto de soluções...' },
+          { name: 'prazo_anos', label: 'Prazo (anos)', type: 'number', required: true, placeholder: '2' },
+          { name: 'divisao_resultados', label: 'Divisão de Resultados', type: 'text', required: true, placeholder: '50% para cada' },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `ACORDO DE PARCERIA COMERCIAL
+
+EMPRESA 1: {{empresa1_nome}}, CNPJ {{empresa1_cnpj}}, sede à {{empresa1_endereco}}
+
+EMPRESA 2: {{empresa2_nome}}, CNPJ {{empresa2_cnpj}}, sede à {{empresa2_endereco}}
+
+OBJETO: {{objeto_parceria}}
+
+PRAZO: {{prazo_anos}} anos
+
+RESULTADOS: {{divisao_resultados}}
+
+OBRIGAÇÕES:
+- Colaboração técnica e comercial
+- Compartilhamento de recursos conforme acordado
+- Manutenção de sigilo de informações
+
+{{cidade}}, {{data_atual}}
+
+_____________________          _____________________
+  {{empresa1_nome}}            {{empresa2_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== DECLARAÇÕES ESPECÍFICAS =====
+      {
+        id: 'declaracao-dependencia',
+        name: 'Declaração de Dependência',
+        type: 'certificate',
+        description: 'Declaração de dependência para fins legais',
+        fields: [
+          { name: 'declarante_cpf', label: 'CPF do Declarante', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'declarante_nome', label: 'Nome do Declarante', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'declarante_endereco', label: 'Endereço do Declarante', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'dependente_cpf', label: 'CPF do Dependente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'dependente_nome', label: 'Nome do Dependente', type: 'text', required: true, placeholder: 'Maria Silva' },
+          { name: 'grau_parentesco', label: 'Grau de Parentesco', type: 'select', required: true, options: ['Cônjuge', 'Filho(a)', 'Pai/Mãe', 'Irmão(ã)', 'Outros'] },
+          { name: 'finalidade', label: 'Finalidade', type: 'text', required: true, placeholder: 'Imposto de Renda' },
+          { name: 'renda_dependente', label: 'Renda do Dependente (R$)', type: 'text', required: false, placeholder: '0,00' }
+        ],
+        template: `DECLARAÇÃO DE DEPENDÊNCIA
+
+Eu, {{declarante_nome}}, CPF {{declarante_cpf}}, residente à {{declarante_endereco}}, DECLARO que {{dependente_nome}}, CPF {{dependente_cpf}}, é meu(minha) {{grau_parentesco}} e encontra-se sob minha dependência econômica.
+
+{{dependente_nome}} possui renda própria de R$ {{renda_dependente}} mensais.
+
+Esta declaração é feita para fins de {{finalidade}}.
+
+{{data_atual}}
+
+_________________________________
+{{declarante_nome}}
+Declarante`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== ORDEM DE SERVIÇO =====
+      {
+        id: 'ordem-servico',
+        name: 'Ordem de Serviço (OS)',
+        type: 'form',
+        description: 'Ordem de serviço para controle interno',
+        fields: [
+          { name: 'cliente_cnpj_cpf', label: 'CNPJ/CPF do Cliente', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'cliente_nome', label: 'Nome do Cliente', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'cliente_endereco', label: 'Endereço do Cliente', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'cliente_telefone', label: 'Telefone do Cliente', type: 'text', required: true, placeholder: '(11) 99999-9999' },
+          { name: 'servico_descricao', label: 'Descrição do Serviço', type: 'textarea', required: true, placeholder: 'Manutenção de equipamento...' },
+          { name: 'servico_local', label: 'Local do Serviço', type: 'text', required: true, placeholder: 'Endereço onde será realizado' },
+          { name: 'data_prevista', label: 'Data Prevista', type: 'date', required: true },
+          { name: 'responsavel_tecnico', label: 'Responsável Técnico', type: 'text', required: true, placeholder: 'Carlos Santos' },
+          { name: 'valor_estimado', label: 'Valor Estimado (R$)', type: 'text', required: false, placeholder: '500,00' },
+          { name: 'observacoes', label: 'Observações', type: 'textarea', required: false, placeholder: 'Observações especiais...' }
+        ],
+        template: `ORDEM DE SERVIÇO
+
+CLIENTE: {{cliente_nome}}
+CPF/CNPJ: {{cliente_cnpj_cpf}}
+ENDEREÇO: {{cliente_endereco}}
+TELEFONE: {{cliente_telefone}}
+
+SERVIÇO: {{servico_descricao}}
+
+LOCAL: {{servico_local}}
+
+DATA PREVISTA: {{data_prevista}}
+
+RESPONSÁVEL: {{responsavel_tecnico}}
+
+VALOR ESTIMADO: R$ {{valor_estimado}}
+
+OBSERVAÇÕES: {{observacoes}}
+
+{{data_atual}}
+
+_________________________________
+Responsável Técnico`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== PROPOSTAS COMERCIAIS =====
+      {
+        id: 'proposta-comercial',
+        name: 'Proposta Comercial',
+        type: 'form',
+        description: 'Proposta comercial para clientes',
+        fields: [
+          { name: 'empresa_cnpj', label: 'CNPJ da Empresa', type: 'text', required: true, placeholder: '12.345.678/0001-90' },
+          { name: 'empresa_nome', label: 'Razão Social', type: 'text', required: true, placeholder: 'Tech Solutions Ltda' },
+          { name: 'empresa_endereco', label: 'Endereço da Empresa', type: 'text', required: true, placeholder: 'Rua Comercial, 123' },
+          { name: 'empresa_telefone', label: 'Telefone da Empresa', type: 'text', required: true, placeholder: '(11) 3333-4444' },
+          { name: 'empresa_email', label: 'Email da Empresa', type: 'text', required: true, placeholder: 'contato@empresa.com.br' },
+          { name: 'cliente_cnpj_cpf', label: 'CNPJ/CPF do Cliente', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'cliente_nome', label: 'Nome do Cliente', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'proposta_descricao', label: 'Descrição da Proposta', type: 'textarea', required: true, placeholder: 'Desenvolvimento de sistema...' },
+          { name: 'valor_proposta', label: 'Valor da Proposta (R$)', type: 'text', required: true, placeholder: '25.000,00' },
+          { name: 'prazo_entrega', label: 'Prazo de Entrega', type: 'text', required: true, placeholder: '60 dias' },
+          { name: 'validade_proposta', label: 'Validade da Proposta', type: 'text', required: true, placeholder: '30 dias' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'textarea', required: true, placeholder: '50% inicio, 50% entrega' }
+        ],
+        template: `PROPOSTA COMERCIAL
+
+DE: {{empresa_nome}}
+CNPJ: {{empresa_cnpj}}
+ENDEREÇO: {{empresa_endereco}}
+TELEFONE: {{empresa_telefone}}
+EMAIL: {{empresa_email}}
+
+PARA: {{cliente_nome}}
+CPF/CNPJ: {{cliente_cnpj_cpf}}
+
+PROPOSTA: {{proposta_descricao}}
+
+VALOR: R$ {{valor_proposta}}
+
+PRAZO: {{prazo_entrega}}
+
+PAGAMENTO: {{forma_pagamento}}
+
+VALIDADE: Esta proposta é válida por {{validade_proposta}}.
+
+{{data_atual}}
+
+_________________________________
+{{empresa_nome}}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+
+      // ===== COMUNICAÇÃO DE VENDA DETRAN =====
+      {
+        id: 'comunicacao-venda-detran',
+        name: 'Comunicação de Venda (Detran)',
+        type: 'form',
+        description: 'Comunicação de venda de veículo ao Detran',
+        fields: [
+          { name: 'vendedor_cpf', label: 'CPF do Vendedor', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'vendedor_nome', label: 'Nome do Vendedor', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'vendedor_endereco', label: 'Endereço do Vendedor', type: 'text', required: true, placeholder: 'Rua A, 123' },
+          { name: 'comprador_cpf', label: 'CPF do Comprador', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'comprador_nome', label: 'Nome do Comprador', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'comprador_endereco', label: 'Endereço do Comprador', type: 'text', required: true, placeholder: 'Rua B, 456' },
+          { name: 'veiculo_marca', label: 'Marca', type: 'text', required: true, placeholder: 'Honda' },
+          { name: 'veiculo_modelo', label: 'Modelo', type: 'text', required: true, placeholder: 'Civic' },
+          { name: 'veiculo_ano', label: 'Ano/Modelo', type: 'text', required: true, placeholder: '2020/2021' },
+          { name: 'veiculo_placa', label: 'Placa', type: 'text', required: true, placeholder: 'ABC-1234' },
+          { name: 'veiculo_chassi', label: 'Chassi', type: 'text', required: true, placeholder: '9BWHE21JX24060831' },
+          { name: 'data_venda', label: 'Data da Venda', type: 'date', required: true },
+          { name: 'valor_venda', label: 'Valor da Venda (R$)', type: 'text', required: true, placeholder: '45.000,00' }
+        ],
+        template: `COMUNICAÇÃO DE VENDA - DETRAN
+
+VENDEDOR:
+Nome: {{vendedor_nome}}
+CPF: {{vendedor_cpf}}
+Endereço: {{vendedor_endereco}}
+
+COMPRADOR:
+Nome: {{comprador_nome}}
+CPF: {{comprador_cpf}}
+Endereço: {{comprador_endereco}}
+
+VEÍCULO:
+Marca/Modelo: {{veiculo_marca}} {{veiculo_modelo}}
+Ano/Modelo: {{veiculo_ano}}
+Placa: {{veiculo_placa}}
+Chassi: {{veiculo_chassi}}
+
+DATA DA VENDA: {{data_venda}}
+VALOR: R$ {{valor_venda}}
+
+Comunico a venda do veículo acima especificado.
+
+{{data_atual}}
+
+_________________________________
+{{vendedor_nome}}
+Vendedor`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
       }
     ];
   };
 
   const loadTemplates = async () => {
-    if (!userData?.empresaId) return;
-
     try {
-      let templatesQuery;
-
-      if (userData.empresaId) {
-        templatesQuery = query(
-          collection(db, 'document_templates'),
-          where('empresaId', '==', userData.empresaId),
-          orderBy('name', 'asc')
-        );
-      } else {
-        templatesQuery = query(
-          collection(db, 'document_templates'),
-          orderBy('name', 'asc')
-        );
-      }
-
+      const templatesQuery = query(
+        collection(db, 'document_templates'),
+        orderBy('name', 'asc')
+      );
       const snapshot = await getDocs(templatesQuery);
       const templatesData = snapshot.docs.map((doc: any) => ({
         id: doc.id,
@@ -561,38 +1337,59 @@ Recebedor`,
       }
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
+      // Usar templates locais como fallback
       setTemplates(getLocalTemplates());
     }
   };
 
   const loadDocuments = async () => {
-    if (!user?.uid || !userData) return;
+    if (!user?.uid) return;
 
     try {
-      let documentsQuery;
+      // Verificar se usuário tem acesso (tanto por documentos_users quanto por users)
+      let hasAccess = false;
+      let empresaId = null;
 
-      if (userData.empresaId) {
-        documentsQuery = query(
-          collection(db, 'generated_documents'),
-          where('empresaId', '==', userData.empresaId),
-          orderBy('createdAt', 'desc')
-        );
+      // Verificar na coleção documentos_users primeiro
+      const userDoc = await getDoc(doc(db, 'documentos_users', user.uid));
+      if (userDoc.exists() && userDoc.data()?.isActive) {
+        hasAccess = true;
+        empresaId = userDoc.data()?.empresaId;
       } else {
-        documentsQuery = query(
-          collection(db, 'generated_documents'),
-          where('createdBy', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
+        // Verificar na coleção users principal
+        const mainUserDoc = await getDoc(doc(db, 'users', user.uid));
+        if (mainUserDoc.exists()) {
+          const userData = mainUserDoc.data();
+          const sistemasAtivos = userData.sistemasAtivos || [];
+          
+          if (sistemasAtivos.includes('documentos')) {
+            hasAccess = true;
+            empresaId = userData.empresaId;
+          }
+        }
       }
 
+      if (!hasAccess) {
+        console.log('Usuário não tem acesso ao sistema de documentos');
+        return;
+      }
+
+      // Carregar documentos do usuário
+      const documentsQuery = query(
+        collection(db, 'generated_documents'),
+        where('createdBy', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
       const snapshot = await getDocs(documentsQuery);
       const documentsData = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()
       })) as GeneratedDocument[];
+      
       setDocuments(documentsData);
     } catch (error) {
-      console.error('Erro ao carregar documents:', error);
+      console.error('Erro ao carregar documentos:', error);
+      // Não quebrar a aplicação se não conseguir carregar documentos
       setDocuments([]);
     }
   };
@@ -601,6 +1398,7 @@ Recebedor`,
     setIsAiTyping(true);
 
     try {
+      // Tentar usar IA primeiro, mas com fallback local
       let documentData;
 
       try {
@@ -642,9 +1440,11 @@ Recebedor`,
         }
       } catch (error) {
         console.log('IA indisponível, usando geração local:', error);
+        // Fallback para geração local
         documentData = generateDocumentLocally(prompt);
       }
 
+      // Adicionar mensagem do assistente
       const assistantMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -661,11 +1461,14 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
 
       setChatMessages(prev => [...prev, assistantMessage]);
 
+      // Definir conteúdo gerado
       setGeneratedContent(documentData.conteudo_texto);
       setGeneratedHtml(documentData.conteudo_html);
 
+      // Salvar documento
       await saveAIDocument(documentData);
 
+      // Alternar para aba do gerador
       setActiveTab('generator');
 
     } catch (error) {
@@ -684,9 +1487,12 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
     setIsAiTyping(false);
   };
 
+  // Função para gerar documento localmente (fallback)
   const generateDocumentLocally = (prompt: string) => {
     const currentDate = new Date().toLocaleDateString('pt-BR');
+    const currentDateTime = new Date().toLocaleString('pt-BR');
 
+    // Detectar tipo de documento baseado no prompt
     const promptLower = prompt.toLowerCase();
 
     if (promptLower.includes('procuração')) {
@@ -703,7 +1509,7 @@ Eu, _________________________, brasileiro(a), _______ (estado civil), _______ (p
 
 A presente procuração é válida por 90 (noventa) dias a contar desta data.
 
-_______________________, ${currentDate}
+_______________________, _____ de _____________ de _______
 
 _________________________________
 Assinatura do Outorgante
@@ -715,9 +1521,11 @@ ________________________`,
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">PROCURAÇÃO</h1>
   </div>
+
   <div style="text-align: justify; margin-bottom: 30px;">
     <p>Eu, <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, para o fim específico de:</p>
   </div>
+
   <div style="margin: 30px 0;">
     <ul style="padding-left: 30px;">
       <li>Representar-me perante repartições públicas, empresas e instituições em geral;</li>
@@ -725,17 +1533,21 @@ ________________________`,
       <li>Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.</li>
     </ul>
   </div>
+
   <div style="margin: 30px 0;">
     <p>A presente procuração é válida por <strong>90 (noventa) dias</strong> a contar desta data.</p>
   </div>
+
   <div style="margin-top: 60px;">
-    <p>_______________________, ${currentDate}</p>
+    <p>_______________________, _____ de _____________ de _______</p>
   </div>
+
   <div style="margin-top: 80px; text-align: center;">
     <div style="display: inline-block; border-top: 1px solid black; width: 300px; padding-top: 5px;">
       <strong>Assinatura do Outorgante</strong>
     </div>
   </div>
+
   <div style="margin-top: 60px;">
     <p><strong>RECONHECIMENTO DE FIRMA</strong></p>
     <p>________________________</p>
@@ -746,6 +1558,103 @@ ________________________`,
       };
     }
 
+    if (promptLower.includes('contrato')) {
+      return {
+        tipo: 'Contrato',
+        titulo: 'Contrato de Prestação de Serviços',
+        conteudo_texto: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+CONTRATANTE: _________________________, inscrito no CNPJ/CPF nº ________________, com sede/residência à _____________________________
+
+CONTRATADO: _________________________, inscrito no CNPJ/CPF nº ________________, com sede/residência à _____________________________
+
+OBJETO: O presente contrato tem por objeto ______________________________.
+
+PRAZO: O prazo de vigência será de _______ meses, iniciando em ___/___/______.
+
+VALOR: O valor total dos serviços será de R$ ____________, pago conforme cronograma anexo.
+
+OBRIGAÇÕES DO CONTRATADO:
+- Executar os serviços com qualidade e pontualidade;
+- Manter sigilo sobre informações confidenciais;
+- Entregar o trabalho no prazo estabelecido.
+
+OBRIGAÇÕES DO CONTRATANTE:
+- Fornecer informações necessárias para execução;
+- Efetuar pagamentos conforme acordado;
+- Dar condições adequadas para trabalho.
+
+________________, ${currentDate}
+
+_____________________          _____________________
+    CONTRATANTE                    CONTRATADO`,
+        conteudo_html: `
+<div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; font-weight: bold; margin: 0;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>CONTRATANTE:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>CONTRATADO:</strong> <u>_________________________</u>, inscrito no CNPJ/CPF nº <u>________________</u>, com sede/residência à <u>_____________________________</u></p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>OBJETO:</strong> O presente contrato tem por objeto <u>______________________________</u>.</p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>PRAZO:</strong> O prazo de vigência será de <u>_______</u> meses, iniciando em <u>___/___/______</u>.</p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>VALOR:</strong> O valor total dos serviços será de R$ <u>____________</u>, pago conforme cronograma anexo.</p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <p><strong>OBRIGAÇÕES DO CONTRATADO:</strong></p>
+    <ul>
+      <li>Executar os serviços com qualidade e pontualidade;</li>
+      <li>Manter sigilo sobre informações confidenciais;</li>
+      <li>Entregar o trabalho no prazo estabelecido.</li>
+    </ul>
+  </div>
+
+  <div style="margin-bottom: 40px;">
+    <p><strong>OBRIGAÇÕES DO CONTRATANTE:</strong></p>
+    <ul>
+      <li>Fornecer informações necessárias para execução;</li>
+      <li>Efetuar pagamentos conforme acordado;</li>
+      <li>Dar condições adequadas para trabalho.</li>
+    </ul>
+  </div>
+
+  <div style="margin-top: 60px;">
+    <p>________________, ${currentDate}</p>
+  </div>
+
+  <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+    <div style="text-align: center; width: 200px;">
+      <div style="border-top: 1px solid black; padding-top: 5px;">
+        <strong>CONTRATANTE</strong>
+      </div>
+    </div>
+    <div style="text-align: center; width: 200px;">
+      <div style="border-top: 1px solid black; padding-top: 5px;">
+        <strong>CONTRATADO</strong>
+      </div>
+    </div>
+  </div>
+</div>`,
+        campos_editaveis: ['contratante', 'contratado', 'objeto', 'prazo', 'valor'],
+        instrucoes: 'Contrato padrão de prestação de serviços. Preencha os dados das partes e especificações do serviço.'
+      };
+    }
+
+    // Documento genérico como fallback
     return {
       tipo: 'Documento Personalizado',
       titulo: `Documento - ${currentDate}`,
@@ -772,22 +1681,28 @@ Data: ${currentDate}`,
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0;">DOCUMENTO</h1>
   </div>
+
   <div style="margin-bottom: 20px;">
     <p><strong>Data:</strong> ${currentDate}</p>
   </div>
+
   <div style="margin-bottom: 20px;">
     <p><strong>Assunto:</strong> ${prompt}</p>
   </div>
+
   <div style="margin-bottom: 30px;">
     <p>Prezado(a) Senhor(a),</p>
   </div>
+
   <div style="margin-bottom: 30px; text-align: justify;">
     <p>Por meio deste documento, venho formalizar a seguinte solicitação:</p>
     <p style="margin-left: 20px; font-style: italic;">${prompt}</p>
   </div>
+
   <div style="margin-bottom: 30px;">
     <p>Atenciosamente,</p>
   </div>
+
   <div style="margin-top: 80px;">
     <p>_________________________________</p>
     <p><strong>Nome:</strong> _________________________</p>
@@ -801,9 +1716,35 @@ Data: ${currentDate}`,
   };
 
   const saveAIDocument = async (documentData: any) => {
-    if (!user || !userData) return;
+    if (!user) return;
 
     try {
+      // Obter dados da empresa do usuário
+      let empresaId = null;
+      let empresaNome = null;
+
+      const userDoc = await getDoc(doc(db, 'documentos_users', user.uid));
+      if (userDoc.exists()) {
+        empresaId = userDoc.data()?.empresaId;
+      } else {
+        const mainUserDoc = await getDoc(doc(db, 'users', user.uid));
+        if (mainUserDoc.exists()) {
+          empresaId = mainUserDoc.data()?.empresaId;
+        }
+      }
+
+      // Se tiver empresaId, buscar nome da empresa
+      if (empresaId) {
+        try {
+          const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+          if (empresaDoc.exists()) {
+            empresaNome = empresaDoc.data()?.nome || empresaDoc.data()?.name;
+          }
+        } catch (empresaError) {
+          console.log('Erro ao buscar dados da empresa:', empresaError);
+        }
+      }
+
       const documentToSave = {
         templateId: 'ai-generated',
         templateName: documentData.tipo,
@@ -813,7 +1754,9 @@ Data: ${currentDate}`,
         data: {},
         createdAt: Date.now(),
         createdBy: user.uid,
-        empresaId: userData.empresaId || '',
+        userEmail: user.email,
+        empresaId: empresaId,
+        empresaNome: empresaNome,
         aiGenerated: true
       };
 
@@ -822,6 +1765,7 @@ Data: ${currentDate}`,
       console.log('✅ Documento salvo com sucesso');
     } catch (error) {
       console.error('Erro ao salvar documento:', error);
+      // Não bloquear a experiência do usuário se não conseguir salvar
       console.log('⚠️ Documento gerado mas não foi possível salvar no histórico');
     }
   };
@@ -843,6 +1787,7 @@ Data: ${currentDate}`,
     await generateDocumentWithAI(currentInput);
   };
 
+  // Função para buscar CEP
   const buscarCEP = async (cep: string) => {
     if (!cep || cep.length < 8) return null;
 
@@ -868,6 +1813,7 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função para buscar dados do CPF usando a API existente
   const buscarDadosCPF = async (cpf: string) => {
     if (!cpf || cpf.length < 11) return null;
 
@@ -885,6 +1831,7 @@ Data: ${currentDate}`,
         };
       }
 
+      // Se a API retornou sucesso mas sem nome (CPF válido mas sem dados)
       if (data.success && data.validFormat) {
         return {
           nome: null,
@@ -902,6 +1849,7 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função para buscar dados do CNPJ usando a API existente
   const buscarDadosCNPJ = async (cnpj: string) => {
     if (!cnpj || cnpj.length < 14) return null;
 
@@ -939,6 +1887,7 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função de formatação unificada para CPF e CNPJ
   const formatCpfCnpj = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
 
@@ -955,6 +1904,7 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função de validação unificada para CPF e CNPJ
   const isValidCpfCnpj = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length === 11) {
@@ -983,6 +1933,7 @@ Data: ${currentDate}`,
     return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 7)}-${telLimpo.substring(7, 11)}`;
   };
 
+  // Funções de validação usando a nova lógica
   const validateCPF = (cpf: string): { valid: boolean; message?: string } => {
     const cpfLimpo = cpf.replace(/\D/g, '');
 
@@ -1030,6 +1981,7 @@ Data: ${currentDate}`,
     if (telLimpo.length > 11) {
       return { valid: false, message: 'Telefone deve ter no máximo 11 dígitos' };
     }
+    // Verificar se o DDD é válido (11-99)
     const ddd = parseInt(telLimpo.substring(0, 2));
     if (ddd < 11 || ddd > 99) {
       return { valid: false, message: 'DDD inválido. Deve estar entre 11 e 99' };
@@ -1037,6 +1989,7 @@ Data: ${currentDate}`,
     return { valid: true };
   };
 
+  // Função para aplicar máscara durante a digitação
   const applyMask = (value: string, fieldName: string): string => {
     if (fieldName.toLowerCase().includes('cpf') || fieldName.toLowerCase().includes('cnpj')) {
       return formatCpfCnpj(value);
@@ -1048,6 +2001,7 @@ Data: ${currentDate}`,
     return value;
   };
 
+  // Função para preencher automaticamente baseado no CEP
   const preencherPorCEP = async (cep: string, fieldName: string) => {
     const validation = validateCEP(cep);
     if (!validation.valid) {
@@ -1055,6 +2009,7 @@ Data: ${currentDate}`,
       return;
     }
 
+    // Mostrar loading
     const loadingAlert = document.createElement('div');
     loadingAlert.innerHTML = '🔍 Buscando endereço...';
     loadingAlert.style.cssText = `
@@ -1070,24 +2025,28 @@ Data: ${currentDate}`,
       if (dadosCEP) {
         const novoFormData = { ...formData };
 
+        // Mapear campos do CEP para os campos do formulário
         const mapeamento: Record<string, string> = {
           'endereco': dadosCEP.logradouro,
           'bairro': dadosCEP.bairro,
           'cidade': dadosCEP.cidade,
           'uf': dadosCEP.uf,
           'cep': formatCEP(cep),
+          // Para campos que contenham essas palavras
           'outorgante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
           'procurador_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
           'contratante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
           'contratado_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`
         };
 
+        // Preencher campos relacionados ao endereço
         Object.keys(mapeamento).forEach(campo => {
           if (selectedTemplate?.fields.some(field => field.name === campo)) {
             novoFormData[campo] = mapeamento[campo];
           }
         });
 
+        // Para o campo atual, definir endereço específico
         if (fieldName.includes('endereco')) {
           novoFormData[fieldName] = `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}`;
         }
@@ -1098,6 +2057,7 @@ Data: ${currentDate}`,
         loadingAlert.style.background = '#10b981';
         setTimeout(() => document.body.removeChild(loadingAlert), 2000);
 
+        // Focar no campo de número se disponível
         setTimeout(() => {
           const numeroInput = document.querySelector(`input[placeholder*="Número"]`) as HTMLInputElement;
           if (numeroInput) numeroInput.focus();
@@ -1116,6 +2076,75 @@ Data: ${currentDate}`,
     }
   };
 
+  // Função para preencher CEP específico de uma seção (outorgante/procurador)
+  const preencherCepEspecifico = async (cep: string, sectionPrefix: string) => {
+    const validation = validateCEP(cep);
+    if (!validation.valid) {
+      alert(`❌ ${validation.message}`);
+      return;
+    }
+
+    // Mostrar loading
+    const loadingAlert = document.createElement('div');
+    loadingAlert.textContent = `🔍 Buscando endereço para ${sectionPrefix}...`;
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCEP = await buscarCEP(cep);
+
+      if (dadosCEP) {
+        const novoFormData = { ...formData };
+
+        // Salvar endereço base para esta seção
+        const enderecoBase = `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`;
+        novoFormData[`${sectionPrefix}_endereco_base`] = enderecoBase;
+
+        // Preencher o campo de endereço específico desta seção
+        const enderecoFieldName = `${sectionPrefix}_endereco`;
+        const numeroAtual = formData[`${sectionPrefix}_numero`] || '';
+
+        if (selectedTemplate?.fields.some(field => field.name === enderecoFieldName)) {
+          novoFormData[enderecoFieldName] = numeroAtual ?
+            `${dadosCEP.logradouro}, ${numeroAtual}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}` :
+            `${dadosCEP.logradouro}, ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`;
+        }
+
+        // Salvar dados do CEP para uso posterior
+        novoFormData[`${sectionPrefix}_cep_dados`] = JSON.stringify(dadosCEP);
+
+        setFormData(novoFormData);
+
+        loadingAlert.textContent = `✅ Endereço encontrado para ${sectionPrefix}!`;
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+
+        // Focar no campo de número específico desta seção
+        setTimeout(() => {
+          const numeroInput = document.querySelector(`input[value="${numeroAtual}"]`) as HTMLInputElement;
+          if (numeroInput && numeroInput.placeholder?.includes('Ex: 123')) {
+            numeroInput.focus();
+          }
+        }, 500);
+
+      } else {
+        loadingAlert.innerHTML = '❌ CEP não encontrado';
+        loadingAlert.style.background = '#ef4444';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      loadingAlert.innerHTML = '❌ Erro ao buscar CEP';
+      loadingAlert.style.background = '#ef4444';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+    }
+  };
+
+  // Função para preencher automaticamente baseado no CPF
   const preencherPorCPF = async (cpf: string, fieldName: string) => {
     const validation = validateCPF(cpf);
     if (!validation.valid) {
@@ -1123,6 +2152,7 @@ Data: ${currentDate}`,
       return;
     }
 
+    // Mostrar loading
     const loadingAlert = document.createElement('div');
     loadingAlert.innerHTML = '🔍 Consultando CPF...';
     loadingAlert.style.cssText = `
@@ -1139,21 +2169,25 @@ Data: ${currentDate}`,
         const novoFormData = { ...formData };
 
         if (dadosCPF.nome) {
+          // Detectar seção baseada no campo atual
           const isOutorgante = fieldName.toLowerCase().includes('outorgante');
           const isProcurador = fieldName.toLowerCase().includes('procurador');
           const isContratante = fieldName.toLowerCase().includes('contratante');
           const isContratado = fieldName.toLowerCase().includes('contratado');
 
+          // Mapear campos do CPF quando há dados
           const mapeamento: Record<string, string> = {
             'nome_completo': dadosCPF.nome,
             'nome': dadosCPF.nome,
             'cpf': formatCpfCnpj(cpf)
           };
 
+          // Preencher campos específicos da seção
           if (isOutorgante) {
             mapeamento['outorgante_nome'] = dadosCPF.nome;
             mapeamento['outorgante_cpf'] = formatCpfCnpj(cpf);
 
+            // Adicionar campos específicos de gênero e nascimento se disponíveis
             if (dadosCPF.genero) {
               const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
                                 dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
@@ -1162,6 +2196,7 @@ Data: ${currentDate}`,
             }
 
             if (dadosCPF.nascimento) {
+              // Converter YYYY-MM-DD para DD/MM/YYYY
               const dataNascimento = new Date(dadosCPF.nascimento);
               const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
               mapeamento['outorgante_nascimento'] = nascimentoFormatado;
@@ -1215,12 +2250,14 @@ Data: ${currentDate}`,
             }
           }
 
+          // Preencher campos relacionados que existem no template
           Object.keys(mapeamento).forEach(campo => {
             if (selectedTemplate?.fields.some(field => field.name === campo)) {
               novoFormData[campo] = mapeamento[campo];
             }
           });
 
+          // Mensagem de sucesso com detalhes dos dados encontrados
           let detalhes = ['Nome: ' + dadosCPF.nome];
           if (dadosCPF.genero) {
             const generoTexto = dadosCPF.genero === 'M' ? 'Masculino' :
@@ -1232,6 +2269,7 @@ Data: ${currentDate}`,
             detalhes.push('Nascimento: ' + dataNascimento.toLocaleDateString('pt-BR'));
           }
 
+          // Safe DOM manipulation to prevent XSS
           loadingAlert.textContent = '✅ Dados encontrados!';
           const detailsElement = document.createElement('small');
           detailsElement.textContent = detalhes.join(' • ');
@@ -1239,6 +2277,7 @@ Data: ${currentDate}`,
           loadingAlert.appendChild(detailsElement);
           loadingAlert.style.background = '#10b981';
         } else {
+          // CPF válido mas sem dados - apenas formatar
           novoFormData[fieldName] = formatCpfCnpj(cpf);
 
           loadingAlert.textContent = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
@@ -1253,6 +2292,7 @@ Data: ${currentDate}`,
         loadingAlert.style.background = '#f59e0b';
         setTimeout(() => document.body.removeChild(loadingAlert), 3000);
 
+        // Apenas formatar o CPF se não encontrar dados
         const novoFormData = { ...formData };
         novoFormData[fieldName] = formatCpfCnpj(cpf);
         setFormData(novoFormData);
@@ -1263,12 +2303,14 @@ Data: ${currentDate}`,
       loadingAlert.style.background = '#f59e0b';
       setTimeout(() => document.body.removeChild(loadingAlert), 3000);
 
+      // Formatar o CPF mesmo se der erro na consulta
       const novoFormData = { ...formData };
       novoFormData[fieldName] = formatCpfCnpj(cpf);
       setFormData(novoFormData);
     }
   };
 
+  // Função para preencher automaticamente baseado no CNPJ
   const preencherPorCNPJ = async (cnpj: string, fieldName: string) => {
     const validation = validateCNPJ(cnpj);
     if (!validation.valid) {
@@ -1276,6 +2318,7 @@ Data: ${currentDate}`,
       return;
     }
 
+    // Mostrar loading
     const loadingAlert = document.createElement('div');
     loadingAlert.innerHTML = '🔍 Consultando CNPJ...';
     loadingAlert.style.cssText = `
@@ -1291,6 +2334,7 @@ Data: ${currentDate}`,
       if (dadosCNPJ && dadosCNPJ.razao_social) {
         const novoFormData = { ...formData };
 
+        // Mapear campos do CNPJ
         const mapeamento: Record<string, string> = {
           'nome_completo': dadosCNPJ.razao_social,
           'razao_social': dadosCNPJ.razao_social,
@@ -1310,6 +2354,7 @@ Data: ${currentDate}`,
           'atividade_principal': dadosCNPJ.atividade_principal
         };
 
+        // Preencher campos relacionados
         Object.keys(mapeamento).forEach(campo => {
           if (selectedTemplate?.fields.some(field => field.name === campo)) {
             novoFormData[campo] = mapeamento[campo];
@@ -1327,6 +2372,7 @@ Data: ${currentDate}`,
         loadingAlert.style.background = '#f59e0b';
         setTimeout(() => document.body.removeChild(loadingAlert), 3000);
 
+        // Apenas formatar o CNPJ se não encontrar dados
         const novoFormData = { ...formData };
         novoFormData[fieldName] = formatCpfCnpj(cnpj);
         setFormData(novoFormData);
@@ -1337,10 +2383,12 @@ Data: ${currentDate}`,
       loadingAlert.style.background = '#f59e0b';
       setTimeout(() => document.body.removeChild(loadingAlert), 3000);
 
+      // Formatar o CNPJ mesmo se der erro na consulta
       const novoFormData = { ...formData };
       novoFormData[fieldName] = formatCpfCnpj(cnpj);
       setFormData(novoFormData);
     } finally {
+      // Garantir que o loading seja removido
       setTimeout(() => {
         if (document.body.contains(loadingAlert)) {
           document.body.removeChild(loadingAlert);
@@ -1360,8 +2408,10 @@ Data: ${currentDate}`,
         ocrFormData.append(`image_${index}`, file);
       });
 
+      // Simular OCR - em produção, integrar com Google Vision API ou similar
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Dados simulados extraídos
       const mockExtractedData = {
         nome: 'João Silva Santos',
         cpf: '123.456.789-00',
@@ -1379,6 +2429,7 @@ Data: ${currentDate}`,
 
       setExtractedData(mockExtractedData);
 
+      // Se houver template selecionado, preencher automaticamente
       if (selectedTemplate) {
         const newFormObject = { ...formData };
         selectedTemplate.fields.forEach(field => {
@@ -1401,13 +2452,14 @@ Data: ${currentDate}`,
   };
 
   const generateDocument = async () => {
-    if (!selectedTemplate || !user || !userData) return;
+    if (!selectedTemplate || !user) return;
 
     setIsGenerating(true);
     try {
       let content = selectedTemplate.template;
       let htmlContent = selectedTemplate.template;
 
+      // Substituir os campos do template pelos valores do formulário
       selectedTemplate.fields.forEach(field => {
         const value = formData[field.name] || '';
         const regex = new RegExp(`{{${field.name}}}`, 'g');
@@ -1415,12 +2467,15 @@ Data: ${currentDate}`,
         htmlContent = htmlContent.replace(regex, `<strong>${value}</strong>`);
       });
 
+      // Adicionar data atual
       const currentDate = new Date().toLocaleDateString('pt-BR');
       content = content.replace(/{{data_atual}}/g, currentDate);
       htmlContent = htmlContent.replace(/{{data_atual}}/g, `<strong>${currentDate}</strong>`);
 
+      // Criar versão de preview com campos em destaque
       let previewContent = selectedTemplate.template;
 
+      // Substituir campos preenchidos
       selectedTemplate.fields.forEach(field => {
         const value = formData[field.name] || '';
         const regex = new RegExp(`{{${field.name}}}`, 'g');
@@ -1431,9 +2486,11 @@ Data: ${currentDate}`,
         }
       });
 
+      // Adicionar data atual
       const previewCurrentDate = new Date().toLocaleDateString('pt-BR');
       previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
 
+      // Converter para HTML formatado
       htmlContent = `
         <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
           <div style="text-align: center; margin-bottom: 30px;">
@@ -1457,6 +2514,7 @@ Data: ${currentDate}`,
         </div>
       `;
 
+      // Para o conteúdo final (quando gerar), substituir pelos valores reais
       let finalContent = selectedTemplate.template;
       selectedTemplate.fields.forEach(field => {
         const value = formData[field.name] || '';
@@ -1466,8 +2524,37 @@ Data: ${currentDate}`,
       finalContent = finalContent.replace(/{{data_atual}}/g, currentDate);
 
       setGeneratedContent(finalContent);
+
+      setGeneratedContent(content);
       setGeneratedHtml(htmlContent);
 
+      // Obter dados da empresa do usuário
+      let empresaId = null;
+      let empresaNome = null;
+
+      const userDoc = await getDoc(doc(db, 'documentos_users', user.uid));
+      if (userDoc.exists()) {
+        empresaId = userDoc.data()?.empresaId;
+      } else {
+        const mainUserDoc = await getDoc(doc(db, 'users', user.uid));
+        if (mainUserDoc.exists()) {
+          empresaId = mainUserDoc.data()?.empresaId;
+        }
+      }
+
+      // Se tiver empresaId, buscar nome da empresa
+      if (empresaId) {
+        try {
+          const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+          if (empresaDoc.exists()) {
+            empresaNome = empresaDoc.data()?.nome || empresaDoc.data()?.name;
+          }
+        } catch (empresaError) {
+          console.log('Erro ao buscar dados da empresa:', empresaError);
+        }
+      }
+
+      // Salvar o documento gerado
       const documentData = {
         templateId: selectedTemplate.id,
         templateName: selectedTemplate.name,
@@ -1477,7 +2564,9 @@ Data: ${currentDate}`,
         data: formData,
         createdAt: Date.now(),
         createdBy: user.uid,
-        empresaId: userData.empresaId || ''
+        userEmail: user.email,
+        empresaId: empresaId,
+        empresaNome: empresaNome
       };
 
       await addDoc(collection(db, 'generated_documents'), documentData);
@@ -1545,6 +2634,7 @@ Data: ${currentDate}`,
     }
   };
 
+  // Define the tabs for the document system
   const tabs = [
     { id: 'generator', label: 'Gerar', icon: '📝' },
     { id: 'chat', label: 'Chat IA', icon: '🤖' },
@@ -1733,16 +2823,6 @@ Data: ${currentDate}`,
           <div className="badge">
             📄 Gerador de Documentos v2.0 AI
           </div>
-          {userData && (
-            <div className="badge">
-              👤 {userData.nome} ({userData.role})
-            </div>
-          )}
-          {empresaData && (
-            <div className="badge">
-              🏢 {empresaData.nome}
-            </div>
-          )}
         </div>
         <ThemeSelector size="medium" />
       </div>
@@ -1951,6 +3031,7 @@ Data: ${currentDate}`,
           <h3>📋 Templates de Documentos</h3>
 
           {(() => {
+            // Organizar templates por categoria
             const categorias = {
               'Jurídico': templates.filter(t =>
                 t.name.toLowerCase().includes('procuração') ||
@@ -1966,6 +3047,11 @@ Data: ${currentDate}`,
                   t.name.toLowerCase().includes('parceria')
                 )
               ),
+              'Recursos Humanos': templates.filter(t =>
+                t.name.toLowerCase().includes('trabalho') ||
+                t.name.toLowerCase().includes('estágio') ||
+                t.name.toLowerCase().includes('clt')
+              ),
               'Fiscal/Contábil': templates.filter(t =>
                 t.name.toLowerCase().includes('declaração') ||
                 t.name.toLowerCase().includes('renda') ||
@@ -1975,9 +3061,38 @@ Data: ${currentDate}`,
               'Financeiro': templates.filter(t =>
                 t.name.toLowerCase().includes('recibo') ||
                 t.name.toLowerCase().includes('pagamento')
+              ),
+              'Veicular': templates.filter(t =>
+                t.name.toLowerCase().includes('veículo') ||
+                t.name.toLowerCase().includes('detran') ||
+                t.name.toLowerCase().includes('comunicação')
+              ),
+              'Construção Civil': templates.filter(t =>
+                t.name.toLowerCase().includes('construção') ||
+                t.name.toLowerCase().includes('obra')
+              ),
+              'E-commerce/Digital': templates.filter(t =>
+                t.name.toLowerCase().includes('termos') ||
+                t.name.toLowerCase().includes('lgpd') ||
+                t.name.toLowerCase().includes('privacidade')
+              ),
+              'Seguros': templates.filter(t =>
+                t.name.toLowerCase().includes('sinistro') ||
+                t.name.toLowerCase().includes('seguro')
+              ),
+              'Constituição': templates.filter(t =>
+                t.name.toLowerCase().includes('social') ||
+                t.name.toLowerCase().includes('ltda') ||
+                t.name.toLowerCase().includes('mei')
+              ),
+              'Operacional': templates.filter(t =>
+                t.name.toLowerCase().includes('ordem') ||
+                t.name.toLowerCase().includes('proposta') ||
+                t.name.toLowerCase().includes('termo') && t.name.toLowerCase().includes('responsabilidade')
               )
             };
 
+            // Filtrar categorias vazias
             const categoriasComTemplates = Object.entries(categorias).filter(([_, temps]) => temps.length > 0);
 
             return (
@@ -1995,8 +3110,15 @@ Data: ${currentDate}`,
                     }}>
                       {categoria === 'Jurídico' && '⚖️'}
                       {categoria === 'Comercial' && '💼'}
+                      {categoria === 'Recursos Humanos' && '👥'}
                       {categoria === 'Fiscal/Contábil' && '📊'}
                       {categoria === 'Financeiro' && '💰'}
+                      {categoria === 'Veicular' && '🚗'}
+                      {categoria === 'Construção Civil' && '🏗️'}
+                      {categoria === 'E-commerce/Digital' && '💻'}
+                      {categoria === 'Seguros' && '🛡️'}
+                      {categoria === 'Constituição' && '🏢'}
+                      {categoria === 'Operacional' && '⚙️'}
                       {categoria}
                     </h4>
 
@@ -2106,6 +3228,7 @@ Data: ${currentDate}`,
                     </div>
                   `;
 
+                  // Atualizar o estado uma vez para inicializar o preview
                   setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
                 }
                 return null;
@@ -2115,8 +3238,159 @@ Data: ${currentDate}`,
                 <div>
                   <h4>📝 Preencher Campos</h4>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {selectedTemplate.fields.map(field => (
+                  {/* Renderizar campos organizados por seções individuais */}
+                  {(() => {
+                    // Organizar campos por categorias específicas e inteligentes
+                    const categorizeFields = (fields: any[]) => {
+                      const categories = {
+                        // Pessoas Físicas
+                        outorgante: fields.filter(f => f.name.toLowerCase().includes('outorgante')),
+                        procurador: fields.filter(f => f.name.toLowerCase().includes('procurador')),
+
+                        // Pessoas/Empresas - Contrato
+                        contratante: fields.filter(f => f.name.toLowerCase().includes('contratante')),
+                        contratado: fields.filter(f => f.name.toLowerCase().includes('contratado')),
+
+                        // Pessoas - Vendas/Compras
+                        vendedor: fields.filter(f => f.name.toLowerCase().includes('vendedor')),
+                        comprador: fields.filter(f => f.name.toLowerCase().includes('comprador')),
+
+                        // Pessoas - Locação
+                        locador: fields.filter(f => f.name.toLowerCase().includes('locador')),
+                        locatario: fields.filter(f => f.name.toLowerCase().includes('locatario') || f.name.toLowerCase().includes('locatário')),
+
+                        // Pessoas - Trabalho
+                        empregador: fields.filter(f => f.name.toLowerCase().includes('empregador')),
+                        empregado: fields.filter(f => f.name.toLowerCase().includes('empregado')),
+
+                        // Pessoas - Estágio
+                        empresa: fields.filter(f => f.name.toLowerCase().includes('empresa') && !f.name.toLowerCase().includes('empregador')),
+                        estagiario: fields.filter(f => f.name.toLowerCase().includes('estagiario') || f.name.toLowerCase().includes('estagiário')),
+
+                        // Pessoas - Geral
+                        declarante: fields.filter(f => f.name.toLowerCase().includes('declarante')),
+                        residente: fields.filter(f => f.name.toLowerCase().includes('residente')),
+                        paciente: fields.filter(f => f.name.toLowerCase().includes('paciente')),
+                        medico: fields.filter(f => f.name.toLowerCase().includes('medico') || f.name.toLowerCase().includes('médico')),
+                        funcionario: fields.filter(f => f.name.toLowerCase().includes('funcionario') || f.name.toLowerCase().includes('funcionário')),
+
+                        // Relacionamentos
+                        companheiro1: fields.filter(f => f.name.toLowerCase().includes('companheiro1')),
+                        companheiro2: fields.filter(f => f.name.toLowerCase().includes('companheiro2')),
+                        testemunha: fields.filter(f => f.name.toLowerCase().includes('testemunha')),
+
+                        // Seguros
+                        segurado: fields.filter(f => f.name.toLowerCase().includes('segurado')),
+                        seguradora: fields.filter(f => f.name.toLowerCase().includes('seguradora')),
+
+                        // Veículos
+                        veiculo: fields.filter(f => f.name.toLowerCase().includes('veiculo') || f.name.toLowerCase().includes('veículo')),
+
+                        // Imóveis/Obras
+                        imovel: fields.filter(f => f.name.toLowerCase().includes('imovel') || f.name.toLowerCase().includes('imóvel') || f.name.toLowerCase().includes('obra')),
+
+                        // Objetos/Serviços
+                        objeto: fields.filter(f =>
+                          f.name.toLowerCase().includes('objeto') ||
+                          f.name.toLowerCase().includes('servico') ||
+                          f.name.toLowerCase().includes('serviço') ||
+                          f.name.toLowerCase().includes('bem')
+                        ),
+
+                        // Valores/Financeiro
+                        financeiro: fields.filter(f =>
+                          f.name.toLowerCase().includes('valor') ||
+                          f.name.toLowerCase().includes('preco') ||
+                          f.name.toLowerCase().includes('preço') ||
+                          f.name.toLowerCase().includes('salario') ||
+                          f.name.toLowerCase().includes('salário') ||
+                          f.name.toLowerCase().includes('renda') ||
+                          f.name.toLowerCase().includes('pagamento') ||
+                          f.name.toLowerCase().includes('capital')
+                        ),
+
+                        // Datas/Prazos
+                        temporal: fields.filter(f =>
+                          f.name.toLowerCase().includes('data') ||
+                          f.name.toLowerCase().includes('prazo') ||
+                          f.name.toLowerCase().includes('inicio') ||
+                          f.name.toLowerCase().includes('início') ||
+                          f.name.toLowerCase().includes('fim') ||
+                          f.name.toLowerCase().includes('nascimento') ||
+                          f.name.toLowerCase().includes('validade')
+                        ),
+
+                        // Localização
+                        localizacao: fields.filter(f =>
+                          f.name.toLowerCase().includes('cidade') ||
+                          f.name.toLowerCase().includes('local') ||
+                          f.name.toLowerCase().includes('endereco_')
+                        ),
+
+                        // Outros
+                        outros: fields.filter(f => {
+                          const fieldName = f.name.toLowerCase();
+                          return !fieldName.includes('outorgante') &&
+                                 !fieldName.includes('procurador') &&
+                                 !fieldName.includes('contratante') &&
+                                 !fieldName.includes('contratado') &&
+                                 !fieldName.includes('vendedor') &&
+                                 !fieldName.includes('comprador') &&
+                                 !fieldName.includes('locador') &&
+                                 !fieldName.includes('locatario') &&
+                                 !fieldName.includes('locatário') &&
+                                 !fieldName.includes('empregador') &&
+                                 !fieldName.includes('empregado') &&
+                                 !fieldName.includes('empresa') &&
+                                 !fieldName.includes('estagiario') &&
+                                 !fieldName.includes('estagiário') &&
+                                 !fieldName.includes('declarante') &&
+                                 !fieldName.includes('residente') &&
+                                 !fieldName.includes('paciente') &&
+                                 !fieldName.includes('medico') &&
+                                 !fieldName.includes('médico') &&
+                                 !fieldName.includes('funcionario') &&
+                                 !fieldName.includes('funcionário') &&
+                                 !fieldName.includes('companheiro') &&
+                                 !fieldName.includes('testemunha') &&
+                                 !fieldName.includes('segurado') &&
+                                 !fieldName.includes('seguradora') &&
+                                 !fieldName.includes('veiculo') &&
+                                 !fieldName.includes('veículo') &&
+                                 !fieldName.includes('imovel') &&
+                                 !fieldName.includes('imóvel') &&
+                                 !fieldName.includes('obra') &&
+                                 !fieldName.includes('objeto') &&
+                                 !fieldName.includes('servico') &&
+                                 !fieldName.includes('serviço') &&
+                                 !fieldName.includes('bem') &&
+                                 !fieldName.includes('valor') &&
+                                 !fieldName.includes('preco') &&
+                                 !fieldName.includes('preço') &&
+                                 !fieldName.includes('salario') &&
+                                 !fieldName.includes('salário') &&
+                                 !fieldName.includes('renda') &&
+                                 !fieldName.includes('pagamento') &&
+                                 !fieldName.includes('capital') &&
+                                 !fieldName.includes('data') &&
+                                 !fieldName.includes('prazo') &&
+                                 !fieldName.includes('inicio') &&
+                                 !fieldName.includes('início') &&
+                                 !fieldName.includes('fim') &&
+                                 !fieldName.includes('nascimento') &&
+                                 !fieldName.includes('validade') &&
+                                 !fieldName.includes('cidade') &&
+                                 !fieldName.includes('local') &&
+                                 !fieldName.includes('endereco_');
+                        })
+                      };
+
+                      return categories;
+                    };
+
+                    const categorizedFields = categorizeFields(selectedTemplate?.fields || []);
+
+                    const renderField = (field: any) => (
                       <div key={field.name} style={{ marginBottom: '1rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                           {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
@@ -2150,11 +3424,13 @@ Data: ${currentDate}`,
                               onChange={(e) => {
                                 let value = e.target.value;
 
+                                // Aplicar máscara durante a digitação
                                 const maskedValue = applyMask(value, field.name);
 
                                 const newFormData = { ...formData, [field.name]: maskedValue };
                                 setFormData(newFormData);
 
+                                // Atualizar preview em tempo real
                                 if (selectedTemplate) {
                                   let previewContent = selectedTemplate.template;
 
@@ -2187,11 +3463,12 @@ Data: ${currentDate}`,
                               }}
                               onBlur={(e) => {
                                 const value = e.target.value;
-                                if (!value) return;
+                                if (!value) return; // Não validar campos vazios
 
                                 let isValid = true;
                                 let errorMessage = '';
 
+                                // Validar e fazer auto-fill por CEP
                                 if (field.name.toLowerCase().includes('cep') && value.replace(/\D/g, '').length >= 8) {
                                   const cepValidation = validateCEP(value);
                                   if (cepValidation.valid) {
@@ -2201,6 +3478,7 @@ Data: ${currentDate}`,
                                     isValid = false;
                                   }
                                 }
+                                // Validar e fazer auto-fill por CPF
                                 else if ((field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && value.replace(/\D/g, '').length >= 11) {
                                   const cpfValidation = validateCPF(value);
                                   if (cpfValidation.valid) {
@@ -2210,6 +3488,7 @@ Data: ${currentDate}`,
                                     isValid = false;
                                   }
                                 }
+                                // Validar e fazer auto-fill por CNPJ
                                 else if (field.name.toLowerCase().includes('cnpj') && value.replace(/\D/g, '').length >= 14) {
                                   const cnpjValidation = validateCNPJ(value);
                                   if (cnpjValidation.valid) {
@@ -2219,6 +3498,7 @@ Data: ${currentDate}`,
                                     isValid = false;
                                   }
                                 }
+                                // Validar telefone
                                 else if ((field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && value.length > 0) {
                                   const telefoneValidation = validateTelefone(value);
                                   if (!telefoneValidation.valid) {
@@ -2227,11 +3507,13 @@ Data: ${currentDate}`,
                                   }
                                 }
 
+                                // Aplicar estilo visual para campos inválidos
                                 if (!isValid && value.length > 0) {
                                   e.target.style.borderColor = '#ef4444';
                                   e.target.style.boxShadow = '0 0 0 1px #ef4444';
                                   e.target.title = errorMessage;
 
+                                  // Mostrar tooltip de erro
                                   const errorTooltip = document.createElement('div');
                                   errorTooltip.textContent = errorMessage;
                                   errorTooltip.style.cssText = `
@@ -2264,6 +3546,7 @@ Data: ${currentDate}`,
                               }}
                             />
 
+                            {/* Ícone indicativo de auto-preenchimento */}
                             {(field.name.toLowerCase().includes('cep') ||
                               field.name.toLowerCase().includes('cpf') ||
                               field.name.toLowerCase().includes('cnpj')) && (
@@ -2283,6 +3566,7 @@ Data: ${currentDate}`,
                           </div>
                         )}
 
+                        {/* Dicas de preenchimento automático e validação */}
                         {(field.name.toLowerCase().includes('cep') ||
                           field.name.toLowerCase().includes('cpf') ||
                           field.name.toLowerCase().includes('cnpj') ||
@@ -2309,8 +3593,287 @@ Data: ${currentDate}`,
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    );
+
+                    const renderSection = (title: string, fields: any[], icon: string, sectionKey: string) => {
+                      if (fields.length === 0) return null;
+
+                      // Organizar campos da seção em ordem lógica
+                      const fieldOrder = [
+                        'cpf', 'cnpj', 'nome', 'razao_social', 'nome_fantasia',
+                        'nacionalidade', 'estado_civil', 'profissao', 'cargo', 'rg',
+                        'cep', 'endereco', 'numero', 'bairro', 'cidade', 'uf',
+                        'telefone', 'email', 'nascimento', 'genero'
+                      ];
+
+                      const orderedFields = [...fields].sort((a, b) => {
+                        const aOrder = fieldOrder.findIndex(o => a.name.toLowerCase().includes(o));
+                        const bOrder = fieldOrder.findIndex(o => b.name.toLowerCase().includes(o));
+
+                        if (aOrder === -1 && bOrder === -1) return 0;
+                        if (aOrder === -1) return 1;
+                        if (bOrder === -1) return -1;
+                        return aOrder - bOrder;
+                      });
+
+                      return (
+                        <div key={title} style={{
+                          marginBottom: '2rem',
+                          padding: '1.5rem',
+                          background: 'var(--color-surface)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--color-border)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1.5rem',
+                            paddingBottom: '1rem',
+                            borderBottom: '2px solid var(--color-primary)'
+                          }}>
+                            <h5 style={{
+                              margin: '0',
+                              fontSize: '1.2rem',
+                              fontWeight: '700',
+                              color: 'var(--color-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              {icon} {title}
+                            </h5>
+                            <div style={{
+                              fontSize: '0.8rem',
+                              color: 'var(--color-textSecondary)',
+                              background: 'var(--color-background)',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '0.25rem',
+                              border: '1px solid var(--color-border)'
+                            }}>
+                              {orderedFields.length} campos
+                            </div>
+                          </div>
+
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '1rem'
+                          }}>
+                            {orderedFields.map(renderField)}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    const renderObjectSection = (title: string, fields: any[], icon: string) => {
+                      if (fields.length === 0) return null;
+
+                      return (
+                        <div key={title} style={{
+                          marginBottom: '2rem',
+                          padding: '1.5rem',
+                          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--color-border)',
+                          color: 'white'
+                        }}>
+                          <h5 style={{
+                            margin: '0 0 1.5rem 0',
+                            fontSize: '1.2rem',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}>
+                            {icon} {title}
+                          </h5>
+
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '1rem'
+                          }}>
+                            {fields.map(field => (
+                              <div key={field.name} style={{ marginBottom: '1rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'white' }}>
+                                  {field.label} {field.required && <span style={{ color: '#ffc107' }}>*</span>}
+                                </label>
+
+                                {field.type === 'textarea' ? (
+                                  <textarea
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                    placeholder={field.placeholder}
+                                    rows={4}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  />
+                                ) : field.type === 'select' ? (
+                                  <select
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {field.options?.map((option: string) => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type={field.type}
+                                    className="input"
+                                    value={formData[field.name] || ''}
+                                    onChange={(e) => {
+                                      const maskedValue = applyMask(e.target.value, field.name);
+                                      setFormData(prev => ({ ...prev, [field.name]: maskedValue }));
+                                    }}
+                                    placeholder={field.placeholder}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.95)',
+                                      color: 'black',
+                                      border: '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    // Mapeamento de seções com seus respectivos ícones e títulos
+                    const sectionConfig = {
+                      outorgante: { title: 'Dados do Outorgante', icon: '👤', color: '#3b82f6' },
+                      procurador: { title: 'Dados do Procurador', icon: '🤝', color: '#8b5cf6' },
+                      contratante: { title: 'Dados do Contratante', icon: '🏢', color: '#06b6d4' },
+                      contratado: { title: 'Dados do Contratado', icon: '👥', color: '#10b981' },
+                      vendedor: { title: 'Dados do Vendedor', icon: '💰', color: '#f59e0b' },
+                      comprador: { title: 'Dados do Comprador', icon: '🛒', color: '#ef4444' },
+                      locador: { title: 'Dados do Locador (Proprietário)', icon: '🏠', color: '#84cc16' },
+                      locatario: { title: 'Dados do Locatário (Inquilino)', icon: '🗝️', color: '#a855f7' },
+                      empregador: { title: 'Dados do Empregador (Empresa)', icon: '🏭', color: '#0ea5e9' },
+                      empregado: { title: 'Dados do Empregado', icon: '👨‍💼', color: '#14b8a6' },
+                      empresa: { title: 'Dados da Empresa/Instituição', icon: '🏢', color: '#6366f1' },
+                      estagiario: { title: 'Dados do Estagiário', icon: '🎓', color: '#f97316' },
+                      declarante: { title: 'Dados do Declarante', icon: '📝', color: '#8b5cf6' },
+                      residente: { title: 'Dados do Residente', icon: '🏘️', color: '#06b6d4' },
+                      paciente: { title: 'Dados do Paciente', icon: '🩺', color: '#0ea5e9' },
+                      medico: { title: 'Dados do Médico', icon: '👨‍⚕️', color: '#14b8a6' },
+                      funcionario: { title: 'Dados do Funcionário', icon: '👨‍💼', color: '#10b981' },
+                      companheiro1: { title: 'Dados do Companheiro 1', icon: '💑', color: '#ec4899' },
+                      companheiro2: { title: 'Dados do Companheiro 2', icon: '💏', color: '#be185d' },
+                      testemunha: { title: 'Dados das Testemunhas', icon: '👥', color: '#6b7280' },
+                      segurado: { title: 'Dados do Segurado', icon: '🛡️', color: '#059669' },
+                      seguradora: { title: 'Dados da Seguradora', icon: '🏦', color: '#0369a1' },
+                      veiculo: { title: 'Dados do Veículo', icon: '🚗', color: '#dc2626' },
+                      imovel: { title: 'Dados do Imóvel/Obra', icon: '🏗️', color: '#ca8a04' },
+                      objeto: { title: 'Objeto/Serviços', icon: '📋', color: '#7c3aed' },
+                      financeiro: { title: 'Informações Financeiras', icon: '💰', color: '#059669' },
+                      temporal: { title: 'Datas e Prazos', icon: '📅', color: '#dc2626' },
+                      localizacao: { title: 'Localização', icon: '📍', color: '#ea580c' },
+                      outros: { title: 'Outras Informações', icon: '📄', color: '#6b7280' }
+                    };
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                        {/* Campo CEP para preenchimento automático global (se não existir campo CEP específico) */}
+                        {!selectedTemplate.fields.some(f => f.name.toLowerCase().includes('cep')) &&
+                         selectedTemplate.fields.some(f =>  f.name.toLowerCase().includes('endereco')) && (
+                          <div style={{
+                            marginBottom: '2rem',
+                            padding: '1.5rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            borderRadius: 'var(--radius)',
+                            border: '1px solid var(--color-border)',
+                            color: 'white',
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                          }}>
+                            <h5 style={{
+                              margin: '0 0 1rem 0',
+                              fontSize: '1.2rem',
+                              fontWeight: '700',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              🗺️ CEP para Preenchimento Automático Global
+                            </h5>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="Digite o CEP para preencher endereços automaticamente"
+                                value={formData['__cep_helper'] || ''}
+                                onChange={(e) => {
+                                  const maskedValue = formatCEP(e.target.value);
+                                  setFormData(prev => ({ ...prev, '__cep_helper': maskedValue }));
+                                }}
+                                onBlur={(e) => {
+                                  const value = e.target.value;
+                                  if (value && validateCEP(value).valid) {
+                                    preencherPorCEP(value, '__cep_helper');
+                                  }
+                                }}
+                                style={{
+                                  background: 'rgba(255,255,255,0.95)',
+                                  color: 'black',
+                                  border: '1px solid rgba(255,255,255,0.3)',
+                                  paddingRight: '2.5rem'
+                                }}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                right: '0.5rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '1rem',
+                                color: '#667eea'
+                              }}>
+                                🔍
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: '0.85rem',
+                              marginTop: '0.5rem',
+                              opacity: 0.9,
+                              fontStyle: 'italic',
+                              background: 'rgba(255,255,255,0.1)',
+                              padding: '0.5rem',
+                              borderRadius: '0.25rem'
+                            }}>
+                              💡 Este CEP será usado para preencher automaticamente os campos de endereço de todas as pessoas do documento
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Renderizar seções organizadas */}
+                        {Object.entries(categorizedFields).map(([sectionKey, sectionFields]) => {
+                          const config = sectionConfig[sectionKey as keyof typeof sectionConfig];
+                          if (!config || sectionFields.length === 0) return null;
+
+                          // Seções especiais com estilo diferenciado
+                          if (sectionKey === 'objeto' || sectionKey === 'financeiro' || sectionKey === 'temporal') {
+                            return renderObjectSection(config.title, sectionFields, config.icon);
+                          }
+
+                          return renderSection(config.title, sectionFields, config.icon, sectionKey);
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   <button
                     className="button button-primary"
@@ -2369,11 +3932,12 @@ Data: ${currentDate}`,
         <div className="card">
           <EmpresaManager
             sistema="documentos"
-            allowCreate={userData?.role === 'admin' || userData?.role === 'superadmin'}
-            allowEdit={userData?.role === 'admin' || userData?.role === 'superadmin'}
-            allowDelete={userData?.role === 'superadmin'}
+            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
+            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
+            allowDelete={userRole === 'superadmin'}
             onEmpresaSelect={(empresa) => {
               console.log('Empresa selecionada para documentos:', empresa);
+              // Implementar filtros de documentos por empresa
             }}
           />
         </div>
@@ -2444,6 +4008,8 @@ Data: ${currentDate}`,
           )}
         </div>
       )}
+
+
     </div>
   );
 }
