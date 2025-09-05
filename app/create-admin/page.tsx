@@ -29,7 +29,8 @@ function recordAttempt(): void {
 }
 
 const ADMIN_EMAIL = "enygna@enygna.com";
-const ADMIN_PASSWORD = "enygna123";
+// Password moved to environment variables for security
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '';
 const ADMIN_DISPLAY_NAME = "ENYGNA Admin";
 
 export default function CreateAdminOpenPage() {

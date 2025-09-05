@@ -1975,7 +1975,7 @@ Data: ${currentDate}`,
 
     // Mostrar loading
     const loadingAlert = document.createElement('div');
-    loadingAlert.innerHTML = `🔍 Buscando endereço para ${sectionPrefix}...`;
+    loadingAlert.textContent = `🔍 Buscando endereço para ${sectionPrefix}...`;
     loadingAlert.style.cssText = `
       position: fixed; top: 20px; right: 20px; z-index: 10000;
       background: #3b82f6; color: white; padding: 1rem;
@@ -2008,7 +2008,7 @@ Data: ${currentDate}`,
 
         setFormData(novoFormData);
 
-        loadingAlert.innerHTML = `✅ Endereço encontrado para ${sectionPrefix}!`;
+        loadingAlert.textContent = `✅ Endereço encontrado para ${sectionPrefix}!`;
         loadingAlert.style.background = '#10b981';
         setTimeout(() => document.body.removeChild(loadingAlert), 2000);
 
@@ -2158,13 +2158,18 @@ Data: ${currentDate}`,
             detalhes.push('Nascimento: ' + dataNascimento.toLocaleDateString('pt-BR'));
           }
 
-          loadingAlert.innerHTML = '✅ Dados encontrados!<br><small>' + detalhes.join(' • ') + '</small>';
+          // Safe DOM manipulation to prevent XSS
+          loadingAlert.textContent = '✅ Dados encontrados!';
+          const detailsElement = document.createElement('small');
+          detailsElement.textContent = detalhes.join(' • ');
+          detailsElement.style.display = 'block';
+          loadingAlert.appendChild(detailsElement);
           loadingAlert.style.background = '#10b981';
         } else {
           // CPF válido mas sem dados - apenas formatar
           novoFormData[fieldName] = formatCpfCnpj(cpf);
 
-          loadingAlert.innerHTML = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
+          loadingAlert.textContent = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
           loadingAlert.style.background = '#f59e0b';
         }
 
@@ -3370,7 +3375,7 @@ Data: ${currentDate}`,
 
                                   // Mostrar tooltip de erro
                                   const errorTooltip = document.createElement('div');
-                                  errorTooltip.innerHTML = errorMessage;
+                                  errorTooltip.textContent = errorMessage;
                                   errorTooltip.style.cssText = `
                                     position: absolute; top: -2.5rem; left: 0; z-index: 1000;
                                     background: #ef4444; color: white; padding: 0.5rem;

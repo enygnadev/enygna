@@ -710,7 +710,7 @@ function EmpresaDashboard() {
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
       messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
     };
 
     // Verificar se já existe uma app secundária
@@ -2408,7 +2408,7 @@ function EmpresaDashboard() {
       )}
 
       {/* TABELA DE COLABORADORES */}
-      {activeTab === "users" && (
+      {activeTab === "users" && ["superadmin", "admin", "gestor"].includes(meRole || "") && (
         <div className="card" style={{ marginTop: 14, padding: 16 }}>
           <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
             <button

@@ -81,9 +81,8 @@ service cloud.firestore {
     // ===== ACESSO ESPECÍFICO PARA ADMINS DO SISTEMA =====
     match /admin_access/{document} {
       allow read, write: if isAuthenticated() && (
-        request.auth.token.email == 'enygna@enygna.com' ||
-        request.auth.token.email == 'enygnadev@gmail.com' ||
-        request.auth.token.bootstrapAdmin == true
+        request.auth.token.bootstrapAdmin == true ||
+        isSuperAdmin()
       );
     }
 
@@ -106,11 +105,8 @@ service cloud.firestore {
       // permitir leitura básica para verificação de perfil durante auth
       allow read: if isAuthenticated() && userId == request.auth.uid;
       
-      // permitir acesso inicial para admins do sistema
-      allow read: if isAuthenticated() && (
-        request.auth.token.email == 'enygna@enygna.com' ||
-        request.auth.token.email == 'enygnadev@gmail.com'
-      );
+      // permitir acesso inicial para super admins
+      allow read: if isSuperAdmin();
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====
