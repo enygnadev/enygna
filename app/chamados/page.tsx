@@ -129,24 +129,32 @@ function ChamadosPage() {
 
     setLoading(true);
 
-    // Construir query base
+    // Obter empresaId do usuário
+    const empresaId = userData.empresaId || userData.company;
+    
+    if (!empresaId) {
+      console.error('❌ EmpresaId não encontrado para o usuário');
+      setLoading(false);
+      return;
+    }
+
+    // Construir query base com filtro obrigatório por empresa
     let q = query(
       collection(db, 'tickets'),
+      where('empresaId', '==', empresaId),
       orderBy('createdAt', 'desc'),
       limit(itemsPerPage)
     );
 
-    // Aplicar filtros baseados no perfil
-    const empresaId = userData.empresaId || userData.company;
-    
-    if (!canManageTickets(profile) && empresaId) {
-      // Usuários normais só veem tickets da sua empresa
-      q = query(q, where('empresaId', '==', empresaId));
-    }
-
+    // Se não pode gerenciar tickets, filtrar pelos próprios
     if (!canManageTickets(profile)) {
-      // Usuários normais só veem seus próprios tickets
-      q = query(q, where('createdBy', '==', profile.uid));
+      q = query(
+        collection(db, 'tickets'),
+        where('empresaId', '==', empresaId),
+        where('createdBy', '==', user?.uid),
+        orderBy('createdAt', 'desc'),
+        limit(itemsPerPage)
+      );
     }
 
     // Aplicar filtros adicionais
@@ -568,10 +576,28 @@ function ChamadosPage() {
 
         {/* Aba Novo Chamado */}
         {activeTab === 'create' && (
-          <TicketForm onSubmit={async (ticket) => {
-            // Handle ticket submission
-            console.log('Novo chamado:', ticket);
-          }} />
+          <TicketForm 
+            empresaId={userData.empresaId || userData.company}
+            onSubmit={async (ticket) => {
+              try {
+                const ticketData = {
+                  ...ticket,
+                  empresaId: userData.empresaId || userData.company,
+                  createdBy: user?.uid,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                  status: 'aberto'
+                };
+
+                await addDoc(collection(db, 'tickets'), ticketData);
+                
+                console.log('✅ Chamado criado com sucesso');
+                setActiveTab('tickets'); // Voltar para a lista
+              } catch (error) {
+                console.error('❌ Erro ao criar chamado:', error);
+              }
+            }} 
+          />
         )}
 
         {/* Aba Empresas */}
