@@ -2846,7 +2846,8 @@ export default function AdminMasterPage() {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0f0b3c 0%, #1e1b4b 15%, #3730a3 30%, #4338ca 45%, #4f46e5 60%, #6366f1 75%, #8b5cf6 90%, #a855f7 100%)',
       color: 'white'
-    }}></old_str>
+    }}>
+      {showTutorial && (</old_str>
     }}>
       {showTutorial && (
         <Tutorial
