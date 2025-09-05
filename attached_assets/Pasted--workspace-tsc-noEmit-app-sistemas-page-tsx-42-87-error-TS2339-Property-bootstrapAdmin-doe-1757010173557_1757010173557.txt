@@ -1,0 +1,43 @@
+~/workspace$ tsc --noEmit
+app/sistemas/page.tsx:42:87 - error TS2339: Property 'bootstrapAdmin' does not exist on type 'UserData'.
+
+42     if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+                                                                                         ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:47:18 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+47     if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+                    ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:47:45 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+47     if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+                                               ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:52:54 - error TS2339: Property 'canAccessSystems' does not exist on type '{ frota: boolean; ponto: boolean; chamados: boolean; documentos: boolean; admin?: boolean | undefined; }'.
+
+52     if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+                                                        ~~~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:52:95 - error TS2339: Property 'canAccessSystems' does not exist on type '{ frota: boolean; ponto: boolean; chamados: boolean; documentos: boolean; admin?: boolean | undefined; }'.
+
+52     if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+                                                                                                 ~~~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:66:35 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+66         sistemasAtivos: userData?.sistemasAtivos || [],
+                                     ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:356:29 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+356                 {(!userData.sistemasAtivos || userData.sistemasAtivos.length === 0) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                                ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:356:56 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+356                 {(!userData.sistemasAtivos || userData.sistemasAtivos.length === 0) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                                                           ~~~~~~~~~~~~~~
+
+
+Found 8 errors in the same file, starting at: app/sistemas/page.tsx:42

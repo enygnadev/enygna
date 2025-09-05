@@ -1,0 +1,159 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Funções auxiliares
+    function authed() { 
+      return request.auth != null; 
+    }
+    
+    function hasRole(roles) { 
+      return authed() && (request.auth.token.role in roles); 
+    }
+    
+    function sameCompany(empresaId) { 
+      return authed() && request.auth.token.empresaId == empresaId; 
+    }
+    
+    function isOwner(userId) {
+      return authed() && request.auth.uid == userId;
+    }
+    
+    // Validação de tipo de arquivo
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+    
+    function isDocument() {
+      return request.resource.contentType.matches('application/(pdf|msword|vnd.*|x-.*|octet-stream)') ||
+             request.resource.contentType.matches('text/.*');
+    }
+    
+    // Limites de tamanho
+    function maxSize(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+    
+    // ========================================
+    // ARQUIVOS PÚBLICOS
+    // ========================================
+    
+    match /public/{allPaths=**} { 
+      allow read: if true;
+      allow write: if hasRole(['adminmaster', 'superadmin']) && maxSize(10);
+    }
+    
+    // ========================================
+    // LOGOS E IMAGENS DO SITE
+    // ========================================
+    
+    match /site/{allPaths=**} {
+      allow read: if true;
+      allow write: if hasRole(['adminmaster', 'superadmin', 'admin']) && 
+                     isImage() && maxSize(5);
+    }
+    
+    // ========================================
+    // ARQUIVOS POR EMPRESA (Multi-tenant)
+    // ========================================
+    
+    match /empresas/{empresaId}/{allPaths=**} {
+      // Leitura para membros da empresa
+      allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+      
+      // Upload com restrições
+      allow create: if sameCompany(empresaId) && 
+                      hasRole(['admin', 'gestor', 'colaborador']) &&
+                      maxSize(20) && 
+                      (isImage() || isPDF() || isDocument());
+      
+      // Atualização apenas por admins da empresa
+      allow update: if sameCompany(empresaId) && 
+                      hasRole(['admin', 'gestor']) &&
+                      maxSize(20);
+      
+      // Deleção restrita
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+    }
+    
+    // ========================================
+    // AVATARES DE USUÁRIO
+    // ========================================
+    
+    match /users/{userId}/avatar/{fileName} {
+      allow read: if authed(); // Qualquer usuário autenticado pode ver avatares
+      
+      // Usuário pode fazer upload do próprio avatar
+      allow create, update: if isOwner(userId) && 
+                              isImage() && 
+                              maxSize(2) &&
+                              fileName.matches('.*\\.(jpg|jpeg|png|gif|webp)');
+      
+      allow delete: if isOwner(userId) || hasRole(['adminmaster', 'superadmin']);
+    }
+    
+    // ========================================
+    // DOCUMENTOS FINANCEIROS (Acesso Restrito)
+    // ========================================
+    
+    match /financeiro/{empresaId}/{year}/{month}/{fileName} {
+      allow read: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin', 'gestor']);
+      
+      allow create: if sameCompany(empresaId) && 
+                      hasRole(['adminmaster', 'admin', 'gestor']) &&
+                      (isPDF() || isDocument()) &&
+                      maxSize(50);
+      
+      allow update: if false; // Documentos financeiros são imutáveis
+      
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster']);
+    }
+    
+    // ========================================
+    // BACKUPS (Somente SuperAdmin)
+    // ========================================
+    
+    match /backups/{allPaths=**} {
+      allow read, write: if hasRole(['adminmaster', 'superadmin']);
+    }
+    
+    // ========================================
+    // TEMPORÁRIO (Auto-limpeza após 24h)
+    // ========================================
+    
+    match /temp/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      
+      // Upload temporário com limite menor
+      allow create: if isOwner(userId) && maxSize(10);
+      
+      // Permitir deletar próprios arquivos temporários
+      allow delete: if isOwner(userId) || hasRole(['adminmaster', 'superadmin']);
+      
+      allow update: if false; // Não permitir modificação
+    }
+    
+    // ========================================
+    // LOGS DE AUDITORIA (Write-only)
+    // ========================================
+    
+    match /audit-logs/{allPaths=**} {
+      allow read: if hasRole(['adminmaster', 'superadmin']);
+      allow create: if authed(); // Qualquer usuário autenticado pode criar logs
+      allow update, delete: if false; // Logs são imutáveis
+    }
+    
+    // ========================================
+    // DENY ALL - Negar todo o resto
+    // ========================================
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

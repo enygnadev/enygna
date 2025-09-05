@@ -7,7 +7,9 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
-import { UserData } from '@/src/lib/types';
+import { UserData, UserPermissions } from '@/src/lib/types';
+
+
 
 
 export default function SistemasPage() {
@@ -18,22 +20,22 @@ export default function SistemasPage() {
   // Função para verificar acesso aos sistemas
   const hasAccess = (sistema: string): boolean => {
     if (!user || !userData) return false;
-    
+
     // Admins sempre têm acesso
     if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
       return true;
     }
-    
+
     // Verificar sistemas ativos do usuário
-    if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+    if (userData.sistemasAtivos?.includes(sistema)) {
       return true;
     }
-    
+
     // Verificar permissões específicas
-    if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+    if (userData.permissions?.canAccessSystems?.includes(sistema)) {
       return true;
     }
-    
+
     return false;
   };
 
@@ -334,7 +336,7 @@ export default function SistemasPage() {
                 {hasAccess('financeiro') && <span className="tag" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>💰 Financeiro</span>}
                 {(hasAccess('crm') || hasAccess('vendas')) && <span className="tag" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💼 CRM/Vendas</span>}
                 {userData.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
-                {(!userData.sistemasAtivos || userData.sistemasAtivos.length === 0) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                {(!userData.sistemasAtivos?.length) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>
           )}

@@ -1,0 +1,42 @@
+~/workspace$ tsc --noEmit
+app/ponto/empresa/page.tsx:827:93 - error TS2554: Expected 1 arguments, but got 2.
+
+827       showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.", "success");
+                                                                                                ~~~~~~~~~
+
+app/ponto/empresa/page.tsx:2243:68 - error TS18047: 'selectedUser' is possibly 'null'.
+
+2243                                 onClick={() => handleApprove(s.id, selectedUser.id)}
+                                                                        ~~~~~~~~~~~~
+
+app/ponto/empresa/page.tsx:2263:67 - error TS18047: 'selectedUser' is possibly 'null'.
+
+2263                                 onClick={() => handleReject(s.id, selectedUser.id)}
+                                                                       ~~~~~~~~~~~~
+
+app/sistemas/page.tsx:34:87 - error TS2339: Property 'bootstrapAdmin' does not exist on type 'UserData'.
+
+34     if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.bootstrapAdmin) {
+                                                                                         ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:39:18 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+39     if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+                    ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:39:45 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.
+
+39     if (userData.sistemasAtivos && userData.sistemasAtivos.includes(sistema)) {
+                                               ~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:44:54 - error TS2339: Property 'canAccessSystems' does not exist on type '{ frota: boolean; ponto: boolean; chamados: boolean; documentos: boolean; admin?: boolean | undefined; }'.
+
+44     if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+                                                        ~~~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:44:95 - error TS2339: Property 'canAccessSystems' does not exist on type '{ frota: boolean; ponto: boolean; chamados: boolean; documentos: boolean; admin?: boolean | undefined; }'.
+
+44     if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+                                                                                                 ~~~~~~~~~~~~~~~~
+
+app/sistemas/page.tsx:58:35 - error TS2339: Property 'sistemasAtivos' does not exist on type 'UserData'.

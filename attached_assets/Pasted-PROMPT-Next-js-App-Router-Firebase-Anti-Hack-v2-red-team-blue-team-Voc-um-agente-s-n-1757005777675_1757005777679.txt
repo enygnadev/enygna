@@ -1,0 +1,1156 @@
+PROMPT — Next.js (App Router) + Firebase “Anti-Hack” v2 (red-team > blue-team)
+
+Você é um agente sênior. Use Extended Thinking e High-Power Model. Não quebre nada que já funciona; refatore com segurança, feature-flag onde for grande. Alvo: endurecer o app contra invasores experientes, sem perder acessibilidade pública e sem erros de permissão.
+
+Contexto
+
+Stack: Next.js (App Router) + Firebase (Auth, Firestore, Storage) + Vercel.
+
+Páginas públicas (SEM login): /home, /planos, /sistemas (+ páginas de login).
+
+Páginas “/auth” devem abrir em público (exibir tela de login e instruções), mas só carregam dados protegidos após autenticação e claims válidas.
+
+Pastas existentes:
+
+app/chamados/auth/page.tsx
+app/chamados/auth/admin/page.tsx
+app/crm/auth/page.tsx
+app/documentos/auth/page.tsx
+app/financeiro/auth/page.tsx
+app/financeiro/auth/admin/page.tsx
+app/frota/auth/page.tsx
+app/frota/auth/admin/page.tsx
+app/ponto/auth/page.tsx
+app/admin/auth/page.tsx
+
+Regras de ouro
+
+Zero “Missing or insufficient permissions” em páginas públicas. Nada de listeners/queries protegidas antes de validar sessão/claims.
+
+Mínimo privilégio + Multi-tenant por empresaId com custom claims (request.auth.token.empresaId, role).
+
+Sessão em cookie HTTPOnly (server-side), sem expor tokens no client.
+
+Cabeçalhos e superfície reduzida: CSP, HSTS, nosniff, XFO via CSP, Permissions-Policy, COOP/CORP conservadores.
+
+Monitorar e reagir: rate-limit, brute-force shield, auditoria e alarmes.
+
+Supply-chain: dependências pinadas, auditoria em CI e bloqueios.
+
+Tarefas (faça em commits pequenos, feat/secure-hardening)
+1) Infra e CI
+
+Vercel/Node 22.x. Lockfile versionado.
+
+Scripts: typecheck, lint, audit:prod, test:e2e (pelo menos smoke).
+
+Dependabot + npm audit --omit=dev no CI.
+
+2) Agrupamento de rotas (público vs protegido)
+
+Crie grupos:
+
+app/(public)/home/page.tsx
+
+app/(public)/planos/page.tsx
+
+app/(public)/sistemas/page.tsx
+
+Todas as páginas listadas sob /.../auth ficam em (public) porque devem abrir sem login (renderizam somente UI de login e instruções).
+
+O conteúdo privado dessas áreas deve ser carregado via componente dinâmico somente após autenticação:
+
+Ex.: dentro de app/chamados/auth/page.tsx, mantenha a tela de login pública e carregue <ChamadosPrivado /> via dynamic(() => import('./_privado'), { ssr: false }) após checar user && claimsLoaded.
+
+Para áreas 100% internas (dashboards já logados), use app/(protected)/... com layout.tsx que verifica cookie de sessão e redirect('/login') se ausente.
+
+3) Sessão segura (Firebase Admin + Cookie HTTPOnly)
+
+app/api/session/route.ts:
+
+POST { idToken } → createSessionCookie (7 dias). Sete cookie __Host-nextSession (Secure; HttpOnly; Path=/; SameSite=Lax).
+
+DELETE → limpa cookie (logout).
+
+Fluxo de login no client:
+
+Após signInWithEmailAndPassword, chame getIdToken(true) e POST /api/session.
+
+Nunca guarde idToken em localStorage. Use somente o cookie.
+
+Opcional: verifique emailVerified e desabilite anonymous.
+
+4) Anti-brute force e CSRF
+
+app/api/session/route.ts:
+
+Rate-limit por IP (ex.: Upstash/Vercel KV; fallback LRU in-memory).
+
+Turnstile/ReCAPTCHA no submit de login (server-side verify).
+
+CSRF: padrão double-submit (csrf cookie + header x-csrf-token) nas rotas POST sensíveis.
+
+5) Claims de função e empresa
+
+app/api/admin/set-claims/route.ts (server-only, protegida por API key env + allowlist de IP):
+
+Define empresaId e role (adminmaster|admin|gestor|colaborador|viewer).
+
+Client: getIdTokenResult pós-login; cache claims em AuthContext e forneça claimsLoaded.
+
+6) Guard público nas páginas /auth
+
+Em cada /.../auth/page.tsx:
+
+Renderize sempre a UI de login (pública).
+
+Somente após user && claimsLoaded → carregue o módulo privado da seção (dynamic import).
+
+Nunca chame Firestore/Storage/Functions protegidos antes desse ponto.
+
+7) Firestore Rules (produção, seguras)
+
+Ajuste nomes de coleções conforme seu schema. Páginas públicas só leem coleções explicitamente públicas.
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() { return request.auth != null; }
+    function hasRole(r) { return authed() && (request.auth.token.role in r); }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    // 🔓 Público somente leitura
+    match /Publico/{docId} { allow read: if true; allow write: if false; }
+    match /Site/{document=**} { allow read: if true; allow write: if false; }
+
+    // 🔐 Multi-tenant (exemplos)
+    match /Empresas/{empresaId}/Chamados/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+      allow update: if sameCompany(empresaId)
+                    && request.resource.data.empresaId == empresaId
+                    && resource.data.empresaId == empresaId;
+      allow create: if sameCompany(empresaId)
+                    && request.resource.data.empresaId == empresaId;
+    }
+
+    match /Empresas/{empresaId}/CRM/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Financeiro/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor']);
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster']);
+    }
+
+    match /Empresas/{empresaId}/Frota/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Ponto/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Admin/{docId} {
+      allow read, write: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    // ❌ Negar todo o resto
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+
+8) Storage Rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function authed() { return request.auth != null; }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    match /public/{all=**} { allow read: if true; allow write: if false; }
+    match /empresas/{empresaId}/{all=**} {
+      allow read, write: if sameCompany(empresaId) && request.resource.size < 20 * 1024 * 1024;
+    }
+  }
+}
+
+9) Cabeçalhos de segurança (Next)
+
+Sem inline script. Evite dangerouslySetInnerHTML.
+
+next.config.js:
+
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value:
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; frame-ancestors 'none'; base-uri 'none'; object-src 'none';" },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'no-referrer' },
+  { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+];
+
+module.exports = {
+  async headers() { return [{ source: '/(.*)', headers: securityHeaders }]; },
+};
+
+10) Red-team hardening (pensa como invasor)
+
+Superfície mínima: nenhuma rota API deve expor stack traces em produção; responda mensagens genéricas.
+
+Honeypots:
+
+Crie /api/__debug e /admin/__old que sempre 200/404, logam IP/UA em Auditoria/HoneypotHits com timestamp e hash encadeado (cadeia de auditoria).
+
+Bloqueios:
+
+Rate-limit global e por rota; cooldown progressivo no login.
+
+IP denylist e allowlist para rotas admin (claims/seed/maintenance).
+
+Autenticação forte:
+
+Habilite 2FA no Firebase Auth (MFA) para contas admin.
+
+Exigir emailVerified para qualquer acesso que grava.
+
+Config:
+
+Somente domínios permitidos no Auth.
+
+Desabilite provedores não usados (ex.: Anonymous, Phone, etc.).
+
+Supply-chain:
+
+Sem dependências duvidosas; pin versões (sem ^ em libs críticas).
+
+Ative package.json "type": "module" se necessário e importe apenas o que usa.
+
+Build leaks:
+
+productionBrowserSourceMaps: false.
+
+Nada de .env no client (NEXT_PUBLIC_ apenas para chaves não sensíveis).
+
+Observabilidade:
+
+Integre Sentry/Logtail; alarmes para picos de 401/403/429, erros 5xx, e hits no honeypot.
+
+11) Critérios de aceite (automáticos)
+
+/home, /planos, /sistemas abrem sem login e sem chamadas protegidas → nenhum erro de permissão.
+
+Todas as rotas /.../auth abrem em público mostrando UI de login; o conteúdo privado só carrega após user && claimsLoaded.
+
+Rotas internas em /(protected) redirecionam sem cookie de sessão.
+
+Firestore/Storage respeitam empresaId + role.
+
+Rate-limit/Turnstile ativos no login.
+
+Honeypot registrando eventos e alerts configurados.
+
+Snippets essenciais (o agente pode criar/ajustar)
+
+app/api/session/route.ts (resumo)
+
+import { cookies, headers } from 'next/headers';
+import { NextResponse } from 'next/server';
+import admin from '@/lib/firebaseAdmin';
+import { verifyTurnstile } from '@/lib/turnstile';
+import { rateLimit } from '@/lib/ratelimit'; // Upstash/Vercel KV; fallback LRU
+
+export async function POST(req: Request) {
+  await rateLimit('login', req); // 5/min/IP
+  const h = headers();
+  const csrf = h.get('x-csrf-token');
+  const cookieCsrf = cookies().get('csrf')?.value;
+  if (!csrf || csrf !== cookieCsrf) return NextResponse.json({ ok:false }, { status: 403 });
+
+  const { idToken, turnstileToken } = await req.json();
+  const human = await verifyTurnstile(turnstileToken);
+  if (!human) return NextResponse.json({ ok:false }, { status: 429 });
+
+  const expiresIn = 7 * 24 * 60 * 60 * 1000;
+  const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
+  cookies().set('__Host-nextSession', sessionCookie, {
+    httpOnly: true, secure: true, sameSite: 'lax', path: '/'
+  });
+  return NextResponse.json({ ok:true });
+}
+
+export async function DELETE() {
+  cookies().set('__Host-nextSession','', { httpOnly:true, secure:true, sameSite:'lax', path:'/', maxAge:0 });
+  return NextResponse.json({ ok:true });
+}
+
+
+Proteção nas páginas /.../auth (exemplo)
+
+// app/chamados/auth/page.tsx
+'use client';
+import dynamic from 'next/dynamic';
+import { useAuthContext } from '@/contexts/auth';
+const ChamadosPrivado = dynamic(() => import('./_privado'), { ssr: false });
+
+export default function Pagina() {
+  const { user, claimsLoaded } = useAuthContext();
+  return (
+    <div>
+      <LoginBox /> {/* sempre público */}
+      {user && claimsLoaded ? <ChamadosPrivado /> : <HintAposLogin />}
+    </div>
+  );
+}
+
+
+next.config.js (headers já acima).
+
+Honeypot simples
+
+// app/api/__debug/route.ts
+import { NextResponse } from 'next/server';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+export async function GET() {
+  try {
+    await addDoc(collection(db, 'Auditoria/Honeypot/Hits'), {
+      ts: serverTimestamp(), ua: globalThis?.navigator?.userAgent ?? 'server',
+    });
+  } catch {}
+  return NextResponse.json({ ok: true });
+}
+
+Observações finais
+
+Auth pages públicas: ok; apenas isole o conteúdo privado com guards e dynamic import.
+
+Nada de segredos no browser.
+
+Aumente a fricção para invasores: limites, verificações, logs, honeypots, superfície mínima.
+
+Implemente tudo acima sem remover o que já funciona. Ao concluir, rode:
+
+npm run build
+
+npm run typecheck
+
+Teste fluxo público → login → conteúdo privado (claims corretas).
+
+Valide que nenhuma página pública dispara queries protegidas antes da sessão.
+
+quer que eu gere os arquivos-base (AuthContext, lib/ratelimit, lib/turnstile, _privado de cada seção, firebase.rules, storage.rules, next.config.js) já prontos pra colar?
+
+Você disse:
+Clonar a  tcp ip , 
+protocolo de rede exclusiva 
+
+Msm que perca dados a IA vai recuperar usando seus neuros para prever e ate msm se antecipar 
+
+
+Algoritmo de gestão deixar em blocos menores vai enviar para o bus e depois montar
+
+A cada novo plano   Selecionar nova escala 
+
+Sistema flutuante 
+
+Adicione e melhore e atulize completo prompra para copiar e colar e o agente do replit fazer tudo automatico e testes
+O ChatGPT disse:
+Pensou por 45s
+
+showtime — eis um PROMPT ÚNICO, pronto pra colar no Replit Agent (ative Dynamic Intelligence + High-Power Model). Ele cria um protocolo de rede exclusivo “XNP” (clone dos comportamentos essenciais de TCP/IP no nível da aplicação), com chunking + FEC (correção de erro), retransmissão seletiva, bus de mensagens, reassemblagem, recuperação assistida por IA quando houver perda, QoS por plano, sistema flutuante (tolerante a falhas), hardening anti-hack, Next.js (App Router) + Firebase com rules de produção e páginas /auth públicas (login aberto; dados só após autenticar). Inclui testes de estresse/fuzz/property-based, CI e critérios de aceite.
+
+Copie & cole tudo abaixo no Replit Agent. Não remova nada; o agente deve gerar os arquivos, código e testes automaticamente.
+
+🚀 PROMPT — AntiHack Net + Next.js (App Router) + Firebase + XNP (e2e)
+
+Você é um agente sênior full-stack + red-team. Use Extended Thinking e High-Power Model. Não quebre nada que já funciona: trabalhe em branch feat/secure-hardening-xnp, com commits pequenos e revertíveis. Objetivo:
+
+Endurecer o app contra invasores experientes, mantendo acessibilidade pública (login aberto).
+
+Implementar XNP: eXclusive Network Protocol — um “clone” de comportamentos TCP/IP na camada de aplicação via WebSockets (compatível Vercel), com: segmentation (chunking), janela deslizante, Selective Repeat ARQ, Forward Error Correction (FEC) (Reed-Solomon ou Fountain), ACK/NACK, reordenação, detecção de duplicata, congestion/flow control adaptativo, QoS por plano, bus interno, reassemblagem, AI Recovery opcional para fluxos tolerantes a predição (texto/telemetria).
+
+Páginas /auth são públicas (UI de login visível sem login), mas qualquer dado protegido só carrega após autenticar + claims.
+
+Segurança: Session Cookie HTTPOnly, CSP/HSTS/nosniff/COOP/CORP, rate-limit, anti-brute-force, honeypots, MFA para admins, rules fortes em Firestore/Storage.
+
+Entregar testes automáticos (unitários, integração, fuzz, property-based) e CI.
+
+1) Infra/Setup
+
+Atualize Node para 22.x (Vercel Project Settings/engines, vercel.json se aplicável).
+
+Scripts no package.json:
+
+"typecheck": "tsc -p . --noEmit", "lint",
+
+"test": "vitest run", "test:watch": "vitest",
+
+"test:fuzz": "vitest run -t fuzz",
+
+"audit:prod": "npm audit --omit=dev".
+
+Dependências (podem variar, escolha estáveis e auditadas):
+
+XNP: ws, nanoid, crc-32, @stablelib/chacha20poly1305 (ou tweetnacl), fastestsmallesttextencoderdecoder, p-limit.
+
+FEC: reed-solomon (ou implemente Fountain simples).
+
+Property-based: fast-check.
+
+Testing: vitest, @vitest/coverage-v8.
+
+Rate-limit: ioredis (Upstash/Redis) com fallback LRU in-memory.
+
+Security headers: sem lib—configure em next.config.js.
+
+Firebase: firebase, firebase-admin.
+
+2) Estrutura de pastas (criar/ajustar)
+/app
+  /(public)/home/page.tsx
+  /(public)/planos/page.tsx
+  /(public)/sistemas/page.tsx
+  /(public)/login/page.tsx
+  /chamados/auth/page.tsx
+  /crm/auth/page.tsx
+  /documentos/auth/page.tsx
+  /financeiro/auth/page.tsx
+  /financeiro/auth/admin/page.tsx
+  /frota/auth/page.tsx
+  /frota/auth/admin/page.tsx
+  /ponto/auth/page.tsx
+  /admin/auth/page.tsx
+  /(protected)/...  ← (apenas se houver telas 100% internas pós-login)
+  /api/session/route.ts
+  /api/admin/set-claims/route.ts
+  /api/xnp/signaling/route.ts        ← sinalização WS
+  /api/xnp/honeypot/route.ts         ← honeypot
+/lib
+  /firebase.ts
+  /firebaseAdmin.ts
+  /authContext.tsx
+  /security/ratelimit.ts
+  /security/turnstile.ts
+  /security/csrf.ts
+  /xnp/transport.ts                  ← client/server core
+  /xnp/fec.ts                        ← FEC util
+  /xnp/bus.ts                        ← EventBus
+  /xnp/assembler.ts                  ← reassemblagem
+  /xnp/qos.ts                        ← perfis por plano
+  /xnp/ai-recovery.ts                ← heurística/LLM opcional
+  /xnp/sim/lossy-sim.ts              ← simulador de perda/latência
+/tests
+  xnp.transport.spec.ts
+  xnp.fec.spec.ts
+  xnp.assembler.spec.ts
+  xnp.qos.spec.ts
+  xnp.fuzz.spec.ts
+SECURITY.md
+firebase.rules
+storage.rules
+next.config.js
+
+3) Páginas públicas com /auth público
+
+Todas as rotas /.../auth/page.tsx ficam acessíveis sem login (renderizam UI de login e instruções).
+
+O conteúdo privado carrega só após user && claimsLoaded via dynamic import (sem SSR), p.ex.:
+
+// app/chamados/auth/page.tsx
+'use client';
+import dynamic from 'next/dynamic';
+import { useAuthContext } from '@/lib/authContext';
+const Privado = dynamic(() => import('./_privado'), { ssr: false });
+
+export default function Page() {
+  const { user, claimsLoaded } = useAuthContext();
+  return (
+    <div>
+      <LoginBox />  {/* sempre público */}
+      {user && claimsLoaded ? <Privado /> : <DicaPosLogin />}
+    </div>
+  );
+}
+
+4) Sessão segura (cookies) + anti-brute-force
+
+app/api/session/route.ts:
+
+POST { idToken, turnstileToken, csrf } → createSessionCookie (7 dias).
+Cookie: __Host-nextSession (HttpOnly; Secure; Path=/; SameSite=Lax).
+Verificar Turnstile/ReCAPTCHA e CSRF; aplicar rate-limit por IP (Redis/Upstash; fallback LRU).
+
+DELETE → limpa cookie (logout).
+
+Fluxo client: após signInWithEmailAndPassword, chamar getIdToken(true) e depois POST /api/session. Nunca usar localStorage para tokens.
+
+5) Claims multi-tenant e papéis
+
+app/api/admin/set-claims/route.ts (server-only, key + allowlist IP): define empresaId e role (adminmaster|admin|gestor|colaborador|viewer).
+
+authContext.tsx expõe { user, claims, claimsLoaded }.
+
+6) Firestore/Storage Rules (produção)
+
+firebase.rules
+
+// Firestore
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() { return request.auth != null; }
+    function hasRole(r) { return authed() && (request.auth.token.role in r); }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    // Público somente leitura
+    match /Publico/{docId}            { allow read: if true;  allow write: if false; }
+    match /Site/{document=**}         { allow read: if true;  allow write: if false; }
+
+    // Multi-tenant — ajuste coleções reais
+    match /Empresas/{empresaId}/Chamados/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+      allow create: if request.resource.data.empresaId == empresaId;
+      allow update: if resource.data.empresaId == empresaId && request.resource.data.empresaId == empresaId;
+    }
+
+    match /Empresas/{empresaId}/CRM/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Financeiro/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster']);
+    }
+
+    match /Empresas/{empresaId}/Frota/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Ponto/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Admin/{docId} {
+      allow read, write: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    // Fechar o restante
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+
+
+storage.rules
+
+// Storage
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function authed() { return request.auth != null; }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    match /public/{all=**} { allow read: if true; allow write: if false; }
+    match /empresas/{empresaId}/{all=**} {
+      allow read, write: if sameCompany(empresaId) && request.resource.size < 20 * 1024 * 1024;
+    }
+  }
+}
+
+7) XNP — Protocolo de Rede Exclusivo (sobre WebSockets)
+Objetivo
+
+Fornecer um transporte confiável/adaptativo no nível da aplicação (compatível com Vercel), “clonando” comportamentos cruciais do TCP/IP:
+
+Segmentation/Chunking de payloads grandes em blocos menores.
+
+Janela deslizante com Selective Repeat ARQ (ACK/NACK por chunk).
+
+FEC (ex.: Reed-Solomon ou Fountain) para tolerar perdas sem retransmissão.
+
+Reordenação e deduplicação por msgId + seq.
+
+Congestion/Flow control: ajuste dinâmico de tamanho de janela e taxa com base em RTT/perda.
+
+QoS por Plano: a cada novo plano, selecionar nova escala de parâmetros (perfil) — ex.: Bronze/Prata/Ouro/Platina controlando taxa/janela/FEC.
+
+Bus interno de eventos (/lib/xnp/bus.ts) — Pub/Sub de mensagens.
+
+AI Recovery (opcional): quando faltar chunks e estiver abaixo de um limite de “incompletude”, use heurística/LLM para prever/estimar trechos (só para tipos tolerantes a predição: texto/telemetria).
+
+Componentes (implementar)
+
+/lib/xnp/transport.ts
+
+API:
+
+type QoSProfile = 'bronze'|'prata'|'ouro'|'platina';
+interface XnpOptions { qos: QoSProfile; fecRate?: number; maxWindow?: number; }
+interface Xnp {
+  connect(url: string, opts: XnpOptions): Promise<void>;
+  send(message: Uint8Array|string, meta?: Record<string,any>): Promise<string>; // retorna msgId
+  on(event: 'message'|'ack'|'nack'|'open'|'close'|'error', cb: (data:any)=>void): void;
+  close(): Promise<void>;
+}
+export function createXnp(): Xnp;
+
+
+Frame: { v:1, type:'DATA|ACK|NACK|CTRL', msgId, seq, total, window, ts, qos, fec?:{k,n}, payload? } (payload binário em base64url quando JSON).
+
+Congestion: medir RTT por ACK.ts - sent.ts, aumentar/diminuir janela.
+
+Safety: cifrar payload com AEAD (chacha20-poly1305) por sessão (chave vinda de handshake). Nunca invente cripto: use lib confiável.
+
+/lib/xnp/fec.ts
+
+Abstração FEC com encode(dataChunks, rate) -> chunks+parity e decode(chunks) -> data (reconstrói quando possível).
+
+/lib/xnp/assembler.ts
+
+Reassemblagem por msgId + seq, timeout de coleta, emissão quando complete.
+
+/lib/xnp/bus.ts
+
+Pub/Sub local: subscribe(topic, cb), publish(topic, data).
+
+Opcional: backend Redis Streams quando REDIS_URL existir (para sistema “flutuante” multi-nó).
+
+/lib/xnp/qos.ts
+
+Perfis:
+
+bronze: janela 8, FEC 10%, backlog 64.
+
+prata: janela 16, FEC 20%, backlog 128.
+
+ouro: janela 32, FEC 30%, backlog 256.
+
+platina: janela 64, FEC 40%, backlog 512.
+
+Se novo plano detectado (upgrade/downgrade), selecionar nova escala automaticamente alterando opts em runtime (hot-swap com suavização).
+
+/lib/xnp/ai-recovery.ts
+
+Interface: recoverText(partial: string, context: any): Promise<string>;
+
+Implementar heurística local (n-gram/Markov) + opcional proxy LLM (ex.: OpenAI/Gemini) se AI_RECOVERY_ENABLED.
+
+Só usar para tipos de dado tolerantes a predição. Nunca para registros críticos.
+
+/lib/xnp/sim/lossy-sim.ts
+
+Simulador de perda/latência/duplicação para testes: parâmetros de % perda, jitter, reordering.
+
+Sinalização WebSocket
+
+app/api/xnp/signaling/route.ts: upgrade WS (ou usar ws em server), autenticar sessão via cookie, iniciar XNP server-side.
+
+8) Segurança (anti-hack real)
+
+Headers em next.config.js:
+
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value:
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss:; frame-ancestors 'none'; base-uri 'none'; object-src 'none';" },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'no-referrer' },
+  { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+];
+module.exports = { async headers() { return [{ source: '/(.*)', headers: securityHeaders }]; }, };
+
+
+Session: cookie __Host-nextSession HttpOnly.
+
+Rate-limit: login e APIs sensíveis (Redis/Upstash + fallback LRU).
+
+CSRF: cookie csrf + header x-csrf-token.
+
+Turnstile/ReCAPTCHA no login.
+
+Honeypots: app/api/xnp/honeypot/route.ts registra IP/UA/timestamp no Auditoria/Honeypot/Hits (cadeia de auditoria com hash encadeado).
+
+MFA para contas com role elevado.
+
+Provedores Auth: desabilitar os não usados; exigir emailVerified para gravações.
+
+Supply-chain: dependências pinadas, npm audit no CI, sem eval/dangerouslySetInnerHTML.
+
+9) Sistema flutuante (multi-nó, tolerante a falhas)
+
+Stateless: toda sessão XNP autenticada por cookie; metadados efêmeros replicáveis.
+
+Bus com Redis Streams quando disponível; fallback in-memory.
+
+Consistent hashing para shardar sessões XNP entre nós (hash por userId/empresaId).
+
+Heartbeats/ping em XNP; auto-reconnect com backoff exponencial; reenvio de chunks pendentes.
+
+Backpressure: quando congestionado, degrade QoS (reduz janela, aumenta FEC).
+
+10) Testes automáticos
+
+Unitários: transport, fec, assembler, qos.
+
+Property-based (fast-check): gerador de sequências com perda/duplicação/reordering para validar reassemblagem determinística e idempotência.
+
+Fuzz: aleatorizar frames corrompidos; sistema deve falhar de forma segura, jamais travar.
+
+Integração: cliente/servidor XNP com lossy-sim configurável (p.ex. 15% perda, jitter 50-200ms).
+
+E2E: fluxo login → criação de sessão → envio de payload grande (≥ 2MB) → valida reconstrução; repetir por QoS Bronze/Prata/Ouro/Platina.
+
+Segurança: teste cabeçalhos HTTP, bloqueios em endpoints admin, MFA exigida para admin*.
+
+11) Critérios de aceite (automáticos)
+
+/home, /planos, /sistemas e todas as /.../auth abrem sem login (UI pública), sem erros de permissão; conteúdo privado só após user && claimsLoaded.
+
+Session Cookie criado e validado; nenhum token exposto no client.
+
+Rules aplicadas; acesso respeita empresaId + role.
+
+XNP:
+
+Reenvio seletivo (ACK/NACK) funcionando;
+
+FEC reconstruindo até n% de perda por perfil;
+
+Reassemblagem determinística;
+
+QoS muda dinamicamente quando o plano do usuário muda;
+
+Simulador com perda 10–30% mantém throughput, com degradação elegante;
+
+AI Recovery (quando ativado) preenche texto parcial com acurácia ≥ baseline n-gram.
+
+Rate-limit ativo no login, honeypot logando acessos suspeitos.
+
+CI rodando typecheck, lint, test, audit:prod.
+
+12) Entregáveis
+
+Código completo de XNP (transport, fec, assembler, bus, qos, ai-recovery, lossy-sim).
+
+Páginas /auth públicas com guard de conteúdo privado via dynamic import.
+
+Session API (/api/session) + set-claims admin.
+
+Rules: firebase.rules, storage.rules.
+
+next.config.js com headers de segurança.
+
+Testes (/tests/*.spec.ts) e SECURITY.md.
+
+Pipelines CI prontos (test + audit).
+
+13) Comandos finais
+
+npm run typecheck
+
+npm run test (inclui property-based/fuzz)
+
+npm run audit:prod
+
+Build e deploy (Vercel).
+
+14) Notas de risco e limites
+
+Cripto: use libs bem testadas. Não invente cifra.
+
+AI Recovery é opcional e não deve alterar dados críticos; use só em fluxos tolerantes (texto/telemetria).
+
+Vercel/WS: protocolo XNP roda sobre WebSockets (não UDP). Ajuste limites de payload.
+
+Implemente tudo acima, sem remover funcionalidades existentes. Gere o código, testes, configuração e documentação. Ao concluir, reporte:
+
+Resumo das mudanças,
+
+Onde ativar/desativar AI Recovery,
+
+Perfis QoS e como selecionar por plano,
+
+Resultados dos testes (incluindo lossy-sim com 20% de perda).
+
+Você disse:
+adicone tudo e deixe ponto para produção  LGPD brasil santa catarina , quero prompt poderoso completo de um app internacional , pronto e toddfas as melhorias amor deixa completo , 
+O ChatGPT disse:
+Pensou por 1m 1s
+
+perfeito — segue um PROMPT ÚNICO, pronto pra colar no Replit Agent (ative Dynamic Intelligence + High-Power Model). Ele deixa seu app pronto pra produção, internacional, anti-hack, compliance LGPD (inclui DSR/consent/transferências internacionais/incidentes), Next.js (App Router) + Firebase endurecido, páginas /auth públicas (UI de login aberta; dados só após autenticar), protocolo XNP (rede exclusiva com chunking/FEC/ACK/NACK/QoS/AI Recovery), sistema flutuante e testes automáticos.
+
+Copie & cole TUDO abaixo no Replit Agent. Não remova nada que já funciona; faça em branch feat/prod-lgpd-xnp-hardening.
+
+🚀 PROMPT — Produção Global Anti-Hack + LGPD + XNP (Next.js App Router + Firebase)
+
+Você é um agente sênior (red-team & blue-team). Use Extended Thinking. Não quebre o que já está ok; refatore com segurança, feature-flag quando precisar. Objetivo: entregar um app internacional, seguro, em conformidade com LGPD, com /auth públicas, protocolo de rede XNP, CI+testes, pronto para Vercel.
+
+0) Contexto & Páginas
+
+Stack: Next.js (App Router) + Firebase (Auth, Firestore, Storage, Functions) + Vercel.
+
+Públicas (sem login): /home, /planos, /sistemas, /login, todas as rotas /.../auth (devem abrir UI de login SEM dados privados).
+
+Protegidas: dashboards/rotas internas pós-login (grupo /(protected)).
+
+Região recomendada Firebase: southamerica-east1 (latência Brasil/SC).
+
+Idiomas (i18n): pt-BR (default), en-US, es-ES.
+
+1) Infra/CI/Qualidade
+
+Node 22.x (Vercel > Project Settings). Lockfile versionado.
+
+package.json scripts:
+
+"typecheck": "tsc -p . --noEmit", "lint": "eslint . --max-warnings=0",
+
+"test": "vitest run", "test:watch": "vitest",
+
+"test:e2e": "playwright test",
+
+"test:fuzz": "vitest run -t fuzz",
+
+"audit:prod": "npm audit --omit=dev".
+
+Dependabot + CI (GitHub Actions) rodando: typecheck, lint, tests, audit.
+
+2) Estrutura de rotas (App Router)
+
+Crie grupos:
+
+app/(public)/home/page.tsx
+
+app/(public)/planos/page.tsx
+
+app/(public)/sistemas/page.tsx
+
+Todas as rotas /.../auth/page.tsx permanecem em (public): sempre renderizam UI de login/infos publicamente; conteúdo privado carrega somente após user && claimsLoaded via dynamic import (sem SSR) para evitar queries prematuras.
+
+Rotas 100% internas em app/(protected)/... com layout.tsx que verifica cookie de sessão e redireciona para /login se ausente.
+
+Exemplo /.../auth/page.tsx:
+
+'use client';
+import dynamic from 'next/dynamic';
+import { useAuthContext } from '@/lib/authContext';
+const Privado = dynamic(() => import('./_privado'), { ssr: false });
+
+export default function Page() {
+  const { user, claimsLoaded } = useAuthContext();
+  return (
+    <div>
+      <LoginBox /> {/* sempre público */}
+      {user && claimsLoaded ? <Privado /> : <DicaPosLogin />}
+    </div>
+  );
+}
+
+3) Sessão Segura + Anti-abuso
+
+Cookies de sessão (HTTPOnly): app/api/session/route.ts
+
+POST { idToken, turnstileToken, csrf } → createSessionCookie (7 dias) → set cookie __Host-nextSession HttpOnly; Secure; SameSite=Lax; Path=/.
+
+DELETE → limpa cookie (logout).
+
+Fluxo client: após signInWithEmailAndPassword, getIdToken(true) → POST /api/session. Nunca guardar token em localStorage.
+
+Rate-limit (Redis/Upstash; fallback LRU) em login e rotas sensíveis.
+
+CSRF: cookie csrf + header x-csrf-token nas rotas POST sensíveis.
+
+Captcha: Cloudflare Turnstile/ReCAPTCHA validado server-side.
+
+MFA para admin*; exigir emailVerified para gravação.
+
+4) Multi-tenant & Claims
+
+app/api/admin/set-claims/route.ts (server-only; API key + IP allowlist) define empresaId e role (adminmaster|admin|gestor|colaborador|viewer).
+
+lib/authContext.tsx expõe { user, claims, claimsLoaded } com getIdTokenResult.
+
+Nunca iniciar listeners Firestore antes de user && claimsLoaded.
+
+5) LGPD — Implementação prática
+
+Objetivo: estar alinhado à LGPD (Lei 13.709/2018) com base legal, direitos do titular, DPO (encarregado), transferências internacionais, incidentes e transparência.
+
+5.1 Bases legais & Registros
+
+Implementar matriz de bases legais por tipo de dado/feature (ex.: consentimento, execução de contrato, legítimo interesse).
+
+SECURITY.md + PRIVACY.md documentando bases e finalidades (ROPA simples).
+
+Página /privacy/policy e /privacy/terms multilíngue.
+
+5.2 Consentimento & Cookies
+
+Banner de cookies granular (analytics/ads/funcionais) com opt-in e link para gerenciar preferências.
+
+Log de consentimento em ConsentLogs/{uid|anonId} (versão do texto, timestamp, idioma, escopos).
+
+Consent mode para SDKs externos; bloquear até consent.
+
+5.3 Portal de Direitos do Titular (DSR)
+
+Rota /privacy/requests com fluxo autenticado para: confirmação/acesso/correção/anonimização/eliminação/portabilidade/informação de compartilhamento/revogação de consentimento/revisão de decisão automatizada.
+
+Coleção DSRRequests (status: aberto, em_validação, concluído, negado; SLA; evidências).
+
+Exportador JSON+ZIP dos dados pessoais do titular (Firestore+Storage).
+
+Verificação de identidade (KBA básico + e-mail confirmado) para evitar fraude.
+
+5.4 Incidentes de Segurança
+
+Coleção Incidents (log imutável com hash encadeado).
+
+Templated e-mails e checklist para notificação a titulares.
+
+Timer/alarme para prazo 3 dias úteis p/ comunicação à ANPD e titulares; armazenar comprovantes por 5 anos.
+
+Página administrativa para registrar, avaliar impacto, e gerar relatório.
+
+5.5 DPO (Encarregado) & Contato
+
+Página /privacy/dpo listando Encarregado (nome, contato).
+
+Formulário de contato do DPO com fila moderada (anti-spam/turnstile).
+
+5.6 Transferência Internacional
+
+Rotina para mapear destinos de dados (ex.: hospedagem/CDN/LLM) e armazenar mecanismo jurídico aplicado (SCCs/garantias contratuais).
+
+Campo por integração (integrations/*) com base legal e mecanismo de transferência.
+
+OBS: ajustar textos/políticas conforme jurisdições adicionais (GDPR/CPRA) de forma compatível; manter LGPD como baseline.
+
+6) Regras de Segurança (Firestore/Storage)
+
+firebase.rules
+
+// Firestore
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() { return request.auth != null; }
+    function hasRole(r) { return authed() && (request.auth.token.role in r); }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    // Público (somente leitura)
+    match /Publico/{docId}        { allow read: if true;  allow write: if false; }
+    match /Site/{document=**}     { allow read: if true;  allow write: if false; }
+
+    // Multi-tenant (ajuste nomes das coleções reais)
+    match /Empresas/{empresaId}/Chamados/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+      allow create: if request.resource.data.empresaId == empresaId;
+      allow update: if resource.data.empresaId == empresaId && request.resource.data.empresaId == empresaId;
+    }
+
+    match /Empresas/{empresaId}/CRM/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Financeiro/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster']);
+    }
+
+    match /Empresas/{empresaId}/Frota/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Ponto/{docId} {
+      allow read, create, update: if sameCompany(empresaId) && hasRole(['adminmaster','admin','gestor','colaborador']);
+      allow delete:              if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    match /Empresas/{empresaId}/Admin/{docId} {
+      allow read, write: if sameCompany(empresaId) && hasRole(['adminmaster','admin']);
+    }
+
+    // Negar o resto
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+
+
+storage.rules
+
+// Storage
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function authed() { return request.auth != null; }
+    function sameCompany(empId) { return authed() && request.auth.token.empresaId == empId; }
+
+    match /public/{all=**} { allow read: if true; allow write: if false; }
+    match /empresas/{empresaId}/{all=**} {
+      allow read, write: if sameCompany(empresaId) && request.resource.size < 20 * 1024 * 1024;
+    }
+  }
+}
+
+7) Cabeçalhos & Superfície Mínima
+
+next.config.js
+
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value:
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss:; frame-ancestors 'none'; base-uri 'none'; object-src 'none';" },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'no-referrer' },
+  { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+];
+module.exports = { async headers(){ return [{ source:'/(.*)', headers: securityHeaders }]; } };
+
+
+Sem dangerouslySetInnerHTML.
+
+Desabilitar provedores Auth não usados; domínios permitidos no Auth.
+
+Source maps do browser desativados em prod.
+
+8) XNP — Protocolo de Rede Exclusivo (sobre WebSockets)
+
+Entregar em /lib/xnp/*:
+
+transport.ts: janela deslizante, Selective Repeat ARQ (ACK/NACK), chunking & reassemblagem, controle de congestionamento (RTT/perda), criptografia AEAD por sessão (chacha20-poly1305), reconexão com backoff.
+
+fec.ts: FEC (Reed-Solomon ou Fountain) com encode/decode para reconstrução sob perda.
+
+assembler.ts: reordenação/deduplicação por {msgId, seq}, timeouts, emissão determinística.
+
+bus.ts: Pub/Sub local; usa Redis Streams se REDIS_URL → sistema flutuante multi-nó.
+
+qos.ts: perfis Bronze/Prata/Ouro/Platina (janela/FEC/backlog). A cada novo plano selecione nova escala dinamicamente (hot-swap suave).
+
+ai-recovery.ts (opcional): heurística n-gram e proxy LLM (se AI_RECOVERY_ENABLED) para fluxos tolerantes (texto/telemetria), nunca para dados críticos.
+
+sim/lossy-sim.ts: simulador de perda/latência/duplicação para testes.
+
+Sinalização WS: app/api/xnp/signaling/route.ts (autentica por cookie; inicia sessão XNP).
+
+9) i18n & Acessibilidade
+
+next-intl ou next-i18next com namespaces common, privacy, auth.
+
+A11y: aria-labels, foco visível, contraste AA, navegação por teclado.
+
+Conteúdos legais traduzidos (pt-BR, en-US, es-ES).
+
+10) Observabilidade & Honeypots
+
+Sentry/Logtail; alertas para 401/403/429/5xx e honeypot hits.
+
+app/api/honeypot/route.ts: sempre responde 200/404 e loga IP/UA em Auditoria/Honeypot/Hits com hash encadeado.
+
+11) Retenção & Apagamento
+
+Matriz de retenção por coleção; campos expiresAt.
+
+Cloud Functions + TTL (ou jobs) para limpeza automática.
+
+Botão “apagar conta e dados” no DSR; confirmar e deixar recibo.
+
+12) Testes & Critérios de Aceite
+
+Unit: xnp.transport.spec.ts, fec.spec.ts, assembler.spec.ts, qos.spec.ts.
+
+Property-based (fast-check): gera sequências com perda/reorder/duplicação e garante reconstrução/idem potencia.
+
+Fuzz: frames corrompidos devem falhar de forma segura (sem travar).
+
+Integração: cliente/servidor XNP com perda 10–30% mantendo throughput com degradação elegante.
+
+E2E (Playwright): fluxo público → login → acesso privado; consentimento; criação DSR; mudança de plano altera QoS.
+
+Segurança: cabeçalhos presentes; rotas admin com restrição; MFA exigida para admin*.
+
+Aceite automático:
+
+Todas /.../auth abrem sem login (UI), sem consultas protegidas antes de autenticar.
+
+Cookie de sessão __Host-nextSession criado/validado; nenhum token exposto no client.
+
+Rules respeitam empresaId + role.
+
+LGPD: DSR completo funcional; consent log; incidentes com lembrete a 3 dias úteis; DPO página e contato; registros guardados 5 anos.
+
+XNP: ACK/NACK, FEC ativa, troca de QoS por plano, reassemblagem determinística, lossy-sim 20% perda aprovado.
+
+13) Entregáveis
+
+Código lib/xnp/*, lib/authContext.tsx, lib/security/*, app/api/session, app/api/admin/set-claims, app/api/xnp/signaling, app/api/honeypot.
+
+Páginas: /privacy/policy, /privacy/terms, /privacy/requests, /privacy/dpo, /login, (public) e (protected).
+
+firebase.rules, storage.rules, next.config.js, SECURITY.md, PRIVACY.md.
+
+Pipelines CI e testes passando.
+
+14) Comandos finais
+
+npm run typecheck
+
+npm run test && npm run test:fuzz && npm run test:e2e
+
+npm run audit:prod
+
+npm run build
+
+Ao concluir, gere um resumo detalhado das mudanças, onde ligar/desligar AI Recovery, como mapear QoS por plano, e anexe o relatório de testes (incluindo lossy-sim em 20% perda).
+
+Notas finais
+
+Defensivo, não ofensivo: toda mentalidade red-team deve resultar em contramedidas (rate-limit, logs, superfícies mínimas, honeypots).
+
+Sem segredos no client; nunca usar NEXT_PUBLIC_ para chaves sensíveis.
+
+Este prompt não é aconselhamento jurídico — gere os artefatos (políticas/fluxos) e mantenha-os atualizados com seu jurídico.
+
+Referências LGPD (para embasar as implementações)
+
+Direitos do titular (Art. 18) — confirmação, acesso, correção, anonimização/eliminação, portabilidade, info sobre compartilhamento, revogação, revisão de decisões automatizadas. 
+LGPD Brazil
+iapp.org
+
+Bases legais (Art. 7) — consentimento, obrigação legal, execução de contrato, legítimo interesse, etc. 
+LGPD Brazil
+iapp.org
+
+DPO/Encarregado (Art. 41) — necessidade de encarregado e competências; ANPD pode regulamentar. 
+LGPD Brazil
+Centre for Information Policy Leadership
+
+Transferência internacional (Art. 33) e regulamento ANPD sobre mecanismos (ex.: cláusulas contratuais). 
+LGPD Brazil
+Serviços e Informações do Brasil
+
+Incidentes de segurança — comunicar titulares e ANPD em até 3 dias úteis; manter registros por 5 anos. 
+Serviços e Informações do Brasil
++1
+lickslegal.com

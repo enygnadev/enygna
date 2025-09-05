@@ -1,0 +1,196 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções auxiliares para validação
+    function authed() { 
+      return request.auth != null; 
+    }
+    
+    function hasRole(roles) { 
+      return authed() && (request.auth.token.role in roles); 
+    }
+    
+    function sameCompany(empresaId) { 
+      return authed() && request.auth.token.empresaId == empresaId; 
+    }
+    
+    function isOwner(userId) {
+      return authed() && request.auth.uid == userId;
+    }
+    
+    function emailVerified() {
+      return authed() && request.auth.token.email_verified == true;
+    }
+    
+    // Validar que dados não foram alterados indevidamente
+    function unchangedFields(fields) {
+      return request.resource.data.diff(resource.data).unchangedKeys().hasAll(fields);
+    }
+
+    // ========================================
+    // COLEÇÕES PÚBLICAS (Somente Leitura)
+    // ========================================
+    
+    match /Publico/{document=**} { 
+      allow read: if true; 
+      allow write: if false; 
+    }
+    
+    match /Site/{document=**} { 
+      allow read: if true; 
+      allow write: if false; 
+    }
+    
+    match /Planos/{document=**} {
+      allow read: if true;
+      allow write: if hasRole(['adminmaster', 'superadmin']);
+    }
+
+    // ========================================
+    // USUÁRIOS E AUTENTICAÇÃO
+    // ========================================
+    
+    match /users/{userId} {
+      // Usuário pode ler seu próprio perfil
+      allow read: if isOwner(userId) || hasRole(['adminmaster', 'superadmin', 'admin']);
+      
+      // Apenas admins podem criar usuários
+      allow create: if hasRole(['adminmaster', 'superadmin', 'admin']);
+      
+      // Usuário pode atualizar alguns campos próprios, admin pode atualizar tudo
+      allow update: if (isOwner(userId) && unchangedFields(['role', 'empresaId'])) ||
+                      hasRole(['adminmaster', 'superadmin', 'admin']);
+      
+      // Apenas superadmin pode deletar
+      allow delete: if hasRole(['adminmaster', 'superadmin']);
+    }
+
+    // ========================================
+    // MULTI-TENANT - EMPRESAS
+    // ========================================
+    
+    match /Empresas/{empresaId} {
+      // Membros da empresa podem ler dados básicos
+      allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+      
+      // Apenas admins podem modificar dados da empresa
+      allow create: if hasRole(['adminmaster', 'superadmin', 'admin']);
+      allow update: if (sameCompany(empresaId) && hasRole(['admin', 'gestor'])) || 
+                      hasRole(['adminmaster', 'superadmin']);
+      allow delete: if hasRole(['adminmaster', 'superadmin']);
+      
+      // CHAMADOS/TICKETS
+      match /Chamados/{docId} {
+        allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+        allow create: if sameCompany(empresaId) && emailVerified() &&
+                        request.resource.data.empresaId == empresaId;
+        allow update: if sameCompany(empresaId) && 
+                        (hasRole(['admin', 'gestor', 'colaborador']) ||
+                         resource.data.criadoPor == request.auth.uid);
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+      
+      // CRM
+      match /CRM/{docId} {
+        allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+        allow create: if sameCompany(empresaId) && hasRole(['admin', 'gestor', 'colaborador']) &&
+                        request.resource.data.empresaId == empresaId;
+        allow update: if sameCompany(empresaId) && hasRole(['admin', 'gestor', 'colaborador']);
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+      
+      // FINANCEIRO (mais restrito)
+      match /Financeiro/{docId} {
+        allow read: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin', 'gestor']);
+        allow create: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin', 'gestor']) &&
+                        request.resource.data.empresaId == empresaId;
+        allow update: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin', 'gestor']);
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster']);
+      }
+      
+      // FROTA
+      match /Frota/{docId} {
+        allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+        allow create: if sameCompany(empresaId) && hasRole(['admin', 'gestor', 'colaborador']) &&
+                        request.resource.data.empresaId == empresaId;
+        allow update: if sameCompany(empresaId) && hasRole(['admin', 'gestor', 'colaborador']);
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+      
+      // PONTO (Time Tracking)
+      match /Ponto/{docId} {
+        allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+        
+        // Colaboradores podem registrar próprio ponto
+        allow create: if sameCompany(empresaId) && emailVerified() &&
+                        request.resource.data.empresaId == empresaId &&
+                        request.resource.data.userId == request.auth.uid;
+        
+        // Apenas gestores podem editar registros de ponto
+        allow update: if sameCompany(empresaId) && 
+                        (hasRole(['admin', 'gestor']) || 
+                         (resource.data.userId == request.auth.uid && 
+                          resource.data.timestamp > timestamp.now() - duration.value(5, 'm')));
+        
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+      
+      // DOCUMENTOS
+      match /Documentos/{docId} {
+        allow read: if sameCompany(empresaId) || hasRole(['adminmaster', 'superadmin']);
+        allow create: if sameCompany(empresaId) && hasRole(['admin', 'gestor', 'colaborador']) &&
+                        request.resource.data.empresaId == empresaId;
+        allow update: if sameCompany(empresaId) && hasRole(['admin', 'gestor']);
+        allow delete: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+      
+      // ADMIN (área administrativa da empresa)
+      match /Admin/{docId} {
+        allow read, write: if sameCompany(empresaId) && hasRole(['adminmaster', 'admin']);
+      }
+    }
+    
+    // ========================================
+    // SESSÕES E TOKENS
+    // ========================================
+    
+    match /sessions/{sessionId} {
+      // Apenas o próprio usuário pode ler sua sessão
+      allow read: if isOwner(resource.data.userId);
+      allow create: if authed() && request.resource.data.userId == request.auth.uid;
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || hasRole(['adminmaster', 'superadmin']);
+    }
+    
+    // ========================================
+    // AUDITORIA (Write-Only para usuários, Read para admins)
+    // ========================================
+    
+    match /Auditoria/{document=**} {
+      allow read: if hasRole(['adminmaster', 'superadmin', 'admin']);
+      allow create: if authed(); // Qualquer usuário autenticado pode criar logs
+      allow update, delete: if false; // Logs são imutáveis
+    }
+    
+    // ========================================
+    // NOTIFICAÇÕES
+    // ========================================
+    
+    match /Notifications/{userId}/{notificationId} {
+      allow read: if isOwner(userId);
+      allow create: if hasRole(['adminmaster', 'superadmin', 'admin', 'gestor']);
+      allow update: if isOwner(userId) && unchangedFields(['from', 'message', 'timestamp']);
+      allow delete: if isOwner(userId);
+    }
+    
+    // ========================================
+    // DENY ALL - Negar todo o resto
+    // ========================================
+    
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+  }
+}
