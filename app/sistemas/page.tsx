@@ -34,10 +34,8 @@ export default function SistemasPage() {
 
   // Função para verificar acesso aos sistemas - agora com tratamento de erro
   const hasAccess = (sistema: string): boolean => {
-    // Se não está logado, permite visualizar mas não acessar
-    if (!user || !userData) {
-      return false;
-    }
+    // Se não está logado, não tem acesso aos sistemas
+    if (!user || !userData) return false;
 
     try {
       // Admins sempre têm acesso
@@ -70,11 +68,6 @@ export default function SistemasPage() {
 
       return false;
     } catch (error) {
-      // Tratar erros de Firestore silenciosamente
-      if (error?.code === 'permission-denied') {
-        console.log('Permissão negada para verificar sistemas - usuário sem permissão');
-        return false;
-      }
       console.error('Erro ao verificar permissões:', error);
       return false;
     }
@@ -86,14 +79,6 @@ export default function SistemasPage() {
       console.log(`Permissão negada para ${operation} - usuário não autenticado ou sem permissão`);
       return null;
     }
-    if (error?.code === 'failed-precondition') {
-      console.log(`Pré-condição falhou para ${operation} - dados podem não estar disponíveis`);
-      return null;
-    }
-    if (error?.code === 'unavailable') {
-      console.log(`Serviço indisponível para ${operation} - tentando novamente mais tarde`);
-      return null;
-    }
     console.error(`Erro em ${operation}:`, error);
     return null;
   };
@@ -101,40 +86,18 @@ export default function SistemasPage() {
   // Debug para verificar o que está acontecendo
   useEffect(() => {
     if (!loading && user) {
-      try {
-        console.log('Debug sistemas completo:', {
-          userEmail: user.email,
-          userId: user.uid,
-          userData: userData,
-          sistemasAtivos: userData?.sistemasAtivos || [],
-          hasAccessPonto: hasAccess('ponto'),
-          hasAccessChamados: hasAccess('chamados'),
-          hasAccessCrm: hasAccess('crm'),
-          loading
-        });
-      } catch (error) {
-        handleFirestoreError(error, 'debug sistemas');
-      }
+      console.log('Debug sistemas completo:', {
+        userEmail: user.email,
+        userId: user.uid,
+        userData: userData,
+        sistemasAtivos: userData?.sistemasAtivos || [],
+        hasAccessPonto: hasAccess('ponto'),
+        hasAccessChamados: hasAccess('chamados'),
+        hasAccessCrm: hasAccess('crm'),
+        loading
+      });
     }
   }, [loading, user, userData]);
-
-  // Interceptar erros globais do Firestore nesta página
-  useEffect(() => {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      const errorMessage = args[0];
-      if (typeof errorMessage === 'string' && errorMessage.includes('FirebaseError')) {
-        // Tratar erro do Firebase silenciosamente
-        console.log('Erro do Firebase tratado silenciosamente:', args);
-        return;
-      }
-      originalConsoleError.apply(console, args);
-    };
-
-    return () => {
-      console.error = originalConsoleError;
-    };
-  }, []);
 
 
   // Check online status and PWA mode
@@ -212,32 +175,27 @@ export default function SistemasPage() {
 
 
   const handleSystemSelect = (systemId: string) => {
-    try {
-      if (systemId === 'ponto') {
-        // Redirecionar para a autenticação do sistema de ponto
-        window.location.href = '/ponto/auth';
-      } else if (systemId === 'chamados') {
-        // Redirecionar para o sistema de chamados
-        window.location.href = '/chamados/auth';
-      } else if (systemId === 'documentos') {
-        // Redirecionar para o sistema de documentos
-        window.location.href = '/documentos/auth';
-      } else if (systemId === 'frota') {
-        // Redirecionar para o sistema de frota
-        window.location.href = '/frota/auth';
-      } else if (systemId === 'financeiro') {
-        // Redirecionar para o sistema financeiro
-        window.location.href = '/financeiro/auth';
-      } else if (systemId === 'vendas') {
-        // Redirecionar para o sistema de CRM/Vendas
-        window.location.href = '/crm/auth';
-      } else {
-        // Para outros sistemas, mostrar mensagem
-        alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} será implementado em breve!`);
-      }
-    } catch (error) {
-      handleFirestoreError(error, 'seleção de sistema');
-      console.log('Erro ao redirecionar para sistema:', systemId);
+    if (systemId === 'ponto') {
+      // Redirecionar para a autenticação do sistema de ponto
+      window.location.href = '/ponto/auth';
+    } else if (systemId === 'chamados') {
+      // Redirecionar para o sistema de chamados
+      window.location.href = '/chamados/auth';
+    } else if (systemId === 'documentos') {
+      // Redirecionar para o sistema de documentos
+      window.location.href = '/documentos/auth';
+    } else if (systemId === 'frota') {
+      // Redirecionar para o sistema de frota
+      window.location.href = '/frota/auth';
+    } else if (systemId === 'financeiro') {
+      // Redirecionar para o sistema financeiro
+      window.location.href = '/financeiro/auth';
+    } else if (systemId === 'vendas') {
+      // Redirecionar para o sistema de CRM/Vendas
+      window.location.href = '/crm/auth';
+    } else {
+      // Para outros sistemas, mostrar mensagem
+      alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} será implementado em breve!`);
     }
   };
 
