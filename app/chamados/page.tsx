@@ -11,12 +11,14 @@ import { ptBR } from 'date-fns/locale';
 import SystemStatus from '@/src/components/SystemStatus';
 import { useChamadosSessionProfile, canCreateTickets, canManageTickets } from '@/src/lib/chamadosAuth';
 import { auth } from '@/src/lib/firebase';
+import { useAuth } from '@/src/hooks/useAuth';
 import TicketForm from '@/src/components/TicketForm';
 import EmpresaManager from '@/src/components/EmpresaManager';
 
 export default function ChamadosPage() {
   const router = useRouter();
   const { loading: authLoading, profile } = useChamadosSessionProfile();
+  const { user, userData, loading: generalAuthLoading, hasAccess } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TicketFilter>({});
@@ -35,15 +37,52 @@ export default function ChamadosPage() {
     { id: 'empresas', label: 'Empresas', icon: '🏢' },
   ];
 
-  // Verificar autenticação
+  // Verificar autenticação e acesso
   useEffect(() => {
-    if (!authLoading && !profile) {
-      router.push('/chamados/auth');
+    console.log('🔍 Verificando acesso ao sistema chamados para:', user?.email);
+    
+    // Se ainda está carregando, aguardar
+    if (authLoading || generalAuthLoading) {
+      console.log('⏳ Ainda carregando autenticação...');
+      return;
     }
-  }, [authLoading, profile, router]);
+
+    // Se não está logado no sistema geral, redirecionar para login
+    if (!user) {
+      console.log('❌ Usuário não logado no sistema geral, redirecionando...');
+      // Salvar intenção de acessar este sistema
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('redirectAfterLogin', '/sistemas?target=chamados');
+        window.location.href = '/';
+      }
+      return;
+    }
+
+    // Se está logado, verificar acesso ao sistema de chamados
+    if (user && userData) {
+      const hasSystemAccess = hasAccess('chamados');
+      console.log('🔍 Acesso ao sistema chamados:', hasSystemAccess);
+      console.log('📋 Sistemas ativos do usuário:', userData.sistemasAtivos);
+      
+      if (!hasSystemAccess) {
+        console.log('❌ Usuário não tem acesso ao sistema chamados');
+        router.push('/sistemas');
+        return;
+      }
+
+      console.log('✅ Usuário tem acesso ao sistema chamados');
+      
+      // Se não tem perfil do sistema de chamados, redirecionar para auth
+      if (!profile) {
+        console.log('⚠️ Usuário não tem perfil no sistema de chamados, redirecionando para auth...');
+        router.push('/chamados/auth');
+        return;
+      }
+    }
+  }, [authLoading, generalAuthLoading, profile, user, userData, hasAccess, router]);
 
   // Mostrar loading durante autenticação
-  if (authLoading) {
+  if (authLoading || generalAuthLoading) {
     return (
       <div className="container" style={{ 
         minHeight: '100vh', 
@@ -59,8 +98,8 @@ export default function ChamadosPage() {
     );
   }
 
-  // Redirecionar se não autenticado
-  if (!profile) {
+  // Redirecionar se não autenticado ou sem acesso
+  if (!user || !userData || !hasAccess('chamados') || !profile) {
     return null;
   }
 
