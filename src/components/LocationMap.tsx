@@ -122,6 +122,7 @@ export default function LocationMap({
   const [leafletMap, setLeafletMap] = React.useState<any>(null);
   const [mapKey, setMapKey] = React.useState<string>(() => `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
+  const [isMapReady, setIsMapReady] = React.useState(false);
 
   // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
   const firstLatRef = React.useRef<number>(lat);
@@ -150,14 +151,24 @@ export default function LocationMap({
       { lat: initialLat, lng: initialLng }
     );
 
-    if (distance > 1000) {
+    if (distance > 1000 && isMapReady) {
+      setIsMapReady(false);
+      if (leafletMap) {
+        try {
+          leafletMap.remove();
+        } catch (error) {
+          console.warn('Erro ao remover mapa anterior:', error);
+        }
+      }
+      setLeafletMap(null);
       const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       setMapKey(newKey);
-      setLeafletMap(null);
       firstLatRef.current = currentLat;
       firstLngRef.current = currentLng;
+      // Aguardar um pouco antes de permitir nova criação
+      setTimeout(() => setIsMapReady(true), 100);
     }
-  }, [pos.lat, pos.lng]);
+  }, [pos.lat, pos.lng, isMapReady, leafletMap]);
   const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
   // --- Permissão de geolocalização (Permissions API) ---
@@ -416,7 +427,9 @@ export default function LocationMap({
     return () => {
       if (leafletMap) {
         try {
+          setIsMapReady(false);
           leafletMap.remove();
+          setLeafletMap(null);
         } catch (error) {
           // Ignora erros de cleanup
           console.warn('Erro ao limpar mapa:', error);
@@ -424,6 +437,11 @@ export default function LocationMap({
       }
     };
   }, [leafletMap]);
+
+  // Inicializar estado do mapa
+  React.useEffect(() => {
+    setIsMapReady(true);
+  }, []);
 
   // UI de ajuda para permissão negada/pendente
   const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
@@ -510,21 +528,23 @@ export default function LocationMap({
       )}
 
       <div ref={mapContainerRef} key={mapKey}>
-        <MapContainer
-          center={[pos.lat, pos.lng]}
-          zoom={16}
-          scrollWheelZoom
-          style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
-          whenCreated={(map) => {
-            setLeafletMap(map);
-            // Garante que o mapa seja invalidated após criação
-            setTimeout(() => {
-              if (map) {
-                map.invalidateSize();
-              }
-            }, 100);
-          }}
-        >
+        {isMapReady !== false && (
+          <MapContainer
+            center={[pos.lat, pos.lng]}
+            zoom={16}
+            scrollWheelZoom
+            style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
+            whenCreated={(map) => {
+              setLeafletMap(map);
+              setIsMapReady(true);
+              // Garante que o mapa seja invalidated após criação
+              setTimeout(() => {
+                if (map) {
+                  map.invalidateSize();
+                }
+              }, 100);
+            }}
+          >
         {/* OSM tiles — string literal (sem erro TS2304) */}
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -565,7 +585,8 @@ export default function LocationMap({
             options={{ color: '#3b82f6', opacity: 0.4 }}
           />
         )}
-        </MapContainer>
+          </MapContainer>
+        )}
       </div>
     </div>
   );
