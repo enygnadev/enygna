@@ -197,9 +197,12 @@ export const useAuthData = (): AuthContextType => {
                 empresaId: userData?.empresaId || userData?.company || tokenResult.claims.empresaId,
                 sistemasAtivos: sistemasFinais,
                 permissions: userData?.permissions || tokenResult.claims.permissions || {},
-                exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
-                iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
-                auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+                exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : 
+                     typeof tokenResult.claims.exp === 'number' ? tokenResult.claims.exp : undefined,
+                iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : 
+                     typeof tokenResult.claims.iat === 'number' ? tokenResult.claims.iat : undefined,
+                auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : 
+                          typeof tokenResult.claims.auth_time === 'number' ? tokenResult.claims.auth_time : undefined
               } as AuthClaims
             });
           } else {
@@ -240,9 +243,12 @@ export const useAuthData = (): AuthContextType => {
                   empresaId: empresaId,
                   sistemasAtivos: empresaData.sistemasAtivos || [],
                   permissions: {},
-                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
-                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
-                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : 
+                       typeof tokenResult.claims.exp === 'number' ? tokenResult.claims.exp : undefined,
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : 
+                       typeof tokenResult.claims.iat === 'number' ? tokenResult.claims.iat : undefined,
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : 
+                            typeof tokenResult.claims.auth_time === 'number' ? tokenResult.claims.auth_time : undefined
                 } as AuthClaims
               });
             } else {
@@ -257,9 +263,12 @@ export const useAuthData = (): AuthContextType => {
                   ...tokenResult.claims,
                   role: 'colaborador',
                   permissions: {},
-                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
-                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
-                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : 
+                       typeof tokenResult.claims.exp === 'number' ? tokenResult.claims.exp : undefined,
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : 
+                       typeof tokenResult.claims.iat === 'number' ? tokenResult.claims.iat : undefined,
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : 
+                            typeof tokenResult.claims.auth_time === 'number' ? tokenResult.claims.auth_time : undefined
                 } as AuthClaims
               });
             }
