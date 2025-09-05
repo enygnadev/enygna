@@ -120,6 +120,7 @@ export default function LocationMap({
   autoRecenter = true,
 }: Props) {
   const [leafletMap, setLeafletMap] = React.useState<any>(null);
+  const [mapKey, setMapKey] = React.useState<string>(() => Math.random().toString(36));
 
   // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
   const firstLatRef = React.useRef<number>(lat);
@@ -130,7 +131,7 @@ export default function LocationMap({
     label: label || 'Âncora',
   };
 
-  // Estado da posição “atual” mostrada no mapa
+  // Estado da posição "atual" mostrada no mapa
   const [pos, setPos] = React.useState<LatLng>({ lat, lng, acc: accuracy, label });
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
   const [source, setSource] = React.useState<'gps' | 'firestore' | 'props' | 'poll'>('props');
@@ -466,6 +467,7 @@ export default function LocationMap({
       )}
 
       <MapContainer
+        key={mapKey}
         center={[pos.lat, pos.lng]}
         zoom={16}
         scrollWheelZoom
