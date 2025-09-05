@@ -43,13 +43,12 @@ export function isAdmin(claims: AuthClaims): boolean {
 export function hasSystemAccess(claims: AuthClaims, system: string): boolean {
   if (isSuperAdmin(claims) || isAdmin(claims)) return true;
 
-  return (claims.sistemasAtivos?.includes(system) || 
-          claims.canAccessSystems?.includes(system)) === true;
+  return claims.sistemasAtivos?.includes(system) === true;
 }
 
 export function belongsToCompany(claims: AuthClaims, empresaId: string): boolean {
   if (isSuperAdmin(claims)) return true;
-  return claims.empresaId === empresaId || claims.company === empresaId;
+  return claims.empresaId === empresaId;
 }
 
 export function canAccessRoute(user: User | null, claims: AuthClaims | null, route: string): boolean {
@@ -126,7 +125,7 @@ export async function getClaims(user: User): Promise<AuthClaims | null> {
       console.warn(`Claims personalizadas não definidas para o usuário ${user.uid}. Definindo claims padrão.`);
       // Aqui você pode definir claims padrão, por exemplo:
       claims.role = 'colaborador';
-      claims.empresaId = null; // Ou um valor padrão apropriado
+      claims.empresaId = undefined; // Ou um valor padrão apropriado
       claims.sistemasAtivos = [];
       claims.email_verified = user.emailVerified;
       claims.custom_claims_set = true;
@@ -161,7 +160,7 @@ export function withEmpresa(empresaId: string) {
 export function secureQuery(baseQuery: Query, claims: AuthClaims): Query {
   if (isSuperAdmin(claims)) return baseQuery;
 
-  const empresaId = claims.empresaId || claims.company;
+  const empresaId = claims.empresaId;
   if (empresaId) {
     return query(baseQuery, where('empresaId', '==', empresaId));
   }

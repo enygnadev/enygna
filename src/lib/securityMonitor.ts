@@ -111,11 +111,16 @@ class SecurityMonitor {
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date()
-      })) as SecurityEvent[];
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: data.type || 'unknown',
+          severity: data.severity || 'low',
+          details: data.details || {},
+          timestamp: data.timestamp?.toDate() || new Date()
+        };
+      }) as SecurityEvent[];
     } catch (error) {
       console.error('Erro ao buscar eventos de segurança:', error);
       return [];
@@ -194,4 +199,4 @@ class SecurityMonitor {
 }
 
 export default SecurityMonitor;
-export { SecurityEvent, SecurityMetrics };
+export type { SecurityEvent, SecurityMetrics };

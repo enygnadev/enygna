@@ -4,15 +4,25 @@ import { getAuth, User } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
-export type UserRole = 'colaborador' | 'gestor' | 'admin' | 'adminMaster' | 'superadmin';
+export type UserRole = 'colaborador' | 'gestor' | 'admin' | 'adminMaster' | 'adminmaster' | 'superadmin';
 
 export interface UserClaims {
   role?: UserRole;
   empresaId?: string;
+  company?: string;
+  canAccessSystems?: string[];
+  sistemasAtivos?: string[];
+  bootstrapAdmin?: boolean;
+  email_verified?: boolean;
   exp?: number;
   iat?: number;
   iss?: string;
   aud?: string;
+}
+
+export interface AuthClaims extends UserClaims {
+  custom_claims_set?: boolean;
+  security_level?: 'low' | 'medium' | 'high';
 }
 
 export interface SecurityContext {
@@ -105,6 +115,22 @@ export function sanitizeUserData(user: User | null) {
     displayName: user.displayName,
     emailVerified: user.emailVerified
   };
+}
+
+export function hasAdminAccess(claims: UserClaims | null): boolean {
+  return hasRole(claims, 'admin');
+}
+
+export function canAccessSystem(claims: UserClaims | null, system: string): boolean {
+  if (isSuperAdmin(claims)) return true;
+  if (hasRole(claims, 'admin')) return true;
+  
+  return (claims?.sistemasAtivos?.includes(system) || 
+          claims?.canAccessSystems?.includes(system)) === true;
+}
+
+export function getUserEmpresaId(claims: UserClaims | null): string | null {
+  return claims?.empresaId || claims?.company || null;
 }
 
 export async function logSecurityEvent(
