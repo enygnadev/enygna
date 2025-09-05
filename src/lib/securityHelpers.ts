@@ -1,4 +1,3 @@
-
 // Helpers de segurança que podem ser usados no client-side
 import { getAuth, User } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
@@ -20,9 +19,19 @@ export interface UserClaims {
   aud?: string;
 }
 
+// Define a structure for user permissions
+export interface UserPermissions {
+  [key: string]: boolean | string[] | undefined;
+}
+
 export interface AuthClaims extends UserClaims {
   custom_claims_set?: boolean;
   security_level?: 'low' | 'medium' | 'high';
+  permissions?: UserPermissions & {
+    canAccessSystems?: string[];
+    admin?: boolean;
+    [key: string]: any;
+  };
 }
 
 export interface SecurityContext {
@@ -34,7 +43,7 @@ export interface SecurityContext {
 
 export async function getUserClaims(user: User | null): Promise<UserClaims | null> {
   if (!user) return null;
-  
+
   try {
     const tokenResult = await user.getIdTokenResult(true);
     return tokenResult.claims as UserClaims;
@@ -46,7 +55,7 @@ export async function getUserClaims(user: User | null): Promise<UserClaims | nul
 
 export function hasRole(claims: UserClaims | null, minRole: UserRole): boolean {
   if (!claims?.role) return false;
-  
+
   const roleHierarchy: Record<UserRole, number> = {
     'colaborador': 1,
     'gestor': 2, 
@@ -55,7 +64,7 @@ export function hasRole(claims: UserClaims | null, minRole: UserRole): boolean {
     'adminmaster': 4,
     'superadmin': 5
   };
-  
+
   return roleHierarchy[claims.role] >= roleHierarchy[minRole];
 }
 
@@ -78,7 +87,7 @@ export function belongsToCompany(claims: UserClaims | null, empresaId: string): 
 
 export async function checkCompanyAccess(user: User | null, empresaId: string): Promise<boolean> {
   if (!user) return false;
-  
+
   const claims = await getUserClaims(user);
   return belongsToCompany(claims, empresaId);
 }
@@ -98,18 +107,18 @@ export async function validateUserAccess(
   empresaId?: string
 ): Promise<boolean> {
   if (!user) return false;
-  
+
   const claims = await getUserClaims(user);
   if (!hasRole(claims, requiredRole)) return false;
-  
+
   if (empresaId && !belongsToCompany(claims, empresaId)) return false;
-  
+
   return true;
 }
 
 export function sanitizeUserData(user: User | null) {
   if (!user) return null;
-  
+
   return {
     uid: user.uid,
     email: user.email,
@@ -125,9 +134,10 @@ export function hasAdminAccess(claims: UserClaims | null): boolean {
 export function canAccessSystem(claims: UserClaims | null, system: string): boolean {
   if (isSuperAdmin(claims)) return true;
   if (hasRole(claims, 'admin')) return true;
-  
+
   return (claims?.sistemasAtivos?.includes(system) || 
-          claims?.canAccessSystems?.includes(system)) === true;
+          claims?.canAccessSystems?.includes(system) ||
+          claims?.permissions?.[system] === true) === true;
 }
 
 export function getUserEmpresaId(claims: UserClaims | null): string | null {
@@ -141,7 +151,7 @@ export async function logSecurityEvent(
 ) {
   try {
     if (!user) return;
-    
+
     const eventData = {
       userId: user.uid,
       userEmail: user.email,
@@ -151,7 +161,7 @@ export async function logSecurityEvent(
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
       ip: 'client-side' // Em produção, seria obtido do servidor
     };
-    
+
     console.log('Security Event:', eventData);
     // Em produção, enviaria para um endpoint de auditoria
   } catch (error) {

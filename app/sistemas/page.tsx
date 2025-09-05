@@ -7,6 +7,7 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
+import { UserPermissions } from '@/src/lib/types';
 
 // Definição de todos os sistemas disponíveis (necessário para o useMemo)
 const todosOsSistemas = [
