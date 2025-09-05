@@ -703,6 +703,17 @@ export default function AdminMasterPage() {
   const [empresas, setEmpresas] = useState<Company[]>([]);
   const [loadingEmpresas, setLoadingEmpresas] = useState(false);
 
+  // Estados para formulário unificado de criação
+  const [createEmpresaName, setCreateEmpresaName] = useState('');
+  const [createEmpresaEmail, setCreateEmpresaEmail] = useState('');
+  const [createEmpresaCnpj, setCreateEmpresaCnpj] = useState('');
+  const [createEmpresaPlano, setCreateEmpresaPlano] = useState('free');
+  const [createEmpresaSistemas, setCreateEmpresaSistemas] = useState<string[]>([]);
+  const [createAdminName, setCreateAdminName] = useState('');
+  const [createAdminPassword, setCreateAdminPassword] = useState('');
+  const [createEmpresaLoading, setCreateEmpresaLoading] = useState(false);
+  const [createEmpresaStatus, setCreateEmpresaStatus] = useState<{ success: boolean, message: string } | null>(null);
+
   // Mock function for EmpresaData (replace with actual data structure if needed)
   interface EmpresaData extends Company {}
 
@@ -722,6 +733,199 @@ export default function AdminMasterPage() {
 
   // Mock function for creating company (replace with actual implementation)
   const [creationStatus, setCreationStatus] = useState<{ success: boolean, message: string } | null>(null);
+
+  // Função para criar empresa universal com segurança
+  const handleCreateEmpresaUniversal = async () => {
+    // Validações básicas
+    if (!createEmpresaName.trim()) {
+      setCreateEmpresaStatus({ success: false, message: 'Nome da empresa é obrigatório' });
+      return;
+    }
+
+    if (!createEmpresaEmail.trim() || !/\S+@\S+\.\S+/.test(createEmpresaEmail)) {
+      setCreateEmpresaStatus({ success: false, message: 'Email válido é obrigatório' });
+      return;
+    }
+
+    if (createEmpresaSistemas.length === 0) {
+      setCreateEmpresaStatus({ success: false, message: 'Selecione pelo menos um sistema' });
+      return;
+    }
+
+    if (!createAdminName.trim()) {
+      setCreateEmpresaStatus({ success: false, message: 'Nome do administrador é obrigatório' });
+      return;
+    }
+
+    if (!createAdminPassword.trim() || createAdminPassword.length < 8) {
+      setCreateEmpresaStatus({ success: false, message: 'Senha deve ter pelo menos 8 caracteres' });
+      return;
+    }
+
+    setCreateEmpresaLoading(true);
+    setCreateEmpresaStatus(null);
+
+    try {
+      // Gerar IDs únicos
+      const empresaId = `empresa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const empresaUID = `uid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      console.log('🏢 Criando empresa universal:', {
+        nome: createEmpresaName,
+        email: createEmpresaEmail,
+        sistemas: createEmpresaSistemas,
+        plano: createEmpresaPlano
+      });
+
+      // Dados da empresa
+      const empresaData = {
+        nome: createEmpresaName.trim(),
+        email: createEmpresaEmail.trim().toLowerCase(),
+        cnpj: createEmpresaCnpj.trim() || null,
+        plano: createEmpresaPlano,
+        sistemasAtivos: createEmpresaSistemas,
+        ativo: true,
+        tipo: 'empresa',
+        uid: empresaUID,
+        criadoPor: user?.uid || 'admin',
+        criadoEm: serverTimestamp(),
+        atualizadoEm: serverTimestamp(),
+        // Configurações padrão
+        configuracoes: {
+          geofencing: false,
+          requireSelfie: false,
+          emailNotifications: true,
+          workingHours: {
+            start: '08:00',
+            end: '18:00'
+          }
+        },
+        // Informações de auditoria
+        auditoria: {
+          criadoPor: user?.email || 'admin',
+          criadoEm: new Date().toISOString(),
+          versao: '1.0.0'
+        }
+      };
+
+      // 1. Criar empresa na coleção principal
+      await setDoc(doc(db, 'empresas', empresaId), empresaData);
+      console.log('✅ Empresa criada na coleção principal');
+
+      // 2. Criar nas coleções específicas dos sistemas
+      for (const sistema of createEmpresaSistemas) {
+        const collectionName = getCollectionName(sistema);
+        const sistemaData = {
+          ...empresaData,
+          sistema: sistema,
+          tipo: `empresa_${sistema}`
+        };
+        
+        await setDoc(doc(db, collectionName, empresaId), sistemaData);
+        console.log(`✅ Empresa criada na coleção ${collectionName}`);
+      }
+
+      // 3. Criar usuário administrador
+      try {
+        const adminCredential = await createUserWithEmailAndPassword(auth, createEmpresaEmail, createAdminPassword);
+        const adminUser = adminCredential.user;
+
+        // Atualizar perfil do admin
+        await updateProfile(adminUser, {
+          displayName: createAdminName.trim()
+        });
+
+        // 4. Criar documento do admin na coleção users
+        const adminUserData = {
+          uid: adminUser.uid,
+          email: createEmpresaEmail.trim().toLowerCase(),
+          displayName: createAdminName.trim(),
+          role: 'admin',
+          empresaId: empresaId,
+          company: empresaId,
+          sistemasAtivos: createEmpresaSistemas,
+          tipo: 'empresa',
+          ativo: true,
+          plano: createEmpresaPlano,
+          isAdmin: true,
+          permissions: {
+            isEmpresa: true,
+            canAccessSystems: createEmpresaSistemas,
+            admin: true
+          },
+          // Configurações padrão de trabalho
+          hourlyRate: 0,
+          monthlySalary: 0,
+          monthlyBaseHours: 220,
+          toleranceMinutes: 0,
+          lunchBreakMinutes: 0,
+          lunchThresholdMinutes: 360,
+          // Metadados
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: user?.uid || 'admin'
+        };
+
+        await setDoc(doc(db, 'users', adminUser.uid), adminUserData);
+        console.log('✅ Usuário administrador criado');
+
+        // 5. Log de auditoria
+        await addDoc(collection(db, 'admin_actions'), {
+          adminId: user?.uid,
+          action: 'empresa_universal_created',
+          targetId: empresaId,
+          targetEmail: createEmpresaEmail,
+          details: {
+            empresaNome: createEmpresaName,
+            sistemas: createEmpresaSistemas,
+            plano: createEmpresaPlano,
+            adminEmail: createEmpresaEmail,
+            adminName: createAdminName
+          },
+          timestamp: serverTimestamp(),
+          severity: 'info'
+        });
+
+        // Fazer logout do usuário recém-criado para manter admin logado
+        await auth.signOut();
+
+        // Limpar formulário
+        setCreateEmpresaName('');
+        setCreateEmpresaEmail('');
+        setCreateEmpresaCnpj('');
+        setCreateEmpresaPlano('free');
+        setCreateEmpresaSistemas([]);
+        setCreateAdminName('');
+        setCreateAdminPassword('');
+
+        setCreateEmpresaStatus({
+          success: true,
+          message: `✅ Empresa "${createEmpresaName}" criada com sucesso! Administrador: ${createAdminName} (${createEmpresaEmail}). Sistemas ativados: ${createEmpresaSistemas.join(', ')}.`
+        });
+
+        // Recarregar dados
+        await loadAllData();
+
+      } catch (authError: any) {
+        console.error('❌ Erro ao criar usuário administrador:', authError);
+        
+        // Mesmo com erro na criação do usuário, a empresa foi criada
+        setCreateEmpresaStatus({
+          success: false,
+          message: `⚠️ Empresa criada, mas erro ao criar administrador: ${authError.message}. Administrador deve ser criado manualmente.`
+        });
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro ao criar empresa:', error);
+      setCreateEmpresaStatus({
+        success: false,
+        message: `❌ Erro ao criar empresa: ${error.message || 'Falha desconhecida'}`
+      });
+    } finally {
+      setCreateEmpresaLoading(false);
+    }
+  };
 
   // Função para criar empresa (com lógica para diferentes sistemas e coleção 'users')
   const createEmpresa = async (empresaData: any) => {
@@ -5031,14 +5235,323 @@ export default function AdminMasterPage() {
               </p>
             </div>
 
-            {/* Botões de criação rápida */}
+            {/* Formulário Unificado de Criação */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '1.5rem'
+              background: 'rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(30px)',
+              padding: '2rem',
+              borderRadius: '20px',
+              border: '2px solid rgba(255,255,255,0.1)'
             }}>
-              {/* Criar Empresa CRM */}
+              <h3 style={{ 
+                margin: '0 0 2rem 0', 
+                fontSize: '1.5rem', 
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                ➕ Criar Nova Empresa
+              </h3>
+
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+                gap: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                {/* Informações Básicas */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    🏢 Nome da Empresa *
+                  </label>
+                  <input
+                    type="text"
+                    value={createEmpresaName}
+                    onChange={(e) => setCreateEmpresaName(e.target.value)}
+                    placeholder="Ex: TechCorp LTDA"
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    📧 Email da Empresa *
+                  </label>
+                  <input
+                    type="email"
+                    value={createEmpresaEmail}
+                    onChange={(e) => setCreateEmpresaEmail(e.target.value)}
+                    placeholder="admin@empresa.com"
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    📱 CNPJ (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={createEmpresaCnpj}
+                    onChange={(e) => setCreateEmpresaCnpj(e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    💳 Plano
+                  </label>
+                  <select
+                    value={createEmpresaPlano}
+                    onChange={(e) => setCreateEmpresaPlano(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="free">🆓 Gratuito</option>
+                    <option value="basic">🥉 Básico</option>
+                    <option value="premium">🥈 Premium</option>
+                    <option value="enterprise">🥇 Enterprise</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Seleção de Sistemas */}
+              <div style={{ marginBottom: '2rem' }}>
+                <label style={{ display: 'block', marginBottom: '1rem', fontWeight: '600', fontSize: '1.1rem' }}>
+                  🎯 Sistemas Ativos *
+                </label>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '1rem' 
+                }}>
+                  {[
+                    { id: 'ponto', name: 'Sistema de Ponto', icon: '⏰', color: '#3b82f6' },
+                    { id: 'chamados', name: 'Sistema de Chamados', icon: '🎫', color: '#10b981' },
+                    { id: 'financeiro', name: 'Sistema Financeiro', icon: '💰', color: '#f59e0b' },
+                    { id: 'frota', name: 'Sistema de Frota', icon: '🚗', color: '#8b5cf6' },
+                    { id: 'documentos', name: 'Sistema de Documentos', icon: '📁', color: '#ef4444' },
+                    { id: 'crm', name: 'Sistema CRM', icon: '🎯', color: '#06b6d4' }
+                  ].map(sistema => (
+                    <label
+                      key={sistema.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '1rem',
+                        background: createEmpresaSistemas.includes(sistema.id) 
+                          ? `${sistema.color}20` 
+                          : 'rgba(255,255,255,0.05)',
+                        border: createEmpresaSistemas.includes(sistema.id)
+                          ? `2px solid ${sistema.color}`
+                          : '2px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!createEmpresaSistemas.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!createEmpresaSistemas.includes(sistema.id)) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={createEmpresaSistemas.includes(sistema.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setCreateEmpresaSistemas([...createEmpresaSistemas, sistema.id]);
+                          } else {
+                            setCreateEmpresaSistemas(createEmpresaSistemas.filter(s => s !== sistema.id));
+                          }
+                        }}
+                        style={{ width: '18px', height: '18px', accentColor: sistema.color }}
+                      />
+                      <span style={{ fontSize: '1.5rem' }}>{sistema.icon}</span>
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
+                          {sistema.name}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Configurações de Usuário Admin */}
               <div style={{
+                background: 'rgba(59,130,246,0.1)',
+                border: '2px solid rgba(59,130,246,0.3)',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: '700' }}>
+                  👤 Usuário Administrador
+                </h4>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                  gap: '1rem' 
+                }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                      👨‍💼 Nome do Admin *
+                    </label>
+                    <input
+                      type="text"
+                      value={createAdminName}
+                      onChange={(e) => setCreateAdminName(e.target.value)}
+                      placeholder="Nome do administrador"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                      🔑 Senha *
+                    </label>
+                    <input
+                      type="password"
+                      value={createAdminPassword}
+                      onChange={(e) => setCreateAdminPassword(e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status de Criação */}
+              {createEmpresaStatus && (
+                <div style={{
+                  padding: '1rem',
+                  background: createEmpresaStatus.success 
+                    ? 'rgba(16,185,129,0.2)' 
+                    : 'rgba(239,68,68,0.2)',
+                  border: createEmpresaStatus.success 
+                    ? '1px solid rgba(16,185,129,0.4)' 
+                    : '1px solid rgba(239,68,68,0.4)',
+                  borderRadius: '12px',
+                  color: createEmpresaStatus.success ? '#6ee7b7' : '#fca5a5',
+                  marginBottom: '1rem'
+                }}>
+                  {createEmpresaStatus.message}
+                </div>
+              )}
+
+              {/* Botão de Criação */}
+              <button
+                onClick={handleCreateEmpresaUniversal}
+                disabled={createEmpresaLoading || !createEmpresaName || !createEmpresaEmail || createEmpresaSistemas.length === 0}
+                style={{
+                  width: '100%',
+                  padding: '1.5rem',
+                  background: createEmpresaLoading 
+                    ? 'rgba(139,92,246,0.5)' 
+                    : 'linear-gradient(45deg, #8b5cf6, #7c3aed)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: createEmpresaLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  transition: 'all 0.3s ease',
+                  opacity: (!createEmpresaName || !createEmpresaEmail || createEmpresaSistemas.length === 0) ? 0.5 : 1
+                }}
+                onMouseOver={(e) => {
+                  if (!createEmpresaLoading && createEmpresaName && createEmpresaEmail && createEmpresaSistemas.length > 0) {
+                    e.currentTarget.style.background = 'linear-gradient(45deg, #7c3aed, #6d28d9)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!createEmpresaLoading) {
+                    e.currentTarget.style.background = 'linear-gradient(45deg, #8b5cf6, #7c3aed)';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                  }
+                }}
+              >
+                {createEmpresaLoading ? '🔄 Criando Empresa...' : '🏢 Criar Empresa Completa'}
+              </button>
+
+              {/* Informações importantes */}
+              <div style={{
+                marginTop: '2rem',
+                padding: '1.5rem',
+                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.3)',
+                borderRadius: '12px'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '700' }}>
+                  ℹ️ Informações Importantes
+                </h4>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                  <li>A empresa será criada com todos os sistemas selecionados ativados</li>
+                  <li>Um usuário administrador será criado automaticamente</li>
+                  <li>O administrador terá acesso total aos sistemas da empresa</li>
+                  <li>Todas as permissões de segurança serão aplicadas automaticamente</li>
+                  <li>A empresa ficará ativa imediatamente após a criação</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
                 background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
                 padding: '2rem',
                 borderRadius: '20px',
