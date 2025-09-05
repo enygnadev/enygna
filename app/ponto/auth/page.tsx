@@ -116,7 +116,8 @@ export default function PontoAuthPage() {
             router.push(`/ponto/empresa?empresaId=${empresaId}`);
             return;
           } else if (role === 'colaborador') {
-            router.push(`/ponto/colaborador`);
+            console.log('Redirecionando colaborador para painel do colaborador');
+            router.push(`/ponto/colaborador?empresaId=${empresaId}`);
             return;
           }
         }
@@ -133,13 +134,13 @@ export default function PontoAuthPage() {
               // Verificar se tem sistema ponto ativo na empresa
               if (dadosEmpresa.sistemasAtivos?.includes('ponto')) {
                 console.log('Sistema de ponto encontrado na empresa, redirecionando...');
-
+                
                 // Redirecionar baseado no papel do usuário
                 if (role === 'admin' || role === 'gestor' || tipoUsuario === 'empresa') {
                   router.push(`/ponto/empresa?empresaId=${empresaId}`);
                   return;
                 } else if (role === 'colaborador') {
-                  router.push(`/ponto/colaborador`);
+                  router.push(`/ponto/colaborador?empresaId=${empresaId}`);
                   return;
                 }
               }
