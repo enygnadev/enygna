@@ -101,7 +101,10 @@ const SUSPICIOUS_PATTERNS = [
 ];
 
 export async function middleware(request: NextRequest) {
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+           request.headers.get('x-real-ip') ||
+           request.headers.get('cf-connecting-ip') ||
+           'unknown';
   const userAgent = request.headers.get('user-agent') || '';
   const url = request.nextUrl.pathname;
   const method = request.method;
@@ -109,7 +112,7 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   // Get client IP
-  const clientIp = request.ip || 'unknown';
+  const clientIp = ip;
 
   // Rate limiting
   let apiRateLimit = 100;
@@ -151,14 +154,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Block known malicious IPs immediately
-  if (AdvancedRateLimit.isBlocked(ip)) {
-    SecurityLogger.logEvent('RATE_LIMIT_EXCEEDED', { ip, url, userAgent }, 'high');
+  if (AdvancedRateLimit.isBlocked(clientIp)) {
+    SecurityLogger.logEvent('RATE_LIMIT_EXCEEDED', { ip: clientIp, url, userAgent }, 'high');
     return new NextResponse('Access Denied', { status: 429 });
   }
 
   // Honeypot detection
   if (HONEYPOT_ENDPOINTS.some(endpoint => url.toLowerCase().includes(endpoint.toLowerCase()))) {
-    SecurityLogger.logEvent('HONEYPOT_ACCESS', { ip, url, userAgent }, 'critical');
+    SecurityLogger.logEvent('HONEYPOT_ACCESS', { ip: clientIp, url, userAgent }, 'critical');
 
     // Advanced response to waste attacker's time
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -169,7 +172,7 @@ export async function middleware(request: NextRequest) {
   const fullUrl = request.nextUrl.href;
   for (const pattern of SUSPICIOUS_PATTERNS) {
     if (pattern.test(fullUrl) || pattern.test(decodeURIComponent(fullUrl))) {
-      SecurityLogger.logEvent('SUSPICIOUS_REQUEST', { ip, url, pattern: pattern.source, userAgent }, 'high');
+      SecurityLogger.logEvent('SUSPICIOUS_REQUEST', { ip: clientIp, url, pattern: pattern.source, userAgent }, 'high');
       return new NextResponse('Bad Request', { status: 400 });
     }
   }
@@ -178,14 +181,14 @@ export async function middleware(request: NextRequest) {
   if (method === 'POST' && request.headers.get('content-type')?.includes('multipart/form-data')) {
     const contentLength = parseInt(request.headers.get('content-length') || '0');
     if (contentLength > 10 * 1024 * 1024) { // 10MB limit
-      SecurityLogger.logEvent('FILE_UPLOAD_VIOLATION', { ip, url, size: contentLength }, 'medium');
+      SecurityLogger.logEvent('FILE_UPLOAD_VIOLATION', { ip: clientIp, url, size: contentLength }, 'medium');
       return new NextResponse('File too large', { status: 413 });
     }
   }
 
   // Enhanced user agent validation
   if (!userAgent || userAgent.length < 10 || userAgent.length > 1000) {
-    SecurityLogger.logEvent('SUSPICIOUS_USER_AGENT', { ip, url, userAgent }, 'low');
+    SecurityLogger.logEvent('SUSPICIOUS_USER_AGENT', { ip: clientIp, url, userAgent }, 'low');
   }
 
   // Block common bot patterns
@@ -202,7 +205,7 @@ export async function middleware(request: NextRequest) {
 
   const isSuspiciousBot = botPatterns.some(pattern => pattern.test(userAgent));
   if (isSuspiciousBot && !url.includes('/api/health')) {
-    SecurityLogger.logEvent('BOT_ACCESS_ATTEMPT', { ip, url, userAgent }, 'low');
+    SecurityLogger.logEvent('BOT_ACCESS_ATTEMPT', { ip: clientIp, url, userAgent }, 'low');
     // Allow but monitor closely
   }
 
