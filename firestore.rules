@@ -98,7 +98,23 @@ service cloud.firestore {
       );
     }
 
+    // ----- Funções auxiliares para sistemas unificados -----
+    function getUserCompanyId() {
+      if (request.auth == null) return null;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
+    }
 
+    function hasSystemAccess(systemName) {
+      if (request.auth == null) return false;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny([systemName]);
+    }
+
+    function belongsToUserCompany(resourceCompanyId) {
+      if (request.auth == null) return false;
+      var userCompanyId = getUserCompanyId();
+      return userCompanyId != null && resourceCompanyId == userCompanyId;
+    }
 
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
@@ -216,7 +232,7 @@ service cloud.firestore {
 
     match /documentos_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      
+
       // Empresa pode ler seus próprios dados
       allow read: if isAuthenticated() && (
         sameCompany(empresaId) || 
@@ -224,7 +240,7 @@ service cloud.firestore {
         request.auth.token.empresaId == empresaId ||
         request.auth.token.company == empresaId
       );
-      
+
       // Empresa pode criar e editar seus próprios dados
       allow write, create, update, delete: if isAuthenticated() && (
         sameCompany(empresaId) || 
@@ -251,21 +267,21 @@ service cloud.firestore {
     // ===== DOCUMENTOS - Sistema de Documentos =====
     match /document_templates/{templateId} {
       allow read, write: if isSuperAdmin();
-      
+
       // Usuários autenticados podem ler templates globais (sem empresaId)
       allow read: if isAuthenticated() && (
         !resource.data.keys().hasAny(['empresaId']) ||
         resource.data.empresaId == null ||
         resource.data.empresaId == ""
       );
-      
+
       // Usuários podem ler templates da sua empresa
       allow read: if isAuthenticated() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resource.data.empresaId &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos'])
       );
-      
+
       // Usuários podem criar templates para sua empresa
       allow create: if isAuthenticated() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -276,17 +292,17 @@ service cloud.firestore {
 
     match /generated_documents/{documentId} {
       allow read, write: if isSuperAdmin();
-      
+
       // Usuário pode ler seus próprios documentos
       allow read: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
-      
+
       // Usuário pode ler documentos da sua empresa
       allow read: if isAuthenticated() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resource.data.empresaId &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos'])
       );
-      
+
       // Usuário pode criar documentos
       allow create: if isAuthenticated() && (
         request.resource.data.createdBy == request.auth.uid &&
@@ -298,7 +314,7 @@ service cloud.firestore {
           request.resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId
         )
       );
-      
+
       // Usuário pode editar seus próprios documentos
       allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
     }
@@ -484,7 +500,7 @@ service cloud.firestore {
       ) && request.resource.data.userId == request.auth.uid;
       allow read: if isAuthenticated() && 
         collection in ['system_info', 'help_docs', 'announcements'];
-      
+
       // Permitir acesso aos documentos para empresas autenticadas
       allow read, write, create, update, delete: if isAuthenticated() && 
         collection == 'documentos' && 

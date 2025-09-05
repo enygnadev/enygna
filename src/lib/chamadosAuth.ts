@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { ChamadosSessionProfile, ChamadosUserDoc } from '@/src/types/chamados';
+import { ChamadosSessionProfile } from '@/src/types/chamados';
 
 export function useChamadosSessionProfile() {
   const [loading, setLoading] = useState(true);
@@ -20,55 +20,51 @@ export function useChamadosSessionProfile() {
       }
 
       try {
-        // Buscar dados do usuário na coleção específica do sistema de chamados
-        const userDocRef = doc(db, 'chamados_users', user.uid);
+        console.log('🔍 Verificando acesso ao sistema chamados para:', user.email);
+        
+        // Buscar dados do usuário na coleção unificada users
+        const userDocRef = doc(db, 'users', user.uid);
         const snap = await getDoc(userDocRef);
         
         if (snap.exists()) {
-          const userData = snap.data() as ChamadosUserDoc;
-          setProfile({
-            uid: user.uid,
-            email: user.email || undefined,
-            displayName: user.displayName || userData.displayName,
-            role: userData.role || 'colaborador',
-            empresaId: userData.empresaId,
-            departamento: userData.departamento,
-            permissions: userData.permissions,
-          });
+          const userData = snap.data();
+          console.log('📊 Dados do usuário encontrados:', userData);
+          
+          // Verificar se tem acesso ao sistema chamados
+          const sistemasAtivos = userData.sistemasAtivos || [];
+          const temAcessoChamados = sistemasAtivos.includes('chamados') || 
+                                 userData.permissions?.canAccessSystems?.includes('chamados') ||
+                                 ['superadmin', 'admin', 'adminmaster'].includes(userData.role);
+
+          if (temAcessoChamados) {
+            console.log('✅ Usuário tem acesso ao sistema chamados');
+            setProfile({
+              uid: user.uid,
+              email: user.email || undefined,
+              displayName: user.displayName || userData.displayName,
+              role: userData.role || 'colaborador',
+              empresaId: userData.empresaId || userData.company,
+              departamento: userData.departamento,
+              permissions: {
+                canCreateTickets: true,
+                canAssignTickets: ['admin', 'superadmin', 'adminmaster', 'gestor'].includes(userData.role),
+                canCloseTickets: ['admin', 'superadmin', 'adminmaster', 'gestor'].includes(userData.role),
+                canViewAllTickets: ['admin', 'superadmin', 'adminmaster', 'gestor'].includes(userData.role),
+                canManageUsers: ['admin', 'superadmin', 'adminmaster'].includes(userData.role),
+                canViewReports: ['admin', 'superadmin', 'adminmaster', 'gestor'].includes(userData.role),
+              }
+            });
+          } else {
+            console.log('❌ Usuário não tem acesso ao sistema chamados');
+            setProfile(null);
+          }
         } else {
-          // Se não existe no sistema de chamados, criar perfil básico
-          setProfile({
-            uid: user.uid,
-            email: user.email || undefined,
-            displayName: user.displayName || undefined,
-            role: 'colaborador',
-            permissions: {
-              canCreateTickets: true,
-              canAssignTickets: false,
-              canCloseTickets: false,
-              canViewAllTickets: false,
-              canManageUsers: false,
-              canViewReports: false,
-            }
-          });
+          console.log('❌ Documento do usuário não encontrado');
+          setProfile(null);
         }
       } catch (error) {
         console.error('Erro ao carregar perfil do sistema de chamados:', error);
-        // Fallback para perfil básico
-        setProfile({
-          uid: user.uid,
-          email: user.email || undefined,
-          displayName: user.displayName || undefined,
-          role: 'colaborador',
-          permissions: {
-            canCreateTickets: true,
-            canAssignTickets: false,
-            canCloseTickets: false,
-            canViewAllTickets: false,
-            canManageUsers: false,
-            canViewReports: false,
-          }
-        });
+        setProfile(null);
       } finally {
         setLoading(false);
       }

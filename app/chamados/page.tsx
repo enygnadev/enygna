@@ -85,10 +85,9 @@ function ChamadosPage() {
 
       console.log('✅ Usuário tem acesso ao sistema chamados');
       
-      // Se não tem perfil do sistema de chamados, redirecionar para auth
-      if (!profile) {
-        console.log('⚠️ Usuário não tem perfil no sistema de chamados, redirecionando para auth...');
-        router.push('/chamados/auth');
+      // Aguardar o perfil do sistema de chamados ser carregado
+      if (!profile && !authLoading) {
+        console.log('⚠️ Aguardando perfil do sistema de chamados...');
         return;
       }
     }
@@ -112,27 +111,46 @@ function ChamadosPage() {
   }
 
   // Redirecionar se não autenticado ou sem acesso
-  if (!user || !userData || !hasAccess('chamados') || !profile) {
+  if (!user || !userData || !hasAccess('chamados')) {
     return null;
+  }
+
+  // Se não tem perfil ainda, aguardar
+  if (!profile && !authLoading) {
+    return (
+      <div className="container" style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
+          <div>Carregando perfil do sistema...</div>
+        </div>
+      </div>
+    );
   }
 
   // Carregar tickets
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !userData) return;
 
     setLoading(true);
 
     // Construir query base
     let q = query(
-      collection(db, 'chamados/tickets'),
+      collection(db, 'tickets'),
       orderBy('createdAt', 'desc'),
       limit(itemsPerPage)
     );
 
     // Aplicar filtros baseados no perfil
-    if (!canManageTickets(profile) && profile.empresaId) {
+    const empresaId = userData.empresaId || userData.company;
+    
+    if (!canManageTickets(profile) && empresaId) {
       // Usuários normais só veem tickets da sua empresa
-      q = query(q, where('empresaId', '==', profile.empresaId));
+      q = query(q, where('empresaId', '==', empresaId));
     }
 
     if (!canManageTickets(profile)) {
@@ -169,7 +187,7 @@ function ChamadosPage() {
     });
 
     return () => unsubscribe();
-  }, [filter, searchTerm, profile]); // Adicionado profile como dependência
+  }, [filter, searchTerm, profile, userData]); // Adicionado userData como dependência
 
   const getPriorityBadge = (ticket: Ticket) => {
     const priority = ticket.analysis?.prioridade.prioridade_resultante;
