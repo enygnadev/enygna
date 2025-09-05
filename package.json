@@ -13,7 +13,7 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "security:check": "node scripts/security-check.ts",
+    "security:check": "node scripts/security-check.js",
     "security:test": "node scripts/test-security.js",
     "deploy:safe": "bash scripts/deploy.sh",
     "audit:security": "npm audit && npm run security:check && npm run security:test"
