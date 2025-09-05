@@ -3,7 +3,7 @@
 
 import { auth, db } from './firebase';
 import { getIdTokenResult, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, DocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { 
   getClaims,
   refreshClaims,
@@ -165,9 +165,9 @@ export async function getUserProfile(user: User): Promise<SessionProfile> {
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 5000)
         )
-      ]);
+      ]) as DocumentSnapshot<DocumentData>;
       
-      if (userDoc && userDoc.exists) {
+      if (userDoc && userDoc.exists()) {
         userData = userDoc.data() || {};
       }
     } catch (error) {

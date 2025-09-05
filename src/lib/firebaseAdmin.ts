@@ -26,4 +26,17 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export { FieldValue };
 
+// Funções para gerenciar cookies de sessão
+export async function createSessionCookie(idToken: string, expiresIn: number): Promise<string> {
+  return auth.createSessionCookie(idToken, { expiresIn });
+}
+
+export async function verifySessionCookie(sessionCookie: string) {
+  try {
+    return await auth.verifySessionCookie(sessionCookie, true);
+  } catch (error) {
+    return null;
+  }
+}
+
 export default admin;
