@@ -1,0 +1,308 @@
+~/workspace$ tsc --noEmit
+__tests__/security.test.ts:20:1 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+20 describe('Segurança do Firestore', () => {
+   ~~~~~~~~
+
+__tests__/security.test.ts:22:3 - error TS2304: Cannot find name 'beforeAll'.
+
+22   beforeAll(async () => {
+     ~~~~~~~~~
+
+__tests__/security.test.ts:29:3 - error TS2304: Cannot find name 'afterEach'.
+
+29   afterEach(async () => {
+     ~~~~~~~~~
+
+__tests__/security.test.ts:36:3 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+36   describe('Regras de Empresas', () => {
+     ~~~~~~~~
+
+__tests__/security.test.ts:37:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+37     it('deve permitir criar empresa com dados válidos', async () => {
+       ~~
+
+__tests__/security.test.ts:51:13 - error TS2304: Cannot find name 'expect'.
+
+51       await expect(
+               ~~~~~~
+
+__tests__/security.test.ts:56:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+56     it('deve negar criação de empresa sem dados obrigatórios', async () => {
+       ~~
+
+__tests__/security.test.ts:65:13 - error TS2304: Cannot find name 'expect'.
+
+65       await expect(
+               ~~~~~~
+
+__tests__/security.test.ts:71:3 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+71   describe('Regras de Ponto', () => {
+     ~~~~~~~~
+
+__tests__/security.test.ts:72:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+72     it('colaborador deve conseguir criar próprio ponto com email verificado', async () => {
+       ~~
+
+__tests__/security.test.ts:85:13 - error TS2304: Cannot find name 'expect'.
+
+85       await expect(
+               ~~~~~~
+
+__tests__/security.test.ts:90:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+90     it('colaborador NÃO deve conseguir criar ponto para outro usuário', async () => {
+       ~~
+
+__tests__/security.test.ts:101:13 - error TS2304: Cannot find name 'expect'.
+
+101       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:106:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+106     it('colaborador deve conseguir editar ponto próprio dentro de 5 minutos', async () => {
+        ~~
+
+__tests__/security.test.ts:124:13 - error TS2304: Cannot find name 'expect'.
+
+124       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:131:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+131     it('colaborador NÃO deve conseguir editar ponto próprio após 5 minutos', async () => {
+        ~~
+
+__tests__/security.test.ts:148:13 - error TS2304: Cannot find name 'expect'.
+
+148       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:156:3 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+156   describe('Regras de Financeiro', () => {
+      ~~~~~~~~
+
+__tests__/security.test.ts:157:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+157     it('usuário comum NÃO deve conseguir criar registros financeiros', async () => {
+        ~~
+
+__tests__/security.test.ts:168:13 - error TS2304: Cannot find name 'expect'.
+
+168       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:173:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+173     it('admin deve conseguir criar registros financeiros', async () => {
+        ~~
+
+__tests__/security.test.ts:186:13 - error TS2304: Cannot find name 'expect'.
+
+186       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:192:3 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+192   describe('Regras de Notificações', () => {
+      ~~~~~~~~
+
+__tests__/security.test.ts:193:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+193     it('usuário deve conseguir criar notificação para si mesmo', async () => {
+        ~~
+
+__tests__/security.test.ts:205:13 - error TS2304: Cannot find name 'expect'.
+
+205       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:210:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+210     it('usuário NÃO deve conseguir criar notificação para outro usuário', async () => {
+        ~~
+
+__tests__/security.test.ts:222:13 - error TS2304: Cannot find name 'expect'.
+
+222       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:228:3 - error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+228   describe('Isolamento entre Empresas', () => {
+      ~~~~~~~~
+
+__tests__/security.test.ts:229:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+229     it('usuário da empresa A NÃO deve acessar dados da empresa B', async () => {
+        ~~
+
+__tests__/security.test.ts:233:13 - error TS2304: Cannot find name 'expect'.
+
+233       await expect(
+                ~~~~~~
+
+__tests__/security.test.ts:238:5 - error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+
+238     it('usuário deve conseguir acessar apenas dados da própria empresa', async () => {
+        ~~
+
+__tests__/security.test.ts:249:13 - error TS2304: Cannot find name 'expect'.
+
+249       await expect(
+                ~~~~~~
+
+app/api/admin/set-claims/route.ts:3:10 - error TS2614: Module '"@/src/lib/firebaseAdmin"' has no exported member 'adminAuth'. Did you mean to use 'import adminAuth from "@/src/lib/firebaseAdmin"' instead?
+
+3 import { adminAuth, db as adminDb } from '@/src/lib/firebaseAdmin';
+           ~~~~~~~~~
+
+app/api/admin/set-claims/route.ts:3:21 - error TS2614: Module '"@/src/lib/firebaseAdmin"' has no exported member 'db'. Did you mean to use 'import db from "@/src/lib/firebaseAdmin"' instead?
+
+3 import { adminAuth, db as adminDb } from '@/src/lib/firebaseAdmin';
+                      ~~
+
+app/chamados/novo/page.tsx:27:11 - error TS2339: Property 'userData' does not exist on type 'AuthContextType'.
+
+27   const { userData } = useAuth(); // Get user data from auth hook
+             ~~~~~~~~
+
+app/sistemas/page.tsx:18:17 - error TS2339: Property 'userData' does not exist on type 'AuthContextType'.
+
+18   const { user, userData, loading, signOut } = useAuthData();
+                   ~~~~~~~~
+
+scripts/seed.ts:5:10 - error TS2459: Module '"../src/lib/firebase"' declares 'firebaseConfig' locally, but it is not exported.
+
+5 import { firebaseConfig } from '../src/lib/firebase';
+           ~~~~~~~~~~~~~~
+
+  src/lib/firebase.ts:7:7
+    7 const firebaseConfig = {
+            ~~~~~~~~~~~~~~
+    'firebaseConfig' is declared here.
+
+src/components/EmpresaManager.tsx:218:14 - error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ nome: string; email: string; cnpj: string; telefone: string; endereco: string; ativo: boolean; plano: "premium" | "monthly" | "enterprise" | "permanent" | "free" | "yearly" | "basico"; configuracoes: { ...; }; sistemasAtivos: string[]; criadoEm: FieldValue; atualizadoEm: FieldValue; }'.
+  No index signature with a parameter of type 'string' was found on type '{ nome: string; email: string; cnpj: string; telefone: string; endereco: string; ativo: boolean; plano: "premium" | "monthly" | "enterprise" | "permanent" | "free" | "yearly" | "basico"; configuracoes: { ...; }; sistemasAtivos: string[]; criadoEm: FieldValue; atualizadoEm: FieldValue; }'.
+
+218         if (!empresaData[field]) {
+                 ~~~~~~~~~~~~~~~~~~
+
+src/hooks/useAuth.ts:82:53 - error TS2339: Property 'displayName' does not exist on type '{}'.
+
+82           displayName: user.displayName || userData.displayName,
+                                                       ~~~~~~~~~~~
+
+src/hooks/useAuth.ts:83:41 - error TS2339: Property 'role' does not exist on type '{}'.
+
+83           role: claims.role || userData.role || 'colaborador',
+                                           ~~~~
+
+src/hooks/useAuth.ts:84:51 - error TS2339: Property 'empresaId' does not exist on type '{}'.
+
+84           empresaId: claims.empresaId || userData.empresaId,
+                                                     ~~~~~~~~~
+
+src/hooks/useAuth.ts:85:61 - error TS2339: Property 'sistemasAtivos' does not exist on type '{}'.
+
+85           sistemasAtivos: claims.sistemasAtivos || userData.sistemasAtivos || [],
+                                                               ~~~~~~~~~~~~~~
+
+src/hooks/useAuth.ts:138:20 - error TS2345: Argument of type '{ uid: string; email: string; displayName?: string; role: Role | string; empresaId?: string; company?: string; ativo: boolean; createdAt: any; updatedAt: any; bootstrapAdmin?: boolean; ... 12 more ...; claims?: AuthClaims; }' is not assignable to parameter of type 'SetStateAction<SessionProfile | null>'.
+  Type '{ uid: string; email: string; displayName?: string; role: Role | string; empresaId?: string; company?: string; ativo: boolean; createdAt: any; updatedAt: any; bootstrapAdmin?: boolean; ... 12 more ...; claims?: AuthClaims; }' is not assignable to type 'SessionProfile'.
+    Types of property 'role' are incompatible.
+      Type 'string' is not assignable to type '"colaborador" | "superadmin" | "adminmaster" | "admin" | "gestor" | undefined'.
+
+138         setProfile({ ...profile, ...data });
+                       ~~~~~~~~~~~~~~~~~~~~~~~
+
+src/hooks/useAuth.ts:159:63 - error TS2339: Property 'displayName' does not exist on type '{}'.
+
+159             displayName: firebaseUser.displayName || userData.displayName,
+                                                                  ~~~~~~~~~~~
+
+src/hooks/useAuth.ts:160:43 - error TS2339: Property 'role' does not exist on type '{}'.
+
+160             role: claims.role || userData.role || 'colaborador',
+                                              ~~~~
+
+src/hooks/useAuth.ts:161:53 - error TS2339: Property 'empresaId' does not exist on type '{}'.
+
+161             empresaId: claims.empresaId || userData.empresaId,
+                                                        ~~~~~~~~~
+
+src/hooks/useAuth.ts:162:63 - error TS2339: Property 'sistemasAtivos' does not exist on type '{}'.
+
+162             sistemasAtivos: claims.sistemasAtivos || userData.sistemasAtivos || [],
+                                                                  ~~~~~~~~~~~~~~
+
+src/lib/security.ts:2:10 - error TS2300: Duplicate identifier 'db'.
+
+2 import { db } from '@/lib/firebase';
+           ~~
+
+src/lib/security.ts:4:3 - error TS2300: Duplicate identifier 'collection'.
+
+4   collection,
+    ~~~~~~~~~~
+
+src/lib/security.ts:8:3 - error TS2300: Duplicate identifier 'query'.
+
+8   query,
+    ~~~~~
+
+src/lib/security.ts:9:3 - error TS2300: Duplicate identifier 'where'.
+
+9   where,
+    ~~~~~
+
+src/lib/security.ts:532:16 - error TS2300: Duplicate identifier 'db'.
+
+532 import { auth, db } from './firebase';
+                   ~~
+
+src/lib/security.ts:534:10 - error TS2300: Duplicate identifier 'query'.
+
+534 import { query, where, Query, DocumentReference, collection } from 'firebase/firestore';
+             ~~~~~
+
+src/lib/security.ts:534:17 - error TS2300: Duplicate identifier 'where'.
+
+534 import { query, where, Query, DocumentReference, collection } from 'firebase/firestore';
+                    ~~~~~
+
+src/lib/security.ts:534:50 - error TS2300: Duplicate identifier 'collection'.
+
+534 import { query, where, Query, DocumentReference, collection } from 'firebase/firestore';
+                                                     ~~~~~~~~~~
+
+src/lib/securityHelpers.ts:38:12 - error TS2304: Cannot find name 'AuthClaims'.
+
+38   claims?: AuthClaims;
+              ~~~~~~~~~~
+
+src/lib/securityHelpers.ts:72:42 - error TS2304: Cannot find name 'AuthClaims'.
+
+72     const claims = tokenResult.claims as AuthClaims;
+                                            ~~~~~~~~~~
+
+
+Found 57 errors in 9 files.
+
+Errors  Files
+    32  __tests__/security.test.ts:20
+     2  app/api/admin/set-claims/route.ts:3
+     1  app/chamados/novo/page.tsx:27
+     1  app/sistemas/page.tsx:18
+     1  scripts/seed.ts:5
+     1  src/components/EmpresaManager.tsx:218
+     9  src/hooks/useAuth.ts:82
+     8  src/lib/security.ts:2
+     2  src/lib/securityHelpers.ts:38
