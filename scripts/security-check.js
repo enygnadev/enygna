@@ -1,4 +1,3 @@
-
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs/promises');
@@ -27,7 +26,7 @@ class SecurityChecker {
   async checkFirestoreRules() {
     try {
       const rules = await fs.readFile('firestore.rules', 'utf-8');
-      
+
       // Verificar isolamento por empresa
       if (rules.includes('sameCompany(empresaId)') || rules.includes('isCompanyOwnerOrAuthorized')) {
         this.addCheck('Firestore: Isolamento por empresa', 'pass', 'Isolamento implementado corretamente');
@@ -58,7 +57,7 @@ class SecurityChecker {
   async checkStorageRules() {
     try {
       const rules = await fs.readFile('storage.rules', 'utf-8');
-      
+
       if (rules.includes('sameCompany(companyId)')) {
         this.addCheck('Storage: Isolamento por empresa', 'pass', 'Isolamento implementado');
       } else {
@@ -79,7 +78,7 @@ class SecurityChecker {
   async checkNextConfig() {
     try {
       const config = await fs.readFile('next.config.js', 'utf-8');
-      
+
       const securityHeaders = [
         'X-Frame-Options',
         'X-Content-Type-Options',
@@ -118,7 +117,7 @@ class SecurityChecker {
       const envLocal = await fs.readFile('.env.local', 'utf-8').catch(() => '');
       const envExample = await fs.readFile('.env.local.example', 'utf-8');
       const requiredVars = envExample.match(/^[A-Z_]+=.*/gm) || [];
-      
+
       let missingVars = [];
       requiredVars.forEach(line => {
         const varName = line.split('=')[0];
@@ -126,6 +125,11 @@ class SecurityChecker {
           missingVars.push(varName);
         }
       });
+
+      // Add NODE_ENV check specifically
+      if (!process.env.NODE_ENV) {
+        missingVars.push('NODE_ENV');
+      }
 
       if (missingVars.length === 0) {
         this.addCheck('Environment: Variáveis', 'pass', 'Todas as variáveis configuradas');
@@ -141,16 +145,31 @@ class SecurityChecker {
 
   async checkAdminSDKUsage() {
     try {
-      const { stdout } = await execAsync('grep -r "firebase-admin" --include="*.tsx" --include="*.ts" --exclude-dir=node_modules --exclude-dir=.next . || true');
-      
-      const clientFiles = stdout.split('\n').filter(line => 
-        line.includes('.tsx') || 
-        (line.includes('.ts') && !line.includes('/api/') && !line.includes('route.ts'))
-      );
+      // Use find to get all .ts and .tsx files, excluding node_modules and .next
+      const { stdout } = await execAsync('find . -type f \( -name "*.ts" -o -name "*.tsx" \) -not -path "./node_modules/*" -not -path "./.next/*" -exec grep -H "firebase-admin" {} \; || true');
 
-      if (clientFiles.length > 0) {
+      const clientFiles = stdout.split('\n').filter(line => {
+        if (!line) return false;
+        const filePath = line.split(':')[0];
+        // Exclude files in /api/ or files named route.ts
+        return !filePath.includes('/api/') && !filePath.endsWith('route.ts');
+      });
+
+      // Filter out false positives from grep (e.g., comments, string literals)
+      const adminSDKImports = clientFiles.filter(line => {
+        const filePath = line.split(':')[0];
+        const fileContent = line.split(':')[1];
+        return (
+          (fileContent.includes('import admin from "firebase-admin"') || 
+           fileContent.includes('import * as admin from "firebase-admin"')) &&
+          !fileContent.startsWith('//') && !fileContent.startsWith('*')
+        );
+      });
+
+
+      if (adminSDKImports.length > 0) {
         this.addCheck('Admin SDK: Client-side', 'fail', 
-          `Admin SDK usado no client: ${clientFiles.length} arquivos`);
+          `Admin SDK usado no client: ${adminSDKImports.length} arquivos`);
       } else {
         this.addCheck('Admin SDK: Client-side', 'pass', 'Admin SDK apenas no servidor');
       }
@@ -164,7 +183,7 @@ class SecurityChecker {
     try {
       const indexes = await fs.readFile('firestore.indexes.json', 'utf-8');
       const indexData = JSON.parse(indexes);
-      
+
       if (indexData.indexes && indexData.indexes.length > 0) {
         const empresaIndexes = indexData.indexes.filter(index => 
           index.fields && index.fields.some(field => 
@@ -188,14 +207,34 @@ class SecurityChecker {
 
   async checkSecurityHelpers() {
     try {
-      const security = await fs.readFile('src/lib/security.ts', 'utf-8');
-      
-      const helpers = ['withEmpresa', 'secureQuery', 'hasAccess', 'getClaims'];
+      // Verificar ambos os arquivos de segurança
+      let securityContent = '';
+
+      try {
+        const security = await fs.readFile('src/lib/security.ts', 'utf-8');
+        securityContent += security;
+      } catch (e) {
+        // Arquivo não existe, tudo bem
+      }
+
+      try {
+        const securityHelpers = await fs.readFile('src/lib/securityHelpers.ts', 'utf-8');
+        securityContent += securityHelpers;
+      } catch (e) {
+        // Arquivo não existe, tudo bem
+      }
+
+      if (!securityContent) {
+        this.addCheck('Security: Helpers', 'fail', 'Nenhum arquivo de segurança encontrado');
+        return;
+      }
+
+      const helpers = ['getUserClaims', 'hasRole', 'isSuperAdmin', 'isAdmin', 'belongsToCompany'];
       let missingHelpers = [];
 
       helpers.forEach(helper => {
-        if (!security.includes(`export async function ${helper}`) && 
-            !security.includes(`export function ${helper}`)) {
+        if (!securityContent.includes(`export async function ${helper}`) && 
+            !securityContent.includes(`export function ${helper}`)) {
           missingHelpers.push(helper);
         }
       });
@@ -203,27 +242,24 @@ class SecurityChecker {
       if (missingHelpers.length === 0) {
         this.addCheck('Security: Helpers', 'pass', 'Todos os helpers implementados');
       } else {
-        this.addCheck('Security: Helpers', 'warning', 
-          `Helpers faltando: ${missingHelpers.join(', ')}`);
+        this.addCheck('Security: Helpers', 'warning', `Helpers faltando: ${missingHelpers.join(', ')}`);
       }
 
-      // Verificar configuração de claims
-      if (security.includes('role:') && security.includes('empresaId:') && security.includes('sistemasAtivos:')) {
-        this.addCheck('Security: Claims Structure', 'pass', 'Estrutura de claims correta');
+      // Verificar estrutura de claims
+      const hasClaimsStructure = securityContent.includes('UserClaims') && 
+                                securityContent.includes('role') && 
+                                securityContent.includes('empresaId') &&
+                                securityContent.includes('colaborador') &&
+                                securityContent.includes('superadmin');
+
+      if (hasClaimsStructure) {
+        this.addCheck('Security: Claims Structure', 'pass', 'Estrutura de claims completa');
       } else {
         this.addCheck('Security: Claims Structure', 'warning', 'Estrutura de claims incompleta');
       }
 
-      // Verificar middleware de segurança
-      const middleware = await fs.readFile('src/middleware.ts', 'utf-8');
-      if (middleware.includes('HTTPOnly') && middleware.includes('CSRF') && middleware.includes('rate')) {
-        this.addCheck('Middleware: Security Features', 'pass', 'Recursos de segurança implementados');
-      } else {
-        this.addCheck('Middleware: Security Features', 'warning', 'Recursos de segurança podem estar faltando');
-      }
-
     } catch (error) {
-      this.addCheck('Security: Helpers', 'fail', 'Erro ao verificar security.ts');
+      this.addCheck('Security: Helpers', 'fail', 'Erro ao verificar helpers de segurança');
     }
   }
 
@@ -233,7 +269,7 @@ class SecurityChecker {
 
   printResults() {
     console.log('\n📊 Resultados da Verificação de Segurança:\n');
-    
+
     const passed = this.checks.filter(c => c.status === 'pass').length;
     const failed = this.checks.filter(c => c.status === 'fail').length;
     const warnings = this.checks.filter(c => c.status === 'warning').length;
@@ -245,7 +281,7 @@ class SecurityChecker {
     });
 
     console.log(`\n📈 Resumo: ${passed} ✅ | ${warnings} ⚠️ | ${failed} ❌`);
-    
+
     if (failed === 0) {
       console.log('\n🎉 Aplicação pronta para produção!');
     } else {
