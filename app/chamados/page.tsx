@@ -21,6 +21,24 @@ export const dynamic = 'force-dynamic';
 // AuthProvider wrapper component
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const authData = useAuthData();
+  
+  // Aguardar carregamento dos dados de autenticação
+  if (authData.loading) {
+    return (
+      <div className="container" style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🔄</div>
+          <div>Carregando autenticação...</div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <AuthContext.Provider value={authData}>
       {children}
@@ -63,11 +81,7 @@ function ChamadosPage() {
     // Se não está logado no sistema geral, redirecionar para login
     if (!user) {
       console.log('❌ Usuário não logado no sistema geral, redirecionando...');
-      // Salvar intenção de acessar este sistema
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('redirectAfterLogin', '/sistemas?target=chamados');
-        window.location.href = '/';
-      }
+      router.push('/sistemas');
       return;
     }
 
@@ -84,14 +98,8 @@ function ChamadosPage() {
       }
 
       console.log('✅ Usuário tem acesso ao sistema chamados');
-      
-      // Aguardar o perfil do sistema de chamados ser carregado
-      if (!profile && !authLoading) {
-        console.log('⚠️ Aguardando perfil do sistema de chamados...');
-        return;
-      }
     }
-  }, [authLoading, generalAuthLoading, profile, user, userData, hasAccess, router]);
+  }, [authLoading, generalAuthLoading, user, userData, hasAccess, router]);
 
   // Mostrar loading durante autenticação
   if (authLoading || generalAuthLoading) {
@@ -113,23 +121,6 @@ function ChamadosPage() {
   // Redirecionar se não autenticado ou sem acesso
   if (!user || !userData || !hasAccess('chamados')) {
     return null;
-  }
-
-  // Se não tem perfil ainda, aguardar
-  if (!profile && !authLoading) {
-    return (
-      <div className="container" style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--gap-md)' }}>🎫</div>
-          <div>Carregando perfil do sistema...</div>
-        </div>
-      </div>
-    );
   }
 
   // Carregar tickets
