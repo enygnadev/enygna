@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/src/lib/firebaseAdmin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 interface SetClaimsRequest {
   userId: string;
@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
           empresaId: customClaims.empresaId,
           sistemasAtivos: customClaims.sistemasAtivos,
           permissions: customClaims.permissions,
-          claimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          claimsUpdatedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         });
       } catch (firestoreError) {
         console.warn('Erro ao atualizar Firestore (claims definidas no Auth):', firestoreError);
