@@ -11,15 +11,12 @@
     "build": "next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
-    "deploy": "vercel --prod",
-    "emu": "firebase emulators:start --import ./.emu --export-on-exit",
-    "emu:start": "firebase emulators:start",
-    "emu:dev": "concurrently \"npm run emu\" \"npm run dev\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:emu": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 AUTH_EMULATOR_HOST=127.0.0.1:9099 jest",
-    "seed": "ts-node scripts/seed.ts",
-    "seed:emu": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 AUTH_EMULATOR_HOST=127.0.0.1:9099 ts-node scripts/seed.ts"
+    "security:check": "node scripts/security-check.ts",
+    "security:test": "node scripts/test-security.js",
+    "deploy:safe": "bash scripts/deploy.sh",
+    "audit:security": "npm audit && npm run security:check && npm run security:test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

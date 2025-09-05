@@ -209,8 +209,53 @@ class SecurityChecker {
           `Helpers faltando: ${missingHelpers.join(', ')}`);
       }
 
+      // Verificar configuração de claims
+      if (security.includes('role:') && security.includes('empresaId:') && security.includes('sistemasAtivos:')) {
+        this.addCheck('Security: Claims Structure', 'pass', 'Estrutura de claims correta');
+      } else {
+        this.addCheck('Security: Claims Structure', 'warning', 'Estrutura de claims incompleta');
+      }
+
+      // Verificar middleware de segurança
+      const middleware = await fs.readFile('src/middleware.ts', 'utf-8');
+      if (middleware.includes('HTTPOnly') && middleware.includes('CSRF') && middleware.includes('rate')) {
+        this.addCheck('Middleware: Security Features', 'pass', 'Recursos de segurança implementados');
+      } else {
+        this.addCheck('Middleware: Security Features', 'warning', 'Recursos de segurança podem estar faltando');
+      }
+
     } catch (error) {
       this.addCheck('Security: Helpers', 'fail', 'Erro ao verificar security.ts');
+    }
+  }
+
+  private async checkCookiesSecurity(): Promise<void> {
+    try {
+      const middleware = await fs.readFile('src/middleware.ts', 'utf-8');
+      
+      const securityFeatures = [
+        'HttpOnly',
+        'Secure',
+        'SameSite',
+        'CSRF'
+      ];
+
+      let missingSecurity: string[] = [];
+      securityFeatures.forEach(feature => {
+        if (!middleware.includes(feature)) {
+          missingSecurity.push(feature);
+        }
+      });
+
+      if (missingSecurity.length === 0) {
+        this.addCheck('Cookies: Security', 'pass', 'Cookies seguros configurados');
+      } else {
+        this.addCheck('Cookies: Security', 'warning', 
+          `Recursos faltando: ${missingSecurity.join(', ')}`);
+      }
+
+    } catch (error) {
+      this.addCheck('Cookies: Security', 'fail', 'Erro ao verificar middleware');
     }
   }
 

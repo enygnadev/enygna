@@ -6,6 +6,7 @@ import { onAuthStateChanged, User, signOut as firebaseSignOut, getIdTokenResult 
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { UserData, UserPermissions } from '@/src/lib/types';
 import { AuthClaims, SecureUser } from '@/src/lib/securityHelpers';
+import SecurityMonitor from '../lib/securityMonitor';
 
 // Define the new SessionProfile type
 export type SessionProfile = {
@@ -198,9 +199,27 @@ export const useAuthData = (): AuthContextType => {
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
-    setUser(null);
-    setProfile(null);
+    try {
+      const securityMonitor = SecurityMonitor.getInstance();
+
+      if (user) {
+        await securityMonitor.logSecurityEvent({
+          type: 'LOGIN_ATTEMPT',
+          severity: 'low',
+          userId: user.uid,
+          details: {
+            action: 'LOGOUT',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      await firebaseSignOut(auth);
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
   };
 
   return {
