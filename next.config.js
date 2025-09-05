@@ -60,9 +60,7 @@ const nextConfig = {
     CUSTOM_PORT: '5000',
   },
 
-  // Mantido conforme seu projeto
-  serverExternalPackages: ['firebase-admin'],
-
+  // Configuração corrigida para versões mais recentes do Next.js
   experimental: {
     serverComponentsExternalPackages: ['firebase-admin']
   },
