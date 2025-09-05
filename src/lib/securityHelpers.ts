@@ -68,8 +68,10 @@ export function hasRole(claims: UserClaims | null, minRole: UserRole): boolean {
   return roleHierarchy[claims.role] >= roleHierarchy[minRole];
 }
 
-export function isSuperAdmin(claims: UserClaims | null): boolean {
-  return claims?.role === 'superadmin';
+export function isSuperAdmin(claims: UserClaims | AuthClaims | null): boolean {
+  return claims?.role === 'superadmin' || 
+         claims?.role === 'adminmaster' || 
+         (claims as AuthClaims)?.bootstrapAdmin === true;
 }
 
 export function isAdmin(claims: UserClaims | null): boolean {
@@ -131,7 +133,7 @@ export function hasAdminAccess(claims: UserClaims | null): boolean {
   return hasRole(claims, 'admin');
 }
 
-export function canAccessSystem(claims: UserClaims | null, system: string): boolean {
+export function canAccessSystem(claims: AuthClaims | null, system: string): boolean {
   if (isSuperAdmin(claims)) return true;
   if (hasRole(claims, 'admin')) return true;
 
