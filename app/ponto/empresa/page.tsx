@@ -2734,19 +2734,40 @@ O colaborador pode fazer login em /ponto/auth`);
                 />
               </div>
 
-              <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
+              <div style={{ 
+                display: "flex", 
+                gap: "1rem", 
+                marginTop: "1rem",
+                flexWrap: "wrap"
+              }}>
                 <button
                   onClick={getCurrentLocation}
                   style={{
                     padding: "0.75rem 1.5rem",
-                    background: "rgba(59, 130, 246, 0.8)",
+                    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
                     color: "white",
                     border: "none",
                     borderRadius: "8px",
-                    cursor: "pointer"
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = "0 6px 16px rgba(59, 130, 246, 0.4)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
                   }}
                 >
-                  📍 Usar Localização Atual
+                  <Icon name="mapPin" size={16} />
+                  Usar Localização Atual
                 </button>
 
                 <button
@@ -2754,15 +2775,95 @@ O colaborador pode fazer login em /ponto/auth`);
                   disabled={!companyLocation}
                   style={{
                     padding: "0.75rem 1.5rem",
-                    background: companyLocation ? "#16a34a" : "#6b7280",
+                    background: companyLocation 
+                      ? "linear-gradient(135deg, #10b981, #059669)" 
+                      : "rgba(107, 114, 128, 0.5)",
                     color: "white",
                     border: "none",
                     borderRadius: "8px",
-                    cursor: companyLocation ? "pointer" : "not-allowed"
+                    cursor: companyLocation ? "pointer" : "not-allowed",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: companyLocation ? "0 4px 12px rgba(16, 185, 129, 0.3)" : "none",
+                    opacity: companyLocation ? 1 : 0.6
+                  }}
+                  onMouseEnter={(e) => {
+                    if (companyLocation) {
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = "0 6px 16px rgba(16, 185, 129, 0.4)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (companyLocation) {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                    }
                   }}
                 >
-                  💾 Salvar Configuração
+                  <Icon name="check" size={16} />
+                  Salvar Configuração
                 </button>
+
+                {companyLocation && (
+                  <button
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const distance = Math.sqrt(
+                              Math.pow((position.coords.latitude - companyLocation.lat) * 111000, 2) +
+                              Math.pow((position.coords.longitude - companyLocation.lng) * 111000, 2)
+                            );
+                            const isInside = distance <= companyLocation.radius;
+                            alert(
+                              `📍 Teste de Geofencing:\n\n` +
+                              `Sua localização atual: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}\n` +
+                              `Distância da empresa: ${Math.round(distance)} metros\n` +
+                              `Status: ${isInside ? '✅ DENTRO da área permitida' : '❌ FORA da área permitida'}\n` +
+                              `Raio configurado: ${companyLocation.radius}m`
+                            );
+                          },
+                          (error) => {
+                            alert("❌ Erro ao obter sua localização para teste: " + error.message);
+                          },
+                          { enableHighAccuracy: true, timeout: 10000 }
+                        );
+                      } else {
+                        alert("❌ Geolocalização não suportada pelo navegador.");
+                      }
+                    }}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      transition: "all 0.2s ease",
+                      boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = "0 6px 16px rgba(245, 158, 11, 0.4)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(245, 158, 11, 0.3)";
+                    }}
+                  >
+                    <Icon name="search" size={16} />
+                    Testar Geofencing
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2781,6 +2882,38 @@ O colaborador pode fazer login em /ponto/auth`);
                 <p style={{ margin: "0.25rem 0", fontSize: "14px" }}>
                   <strong>Raio:</strong> {companyLocation.radius} metros
                 </p>
+
+                {/* Mapa de visualização */}
+                <div style={{ marginTop: "1rem" }}>
+                  <h5 style={{ margin: "0 0 0.5rem 0", color: "#6ee7b7", fontSize: "14px" }}>📍 Visualização no Mapa:</h5>
+                  <div style={{
+                    background: "rgba(0, 0, 0, 0.3)",
+                    borderRadius: "12px",
+                    padding: "8px",
+                    border: "1px solid rgba(255, 255, 255, 0.1)"
+                  }}>
+                    <LocationMap
+                      lat={companyLocation.lat}
+                      lng={companyLocation.lng}
+                      label="Sede da Empresa"
+                      accuracy={5}
+                      samePlaceRadius={companyLocation.radius}
+                      useGeoWatch={false}
+                      preferClientLocation={false}
+                      autoRecenter={true}
+                      autoRefreshMs={0}
+                    />
+                  </div>
+                  
+                  <div style={{
+                    marginTop: "0.5rem",
+                    fontSize: "12px",
+                    color: "rgba(110, 231, 183, 0.8)",
+                    textAlign: "center"
+                  }}>
+                    ℹ️ A área verde representa a zona onde colaboradores podem bater ponto
+                  </div>
+                </div>
               </div>
             )}
           </div>
