@@ -117,7 +117,10 @@ export default function SistemasPage() {
 
   // Determinar sistemas disponíveis baseado nas permissões do usuário
   const sistemasDisponiveis = useMemo(() => {
-    if (!userData) return [];
+    // Se não há usuário logado, mostrar todos os sistemas (mas com acesso bloqueado)
+    if (!user || !userData) {
+      return todosOsSistemas;
+    }
 
     const isSuperAdminUser = isSuperAdmin(userData);
 
@@ -139,13 +142,24 @@ export default function SistemasPage() {
 
     console.log('Sistemas do usuário:', todosSistemasDoUsuario);
 
+    // Se o usuário logado não tem sistemas, mostrar todos mas com acesso bloqueado
+    if (todosSistemasDoUsuario.length === 0) {
+      return todosOsSistemas;
+    }
+
     return todosOsSistemas.filter(sistema =>
       todosSistemasDoUsuario.includes(sistema.key)
     );
-  }, [userData]);
+  }, [user, userData]);
 
 
   const handleSystemSelect = (systemId: string) => {
+    // Se não está logado, redirecionar para login
+    if (!user) {
+      window.location.href = '/';
+      return;
+    }
+
     if (systemId === 'ponto') {
       // Redirecionar para a autenticação do sistema de ponto
       window.location.href = '/ponto/auth';
@@ -352,13 +366,15 @@ export default function SistemasPage() {
         }}>
           {sistemasDisponiveis.map((system) => {
             const hasSystemAccess = user && userData && hasAccess(system.key);
-            const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.key); // 'vendas', 'estoque', 'rh' são sistemas que podem estar em breve
+            // Para usuários não logados, sistemas são mostrados mas não acessíveis
+            // Para usuários logados, verificar permissões
+            const isAccessible = user ? (hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.key)) : false;
 
             return (
               <div
                 key={system.key}
                 className="system-card"
-                onClick={() => isAccessible ? handleSystemSelect(system.key) : null}
+                onClick={() => !user ? handleSystemSelect(system.key) : (isAccessible ? handleSystemSelect(system.key) : null)}
                 style={{
                   background: 'var(--gradient-card)',
                   border: `2px solid ${system.borderColor}`,
@@ -439,7 +455,16 @@ export default function SistemasPage() {
                   fontWeight: '600',
                   fontSize: '0.9rem'
                 }}>
-                  {user && userData ? (
+                  {!user ? (
+                    <>
+                      <span>🔑 Fazer Login</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </>
+                  ) : user && userData ? (
                     hasSystemAccess ? (
                       <>
                         <span>✅ Acessar Sistema</span>
@@ -466,9 +491,9 @@ export default function SistemasPage() {
                     )
                   ) : (
                     <>
-                      <span>Acessar Sistema</span>
+                      <span>⏳ Carregando...</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </>
                   )}
