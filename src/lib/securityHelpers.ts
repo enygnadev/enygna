@@ -52,6 +52,7 @@ export function hasRole(claims: UserClaims | null, minRole: UserRole): boolean {
     'gestor': 2, 
     'admin': 3,
     'adminMaster': 4,
+    'adminmaster': 4,
     'superadmin': 5
   };
   

@@ -294,6 +294,7 @@ function EmpresaDashboard() {
 
   const [users, setUsers] = useState<UserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [profile, setProfile] = useState<any>(null); // Adicionado para claims
 
   const [sessions, setSessions] = useState<S[]>([]);
   const [loading, setLoading] = useState(false);
@@ -427,6 +428,7 @@ function EmpresaDashboard() {
       try {
         const tk = await getIdTokenResult(u, true);
         const claims = tk.claims as any;
+        setProfile(claims); // Salva os claims no estado profile
         const role = (claims.role || "colaborador") as UserData["role"];
         const empIdFromClaims = (claims.empresaId || null) as string | null;
 
@@ -2428,7 +2430,7 @@ function EmpresaDashboard() {
       )}
 
       {/* TABELA DE COLABORADORES */}
-      {activeTab === "users" && hasAdminAccess(meRole) && (
+      {activeTab === "users" && hasAdminAccess(profile?.claims || null) && (
         <div className="card" style={{ marginTop: 14, padding: 16 }}>
           <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
             <button
@@ -2790,7 +2792,7 @@ function EmpresaDashboard() {
       )}
 
       {/* FAB (adicionar colaborador) - Responsivo */}
-      {activeTab === "users" && hasAdminAccess(meRole) && (
+      {activeTab === "users" && hasAdminAccess(profile?.claims || null) && (
         <div style={{
           position: "fixed",
           right: "clamp(16px, 4vw, 22px)",

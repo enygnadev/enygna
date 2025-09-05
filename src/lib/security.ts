@@ -8,7 +8,11 @@ export interface AuthClaims {
   role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
   empresaId?: string;
   sistemasAtivos?: string[];
-  permissions?: UserPermissions;
+  permissions?: UserPermissions & {
+    canAccessSystems?: string[];
+    admin?: boolean;
+    [key: string]: any;
+  };
   bootstrapAdmin?: boolean;
   email_verified?: boolean;
   custom_claims_set?: boolean;

@@ -58,7 +58,7 @@ export default function ProtectedRoute({
         }
 
         // Verificar acesso aos sistemas e roles
-        const canAccess = canAccessRoute(user, profile?.claims || null, window.location.pathname);
+        const canAccess = canAccessRoute(user, profile?.claims as any || null, window.location.pathname);
         
         if (!canAccess) {
           setHasPermission(false);
@@ -250,7 +250,7 @@ export function useRouteProtection(
           return;
         }
 
-        const access = canAccessRoute(user, profile?.claims || null, window.location.pathname);
+        const access = canAccessRoute(user, profile?.claims as any || null, window.location.pathname);
         setCanAccess(access);
         
         if (!access) {
