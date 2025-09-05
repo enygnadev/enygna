@@ -186,17 +186,20 @@ export const useAuthData = (): AuthContextType => {
 
             setProfile({
               uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || userData.displayName || userData.nome,
-              role: userData.role || 'colaborador',
-              empresaId: userData.empresaId || userData.company,
+              email: firebaseUser.email || undefined,
+              displayName: firebaseUser.displayName || userData?.displayName,
+              role: (claims.role || userData?.role || 'colaborador') as 'colaborador' | 'admin' | 'gestor' | 'superadmin' | 'adminmaster',
+              empresaId: claims.empresaId || userData?.empresaId,
               sistemasAtivos: sistemasFinais,
               claims: {
                 ...tokenResult.claims,
-                role: userData.role || tokenResult.claims.role || 'colaborador',
-                empresaId: userData.empresaId || userData.company || tokenResult.claims.empresaId,
+                role: userData?.role || tokenResult.claims.role || 'colaborador',
+                empresaId: userData?.empresaId || userData?.company || tokenResult.claims.empresaId,
                 sistemasAtivos: sistemasFinais,
-                permissions: userData.permissions || tokenResult.claims.permissions || {}
+                permissions: userData?.permissions || tokenResult.claims.permissions || {},
+                exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
+                iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
+                auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
               }
             });
           } else {
@@ -226,7 +229,7 @@ export const useAuthData = (): AuthContextType => {
 
               setProfile({
                 uid: firebaseUser.uid,
-                email: firebaseUser.email,
+                email: firebaseUser.email || undefined,
                 displayName: firebaseUser.displayName || empresaData.nome,
                 role: 'colaborador',
                 empresaId: empresaId,
@@ -236,18 +239,26 @@ export const useAuthData = (): AuthContextType => {
                   role: 'colaborador',
                   empresaId: empresaId,
                   sistemasAtivos: empresaData.sistemasAtivos || [],
-                  permissions: {}
+                  permissions: {},
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
                 }
               });
             } else {
               // Perfil padrão se não encontrar nada
               setProfile({
                 uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
+                email: firebaseUser.email || undefined,
+                displayName: firebaseUser.displayName || undefined,
                 role: 'colaborador',
                 sistemasAtivos: [],
-                claims: tokenResult.claims
+                claims: {
+                  ...tokenResult.claims,
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
+                }
               });
             }
           }
@@ -258,7 +269,10 @@ export const useAuthData = (): AuthContextType => {
             email: firebaseUser.email || undefined,
             displayName: firebaseUser.displayName || undefined,
             role: 'colaborador',
-            claims: {}
+            claims: {
+              role: 'colaborador',
+              permissions: {}
+            }
           });
         }
       } else {
