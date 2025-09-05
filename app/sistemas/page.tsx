@@ -63,10 +63,7 @@ export default function SistemasPage() {
         // Para esta verificação em tempo real, assumimos que se o usuário está 
         // associado a uma empresa, ele tem acesso aos sistemas da empresa
         // Esta é uma verificação de fallback que será confirmada pelo useSystemAccess
-        return true; // Permitir acesso temporário para verificação
-      }
-
-      return false;
+        return true; // Permitir acesso te
     } catch (error) {
       console.error('Erro ao verificar permissões:', error);
       return false;
