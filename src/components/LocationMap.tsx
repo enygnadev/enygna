@@ -122,9 +122,12 @@ export default function LocationMap({
 }: Props) {
   // Estados do mapa
   const [leafletMap, setLeafletMap] = React.useState<any>(null);
-  const [mapKey, setMapKey] = React.useState<string>(() => `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
-  const [shouldRenderMap, setShouldRenderMap] = React.useState(true);
+  const [isMapMounted, setIsMapMounted] = React.useState(false);
+  const initializingRef = React.useRef(false);
+
+  // Gerar uma chave única para forçar remontagem quando necessário
+  const [mapInstanceId] = React.useState(() => `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
   // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
   const firstLatRef = React.useRef<number>(lat);
@@ -141,34 +144,36 @@ export default function LocationMap({
   const [source, setSource] = React.useState<'gps' | 'firestore' | 'props' | 'poll'>('props');
   const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
-  // Função para forçar recriação do mapa de forma segura
-  const recreateMap = React.useCallback(() => {
-    console.log('Recriando mapa...');
-    
-    // 1. Remover o mapa atual se existir
+  // Função para limpar e reinicializar o mapa de forma segura
+  const reinitializeMap = React.useCallback(async () => {
+    if (initializingRef.current) return;
+    initializingRef.current = true;
+
+    // 1. Limpar o mapa atual se existir
     if (leafletMap) {
       try {
         leafletMap.remove();
       } catch (error) {
-        console.warn('Erro ao remover mapa:', error);
+        console.warn('Erro ao remover mapa existente:', error);
       }
+      setLeafletMap(null);
     }
-    
-    // 2. Limpar estado
-    setLeafletMap(null);
-    setShouldRenderMap(false);
-    
-    // 3. Gerar nova chave e permitir renderização após um tick
-    const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setMapKey(newKey);
-    
-    // 4. Permitir renderização novamente após cleanup
-    setTimeout(() => {
-      setShouldRenderMap(true);
-    }, 50);
+
+    // 2. Desmontar componente
+    setIsMapMounted(false);
+
+    // 3. Aguardar cleanup completo
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 4. Remontar
+    if (mapContainerRef.current) {
+      setIsMapMounted(true);
+    }
+
+    initializingRef.current = false;
   }, [leafletMap]);
 
-  // Detectar mudanças drásticas de posição e recriar mapa
+  // Detectar mudanças drásticas de posição e reinicializar mapa
   React.useEffect(() => {
     const currentLat = pos.lat;
     const currentLng = pos.lng;
@@ -181,12 +186,19 @@ export default function LocationMap({
       { lat: initialLat, lng: initialLng }
     );
 
-    if (distance > 1000 && leafletMap) {
+    if (distance > 1000 && leafletMap && !initializingRef.current) {
       firstLatRef.current = currentLat;
       firstLngRef.current = currentLng;
-      recreateMap();
+      reinitializeMap();
     }
-  }, [pos.lat, pos.lng, leafletMap, recreateMap]);
+  }, [pos.lat, pos.lng, leafletMap, reinitializeMap]);
+
+  // Inicializar mapa ao montar o componente
+  React.useEffect(() => {
+    if (!isMapMounted && mapContainerRef.current && !initializingRef.current) {
+      setIsMapMounted(true);
+    }
+  }, [isMapMounted]);
 
   // --- Permissão de geolocalização (Permissions API) ---
   React.useEffect(() => {
@@ -433,7 +445,7 @@ export default function LocationMap({
     } catch {}
   }, [leafletMap, pos.lat, pos.lng]);
 
-  // Cleanup principal - executado apenas quando o componente é desmontado
+  // Cleanup principal
   React.useEffect(() => {
     return () => {
       if (leafletMap) {
@@ -448,6 +460,23 @@ export default function LocationMap({
 
   // UI de ajuda para permissão negada/pendente
   const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
+
+  // Handler para quando o mapa é criado
+  const handleMapCreated = React.useCallback((map: any) => {
+    console.log('Mapa criado com ID:', mapInstanceId);
+    setLeafletMap(map);
+    
+    // Garantir que o mapa seja redimensionado corretamente
+    setTimeout(() => {
+      if (map) {
+        try {
+          map.invalidateSize();
+        } catch (error) {
+          console.warn('Erro ao invalidar tamanho do mapa:', error);
+        }
+      }
+    }, 100);
+  }, [mapInstanceId]);
 
   return (
     <div style={{ width: '100%' }}>
@@ -513,7 +542,7 @@ export default function LocationMap({
           </button>
 
           <button
-            onClick={recreateMap}
+            onClick={reinitializeMap}
             style={{
               borderRadius: 8,
               padding: '6px 10px',
@@ -522,7 +551,7 @@ export default function LocationMap({
               cursor: 'pointer',
               fontSize: 12,
             }}
-            title="Recriar mapa"
+            title="Reinicializar mapa"
           >
             Reset Mapa
           </button>
@@ -546,29 +575,16 @@ export default function LocationMap({
       )}
 
       <div ref={mapContainerRef} style={{ width: '100%', height: 300 }}>
-        {shouldRenderMap && (
+        {isMapMounted && (
           <MapContainer
-            key={mapKey}
+            key={mapInstanceId}
             center={[pos.lat, pos.lng]}
             zoom={16}
             scrollWheelZoom
             style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden' }}
-            whenCreated={(map) => {
-              console.log('Mapa criado com sucesso:', mapKey);
-              setLeafletMap(map);
-              // Garante que o mapa seja invalidated após criação
-              setTimeout(() => {
-                if (map) {
-                  try {
-                    map.invalidateSize();
-                  } catch (error) {
-                    console.warn('Erro ao invalidar tamanho do mapa:', error);
-                  }
-                }
-              }, 100);
-            }}
+            whenCreated={handleMapCreated}
           >
-            {/* OSM tiles — string literal (sem erro TS2304) */}
+            {/* OSM tiles */}
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
             {/* Geofence (âncora) */}
