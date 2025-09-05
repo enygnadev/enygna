@@ -118,7 +118,7 @@ export class EmpresaSecurityService {
         role: 'colaborador', // Colaboradores sempre têm role padrão
         empresaId: empresaId,
         createdAt: Timestamp.now(),
-        createdBy: userClaims.sub || 'system',
+        createdBy: userClaims.sub || userClaims.empresaId || 'system',
         ativo: true
       };
 
@@ -203,10 +203,13 @@ export class EmpresaSecurityService {
       );
 
       const snapshot = await getDocs(systemQuery);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
     } catch (error) {
       console.error(`Erro ao buscar dados do sistema ${system}:`, error);
       throw error;
@@ -236,7 +239,7 @@ export class EmpresaSecurityService {
       const finalData = {
         ...sanitizedData,
         createdAt: Timestamp.now(),
-        createdBy: userClaims?.sub || 'system'
+        createdBy: userClaims?.sub || userClaims?.empresaId || 'system'
       };
 
       await setDoc(recordRef, finalData);
@@ -264,7 +267,7 @@ export class EmpresaSecurityService {
     try {
       const logData = {
         empresaId,
-        userId: userClaims?.sub || 'unknown',
+        userId: userClaims?.sub || userClaims?.empresaId || 'unknown',
         userEmail: userClaims?.email || 'unknown',
         userRole: userClaims?.role || 'unknown',
         action,

@@ -28,6 +28,8 @@ export interface AuthClaims extends UserClaims {
   custom_claims_set?: boolean;
   security_level?: 'low' | 'medium' | 'high';
   auth_time?: number;
+  sub?: string;
+  email?: string;
   permissions?: UserPermissions & {
     canAccessSystems?: string[];
     admin?: boolean;
@@ -183,7 +185,7 @@ export function sanitizeDataForEmpresa(data: any, userClaims: AuthClaims | null,
     ...data,
     empresaId: empresaId,
     updatedAt: new Date(),
-    updatedBy: userClaims?.sub || 'system'
+    updatedBy: userClaims?.sub || userClaims?.empresaId || 'system'
   };
 }
 

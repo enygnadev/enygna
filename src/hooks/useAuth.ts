@@ -29,6 +29,8 @@ interface AuthContextType {
   isRole: (role: string | string[]) => boolean;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>; // May need to be renamed or adapted to refreshProfile
+  hasEmpresaAccess: (empresaId: string) => boolean;
+  getEmpresaId: () => string | null;
 }
 
 // New helper functions (as provided in the edited snippet)
