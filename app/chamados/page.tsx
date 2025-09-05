@@ -131,15 +131,24 @@ function ChamadosPage() {
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filteredTickets = ticketsData.filter(ticket => 
-          ticket.assunto.toLowerCase().includes(term) ||
-          ticket.descricao.toLowerCase().includes(term) ||
-          ticket.analysis?.classificacao.categoria.toLowerCase().includes(term) ||
+          ticket.assunto?.toLowerCase().includes(term) ||
+          ticket.descricao?.toLowerCase().includes(term) ||
+          ticket.analysis?.classificacao?.categoria?.toLowerCase().includes(term) ||
           ticket.produto?.toLowerCase().includes(term)
         );
       }
 
       setTickets(filteredTickets);
       setLoading(false);
+    }, (error) => {
+      console.error('❌ Erro ao carregar tickets:', error);
+      setLoading(false);
+      
+      if (error.code === 'permission-denied') {
+        console.error('⚠️ Permissões insuficientes para acessar tickets');
+        // Tentar redirecionar para auth se houver problema de permissão
+        router.push('/chamados/auth');
+      }
     });
 
     return () => unsubscribe();
