@@ -61,9 +61,7 @@ const nextConfig = {
   },
 
   // Configuração corrigida para versões mais recentes do Next.js
-  experimental: {
-    serverComponentsExternalPackages: ['firebase-admin']
-  },
+  serverExternalPackages: ['firebase-admin'],
 
   eslint: {
     ignoreDuringBuilds: true
