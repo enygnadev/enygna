@@ -154,11 +154,26 @@ export default function SistemasPage() {
 
 
   const handleSystemSelect = (systemId: string) => {
-    // Se não está logado, redirecionar para login
+    // Se não está logado, redirecionar diretamente para o sistema /auth
     if (!user) {
-      // Salvar o sistema desejado para redirecionar após login
-      sessionStorage.setItem('redirectAfterLogin', `/sistemas?target=${systemId}`);
-      window.location.href = '/';
+      // Redirecionar diretamente para o auth do sistema específico
+      if (systemId === 'ponto') {
+        window.location.href = '/ponto/auth';
+      } else if (systemId === 'chamados') {
+        window.location.href = '/chamados/auth';
+      } else if (systemId === 'documentos') {
+        window.location.href = '/documentos/auth';
+      } else if (systemId === 'frota') {
+        window.location.href = '/frota/auth';
+      } else if (systemId === 'financeiro') {
+        window.location.href = '/financeiro/auth';
+      } else if (systemId === 'vendas') {
+        window.location.href = '/crm/auth';
+      } else {
+        // Para sistemas que não têm /auth ainda, ir para login principal
+        sessionStorage.setItem('redirectAfterLogin', `/sistemas?target=${systemId}`);
+        window.location.href = '/';
+      }
       return;
     }
 
@@ -473,7 +488,7 @@ export default function SistemasPage() {
                     justifyContent: 'center',
                     gap: 'var(--gap-sm)',
                     padding: 'var(--gap-md)',
-                    background: !user ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 
+                    background: !user ? 'linear-gradient(135deg, #10b981, #059669)' : 
                                isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
                     borderRadius: '12px',
                     color: 'white',
@@ -481,15 +496,15 @@ export default function SistemasPage() {
                     fontSize: '1rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    boxShadow: !user ? '0 6px 20px rgba(16, 185, 129, 0.4)' : '0 4px 12px rgba(0,0,0,0.15)',
+                    border: !user ? '2px solid rgba(255, 255, 255, 0.2)' : 'none',
+                    transform: !user ? 'scale(1.02)' : 'scale(1)'
                   }}>
                     {!user ? (
                       <>
-                        <span>🔑 Entrar para Acessar</span>
+                        <span>🚀 Acessar {system.name}</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </>
                     ) : user && userData ? (
@@ -545,8 +560,8 @@ export default function SistemasPage() {
                   }}>
                     {!user ? (
                       <>
-                        <span>🌐</span>
-                        <span>Área pública - Faça login para acessar</span>
+                        <span>🔓</span>
+                        <span>Clique para fazer login e acessar</span>
                       </>
                     ) : user && userData ? (
                       hasSystemAccess ? (
