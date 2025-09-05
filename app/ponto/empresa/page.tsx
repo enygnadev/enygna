@@ -624,16 +624,20 @@ function EmpresaDashboard() {
         collection(db, "empresas", empresaId, "colaboradores")
       );
       const list: UserData[] = snap.docs.map((d) => {
-        const v = d.data() as any;
+        const data = d.data();
         return {
           id: d.id,
-          email: v.email,
-          displayName: v.displayName,
-          effectiveHourlyRate: v.effectiveHourlyRate,
-          monthlySalary: v.monthlySalary,
-          role: (v.role || "colaborador") as UserData["role"],
-          // claims e permissions podem não estar na subcoleção 'colaboradores'
-          // Se precisar, precisaria buscar no doc principal 'users' por UID
+          email: data.email || '',
+          displayName: data.displayName || '',
+          effectiveHourlyRate: data.effectiveHourlyRate || 0,
+          monthlySalary: data.monthlySalary || 0,
+          role: data.role || 'colaborador',
+          tipo: data.tipo || 'colaborador',
+          empresaId: data.empresaId || '',
+          sistemasAtivos: data.sistemasAtivos || [],
+          permissions: data.permissions || { canAccessSystems: [], admin: false },
+          createdAt: data.createdAt || new Date(),
+          lastLogin: data.lastLogin || new Date(),
         };
       });
       list.sort((a, b) =>

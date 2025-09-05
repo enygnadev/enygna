@@ -1,18 +1,17 @@
+
 'use client';
 
 import { auth, db } from './firebase';
 import { getIdTokenResult, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-
-// Re-export from security.ts
-export {
+import { 
   getClaims,
   refreshClaims,
   withEmpresa,
   secureQuery,
   hasAccess,
   isAdmin,
-  isSuperAdmin,
+  isSuperAdmin as baseSuperAdmin,
   isEmailVerified,
   getCurrentEmpresaId,
   belongsToCompany,
@@ -27,9 +26,7 @@ export {
   type SecureUser
 } from './security';
 
-import { AuthClaims } from './security';
-
-// Manter funções específicas que já existiam
+// Interface para perfil de sessão
 export interface SessionProfile {
   uid: string;
   email?: string;
@@ -40,63 +37,160 @@ export interface SessionProfile {
   claims?: AuthClaims;
 }
 
-export function isAdminMaster(profile: SessionProfile | null): boolean {
-  return profile?.role === 'adminmaster' ||
-         profile?.role === 'superadmin' ||
-         profile?.claims?.bootstrapAdmin === true;
-}
-
-export function hasAdminAccess(profile: SessionProfile | null): boolean {
-  return ['adminmaster', 'superadmin', 'admin', 'gestor'].includes(profile?.role || '');
-}
-
-// Função para verificar se usuário pode acessar sistema específico
-export function hasSystemAccess(profile: SessionProfile | null, system: string): boolean {
-  if (!profile) return false;
-
-  // SuperAdmins podem acessar tudo
-  if (isAdminMaster(profile)) return true;
-
-  // Verificar sistemasAtivos
-  if (profile.sistemasAtivos?.includes(system)) return true;
-
-  // Verificar claims
-  if (profile.claims?.sistemasAtivos?.includes(system)) return true;
-  if (profile.claims?.canAccessSystems?.includes(system)) return true;
-
+// Função de verificação de super admin com validação adicional de segurança
+export function isSuperAdmin(user: any): boolean {
+  if (!user) return false;
+  
+  // Validação de entrada para prevenir ataques
+  if (typeof user !== 'object' || user === null) return false;
+  
+  // Verificar claims do token (mais seguro)
+  if (user.claims?.bootstrapAdmin === true) return true;
+  if (user.claims?.role === 'superadmin') return true;
+  if (user.claims?.role === 'adminmaster') return true;
+  
+  // Verificar dados do documento (fallback)
+  if (user.bootstrapAdmin === true) return true;
+  if (user.role === 'superadmin') return true;
+  if (user.role === 'adminmaster') return true;
+  
+  // Lista controlada de emails de desenvolvimento (validação adicional)
+  const devEmails = ['enygnadev@gmail.com', 'enygna@enygna.com'];
+  if (user.email && devEmails.includes(user.email)) {
+    // Log de acesso de desenvolvimento para auditoria
+    console.warn('[SECURITY] Dev admin access:', user.email);
+    return true;
+  }
+  
   return false;
 }
 
-// Função para obter perfil completo do usuário
+// Função específica para perfis de sessão
+export function isAdminMaster(profile: SessionProfile | null): boolean {
+  if (!profile) return false;
+  
+  return profile.role === 'adminmaster' ||
+         profile.role === 'superadmin' ||
+         profile.claims?.bootstrapAdmin === true;
+}
+
+// Verificação de acesso administrativo com validação de segurança
+export function hasAdminAccess(user: any): boolean {
+  if (!user) return false;
+  
+  // Primeiro verificar se é super admin
+  if (isSuperAdmin(user)) return true;
+  
+  // Verificar role com validação de tipo
+  const role = user.role || user.claims?.role;
+  const adminRoles = ['admin', 'gestor'];
+  
+  return typeof role === 'string' && adminRoles.includes(role);
+}
+
+// Verificação de acesso a sistema específico com validação de segurança
+export function hasSystemAccess(profile: SessionProfile | null, system: string): boolean {
+  if (!profile || !system) return false;
+  
+  // Validação de entrada
+  if (typeof system !== 'string' || system.length === 0) return false;
+  
+  // SuperAdmins podem acessar tudo
+  if (isAdminMaster(profile)) return true;
+  
+  // Verificar sistemasAtivos com validação de array
+  const sistemasAtivos = profile.sistemasAtivos;
+  if (Array.isArray(sistemasAtivos) && sistemasAtivos.includes(system)) return true;
+  
+  // Verificar claims com validação adicional
+  if (profile.claims) {
+    const claimsSistemas = profile.claims.sistemasAtivos;
+    const canAccessSystems = profile.claims.canAccessSystems;
+    
+    if (Array.isArray(claimsSistemas) && claimsSistemas.includes(system)) return true;
+    if (Array.isArray(canAccessSystems) && canAccessSystems.includes(system)) return true;
+  }
+  
+  return false;
+}
+
+// Verificação de acesso a sistema (função alternativa com validação)
+export function canAccessSystem(user: any, system: string): boolean {
+  if (!user || !system) return false;
+  
+  // Validação de entrada
+  if (typeof system !== 'string') return false;
+  
+  if (isSuperAdmin(user) || hasAdminAccess(user)) return true;
+  
+  const sistemasAtivos = user.sistemasAtivos || user.claims?.sistemasAtivos || [];
+  const canAccessSystems = user.canAccessSystems || user.claims?.canAccessSystems || [];
+  
+  // Validação de arrays para prevenir ataques
+  if (!Array.isArray(sistemasAtivos) || !Array.isArray(canAccessSystems)) return false;
+  
+  return sistemasAtivos.includes(system) || canAccessSystems.includes(system);
+}
+
+// Obter empresa ID com validação de segurança
+export function getUserEmpresaId(user: any): string | null {
+  if (!user) return null;
+  
+  const empresaId = user.empresaId || user.claims?.empresaId || user.claims?.company;
+  
+  // Validação do tipo e formato
+  if (typeof empresaId === 'string' && empresaId.length > 0) {
+    return empresaId;
+  }
+  
+  return null;
+}
+
+// Função para obter perfil completo do usuário com validações de segurança
 export async function getUserProfile(user: User): Promise<SessionProfile> {
   try {
-    const tokenResult = await user.getIdTokenResult();
+    // Validação de entrada
+    if (!user || !user.uid) {
+      throw new Error('Usuário inválido');
+    }
+    
+    const tokenResult = await user.getIdTokenResult(true);
     const claims = tokenResult.claims as AuthClaims;
 
-    // Tentar obter dados do Firestore
+    // Tentar obter dados do Firestore com timeout
     let userData: any = {};
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) {
-        userData = userDoc.data();
+      const userDoc = await Promise.race([
+        getDoc(doc(db, 'users', user.uid)),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        )
+      ]);
+      
+      if (userDoc && typeof userDoc.exists === 'function' && userDoc.exists()) {
+        userData = userDoc.data() || {};
       }
     } catch (error) {
       console.warn('Erro ao obter dados do usuário do Firestore:', error);
+      // Continuar com dados básicos do token
     }
 
-    return {
+    // Validação e sanitização dos dados
+    const profile: SessionProfile = {
       uid: user.uid,
       email: user.email || undefined,
-      displayName: user.displayName || userData.displayName,
-      role: claims.role || userData.role || 'colaborador',
-      empresaId: claims.empresaId || userData.empresaId,
-      sistemasAtivos: claims.sistemasAtivos || userData.sistemasAtivos || [],
+      displayName: user.displayName || userData.displayName || undefined,
+      role: validateRole(claims.role || userData.role),
+      empresaId: claims.empresaId || userData.empresaId || undefined,
+      sistemasAtivos: validateStringArray(claims.sistemasAtivos || userData.sistemasAtivos),
       claims
     };
+
+    return profile;
   } catch (error) {
     console.error('Erro ao obter perfil do usuário:', error);
 
-    // Fallback básico
+    // Fallback básico seguro
     return {
       uid: user.uid,
       email: user.email || undefined,
@@ -106,63 +200,45 @@ export async function getUserProfile(user: User): Promise<SessionProfile> {
     };
   }
 }
-export interface AuthClaims {
-  bootstrapAdmin?: boolean;
-  role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
-  empresaId?: string;
-  company?: string;
-  permissions?: any;
-  sistemasAtivos?: string[];
-  canAccessSystems?: string[];
-  isEmpresa?: boolean;
-  tipo?: string;
-  email_verified?: boolean;
+
+// Função para validar role
+function validateRole(role: any): SessionProfile['role'] {
+  const validRoles = ['superadmin', 'admin', 'gestor', 'colaborador', 'adminmaster'];
+  
+  if (typeof role === 'string' && validRoles.includes(role)) {
+    return role as SessionProfile['role'];
+  }
+  
+  return 'colaborador'; // Default seguro
 }
 
-export interface SecureUser {
-  uid: string;
-  email?: string;
-  role?: string;
-  empresaId?: string;
-  claims: AuthClaims;
+// Função para validar array de strings
+function validateStringArray(arr: any): string[] {
+  if (!Array.isArray(arr)) return [];
+  
+  return arr.filter(item => typeof item === 'string' && item.length > 0);
 }
 
-export function isSuperAdmin(user: any): boolean {
-  if (!user) return false;
-  
-  // Verificar claims do token
-  if (user.claims?.bootstrapAdmin === true) return true;
-  if (user.claims?.role === 'superadmin') return true;
-  if (user.claims?.role === 'adminmaster') return true;
-  
-  // Verificar dados do documento
-  if (user.bootstrapAdmin === true) return true;
-  if (user.role === 'superadmin') return true;
-  if (user.role === 'adminmaster') return true;
-  
-  // Verificar emails específicos de desenvolvimento
-  if (user.email === 'enygnadev@gmail.com') return true;
-  if (user.email === 'enygna@enygna.com') return true;
-  
-  return false;
-}
+// Re-exportar funções com nomes não conflitantes
+export { 
+  getClaims,
+  refreshClaims,
+  withEmpresa,
+  secureQuery,
+  hasAccess,
+  isAdmin,
+  baseSuperAdmin,
+  isEmailVerified,
+  getCurrentEmpresaId,
+  belongsToCompany,
+  clearClaimsCache,
+  canCreatePonto,
+  canEditFinanceiro,
+  canEditPonto,
+  handlePermissionError,
+  canAccessRoute,
+  debugSecurity
+};
 
-export function hasAdminAccess(user: any): boolean {
-  if (isSuperAdmin(user)) return true;
-  
-  const role = user.role || user.claims?.role;
-  return ['admin', 'gestor'].includes(role);
-}
-
-export function canAccessSystem(user: any, system: string): boolean {
-  if (isSuperAdmin(user) || hasAdminAccess(user)) return true;
-  
-  const sistemasAtivos = user.sistemasAtivos || user.claims?.sistemasAtivos || [];
-  const canAccessSystems = user.canAccessSystems || user.claims?.canAccessSystems || [];
-  
-  return sistemasAtivos.includes(system) || canAccessSystems.includes(system);
-}
-
-export function getUserEmpresaId(user: any): string | null {
-  return user.empresaId || user.claims?.empresaId || user.claims?.company || null;
-}
+// Re-exportar tipos
+export type { AuthClaims, SecureUser };

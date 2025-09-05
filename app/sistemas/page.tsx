@@ -415,7 +415,7 @@ export default function SistemasPage() {
                   lineHeight: 1.5,
                   marginBottom: 'var(--gap-lg)'
                 }}>
-                  {system.description}
+                  {(system as any).description || 'Sistema empresarial'}
                 </p>
 
                 <div style={{
