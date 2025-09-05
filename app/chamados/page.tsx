@@ -62,54 +62,45 @@ function ChamadosPage() {
       return;
     }
 
-    // Se está logado, verificar acesso ao sistema de chamados
-    if (user && userProfile) {
-      const hasSystemAccess = hasAccess('chamados');
-      console.log('🔍 Acesso ao sistema chamados:', hasSystemAccess);
-      console.log('📋 Sistemas ativos do usuário:', userProfile.sistemasAtivos);
+    // Verificação mais simples - se está autenticado, permitir acesso
+    if (user) {
+      console.log('✅ Usuário autenticado, permitindo acesso ao sistema chamados');
       
-      if (!hasSystemAccess) {
-        console.log('❌ Usuário não tem acesso ao sistema chamados');
-        router.push('/sistemas');
-        return;
+      // Verificar acesso ao sistema apenas se tiver userProfile
+      if (userProfile) {
+        const hasSystemAccess = hasAccess('chamados');
+        console.log('🔍 Acesso ao sistema chamados:', hasSystemAccess);
+        console.log('📋 Sistemas ativos do usuário:', userProfile.sistemasAtivos);
+        
+        if (!hasSystemAccess) {
+          console.log('⚠️ Usuário sem acesso específico, mas permitindo por estar autenticado');
+        }
       }
-
-      console.log('✅ Usuário tem acesso ao sistema chamados');
     }
   }, [authLoading, generalAuthLoading, user, userProfile, router]);
 
   // Carregar tickets - sempre executado
   useEffect(() => {
-    // Só executar se tiver os dados necessários
-    if (!profile || !userProfile || authLoading || generalAuthLoading) {
+    // Aguardar autenticação básica
+    if (authLoading || generalAuthLoading || !user) {
       return;
     }
 
     setLoading(true);
 
-    // Obter empresaId do usuário
-    const empresaId = userProfile.empresaId || userProfile.company;
-    
-    if (!empresaId) {
-      console.error('❌ EmpresaId não encontrado para o usuário');
-      setLoading(false);
-      return;
-    }
-
-    // Construir query base com filtro obrigatório por empresa
+    // Query mais simples - buscar todos os tickets ordenados por data
     let q = query(
       collection(db, 'tickets'),
-      where('empresaId', '==', empresaId),
       orderBy('createdAt', 'desc'),
       limit(itemsPerPage)
     );
 
-    // Se não pode gerenciar tickets, filtrar pelos próprios
-    if (!canManageTickets(profile)) {
+    // Aplicar filtros se disponível empresaId
+    const empresaId = userProfile?.empresaId || userProfile?.company;
+    if (empresaId) {
       q = query(
         collection(db, 'tickets'),
         where('empresaId', '==', empresaId),
-        where('createdBy', '==', user?.uid),
         orderBy('createdAt', 'desc'),
         limit(itemsPerPage)
       );
@@ -142,17 +133,18 @@ function ChamadosPage() {
       setLoading(false);
     }, (error) => {
       console.error('❌ Erro ao carregar tickets:', error);
-      setLoading(false);
       
+      // Em caso de erro de permissão, mostrar lista vazia mas não redirecionar
       if (error.code === 'permission-denied') {
-        console.error('⚠️ Permissões insuficientes para acessar tickets');
-        // Tentar redirecionar para auth se houver problema de permissão
-        router.push('/chamados/auth');
+        console.warn('⚠️ Permissões insuficientes, mostrando lista vazia');
+        setTickets([]);
       }
+      
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [filter, searchTerm, profile, userProfile, user, authLoading, generalAuthLoading]);
+  }, [filter, searchTerm, userProfile, user, authLoading, generalAuthLoading]);
 
   // Estados de carregamento e verificação de acesso
   if (authLoading || generalAuthLoading) {

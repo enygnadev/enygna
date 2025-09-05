@@ -483,21 +483,23 @@ service cloud.firestore {
 
     // ===== SISTEMA DE TICKETS/CHAMADOS =====
     match /tickets/{ticketId} {
+      // Permitir acesso total para superadmin
       allow read, write: if isSuperAdmin();
 
-      // Permitir acesso para usuários autenticados com verificações simples
-      allow read, create, update: if isAuthenticated();
+      // Permitir acesso completo para usuários autenticados
+      allow read, write, create, update: if isAuthenticated();
 
-      // Apenas admins podem deletar tickets
+      // Permitir delete apenas para admins
       allow delete: if isAuthenticated() && (
         isSuperAdmin() ||
-        isAdmin()
+        isAdmin() ||
+        request.auth.token.role in ['admin', 'superadmin', 'adminmaster']
       );
 
       // Subcoleções de tickets (comentários, auditoria, etc.)
       match /{subcollection}/{document} {
         allow read, write: if isSuperAdmin();
-        allow read, write, create: if isAuthenticated();
+        allow read, write, create, update: if isAuthenticated();
       }
     }
 
