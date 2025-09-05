@@ -76,6 +76,13 @@ service cloud.firestore {
       );
     }
 
+    function validUserUpdate() {
+      return request.resource.data.keys().hasAll(['email']) &&
+             request.resource.data.email == resource.data.email &&
+             (!('role' in request.resource.data) || isSuperAdmin() || isAdmin()) &&
+             (!('empresaId' in request.resource.data) || isSuperAdmin() || isAdmin());
+    }
+
     function sameCompany(empresaId) {
       return request.auth != null && request.auth.token != null && (
         isSuperAdmin() || 
