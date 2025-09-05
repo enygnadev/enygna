@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -23,7 +22,7 @@ service cloud.firestore {
         )
       );
     }
-    
+
     function isAdmin() {
       return request.auth != null && request.auth.token != null && (
         isSuperAdmin() || 
@@ -31,7 +30,7 @@ service cloud.firestore {
         request.auth.token.role == 'gestor'
       );
     }
-    
+
     function isEmpresa() {
       return request.auth != null && request.auth.token != null && (
         request.auth.token.tipo == 'empresa' || 
@@ -39,11 +38,11 @@ service cloud.firestore {
         request.auth.token.isEmpresa == true
       );
     }
-    
+
     function isAuthenticated() { 
       return request.auth != null && request.auth.uid != null; 
     }
-    
+
     // CORREÇÃO: Função atualizada para verificar ownerUid
     function isCompanyOwnerOrAuthorized(empresaId) {
       return isAuthenticated() && (
@@ -55,18 +54,18 @@ service cloud.firestore {
         )
       );
     }
-    
+
     function isCompanyCollaborator(empresaId) {
       return request.auth != null && (
         isCompanyOwnerOrAuthorized(empresaId) || 
         exists(/databases/$(database)/documents/empresas/$(empresaId)/colaboradores/$(request.auth.uid))
       );
     }
-    
+
     function hasRequiredFields(requiredFields) {
       return request.resource.data.keys().hasAll(requiredFields);
     }
-    
+
     function hasUserSystemAccess(sistema) {
       return request.auth != null && request.auth.token != null && (
         isSuperAdmin() || isAdmin() ||
@@ -76,7 +75,7 @@ service cloud.firestore {
          sistema in request.auth.token.canAccessSystems)
       );
     }
-    
+
     function sameCompany(empresaId) {
       return request.auth != null && request.auth.token != null && (
         isSuperAdmin() || 
@@ -98,42 +97,23 @@ service cloud.firestore {
       );
     }
 
-    // ===== USUÁRIOS - CRIAÇÃO SOMENTE DO PRÓPRIO DOC =====
+    // === COLEÇÃO USERS ===
     match /users/{userId} {
-      allow read, write: if isSuperAdmin();
-      
-      allow read, update: if isAuthenticated() && request.auth.uid == userId;
-      
-      // criar apenas o próprio perfil
-      allow create: if isAuthenticated() && 
-        request.auth.uid == userId && 
-        hasRequiredFields(['email']);
-      
-      // leitura por admin (exceto superadmin de terceiros)
-      allow read: if isAdmin() && resource.data.role != 'superadmin';
-      
-      // permitir leitura para o próprio usuário sempre
-      allow read: if isAuthenticated() && userId == request.auth.uid;
-      
-      // permitir que admins criem/atualizem usuários da mesma empresa
-      allow create, update: if isAdmin() && (
-        request.resource.data.empresaId == request.auth.token.empresaId ||
-        request.resource.data.empresaId == request.auth.token.company
-      );
-      
-      // acesso especial para contas de desenvolvimento
-      allow read, write: if isAuthenticated() && (
-        request.auth.token.email == 'enygnadev@gmail.com' ||
-        request.auth.token.email == 'enygna@enygna.com'
-      );
+      allow read: if isSuperAdmin() || 
+        (isAuthenticated() && request.auth.uid == userId) ||
+        (isAuthenticated() && isAdmin() && sameCompany(resource.data.empresaId));
+
+      allow write: if isSuperAdmin() || 
+        (isAuthenticated() && request.auth.uid == userId && validUserUpdate()) ||
+        (isAuthenticated() && isAdmin());
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====
     match /empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      
+
       allow read, update: if isAuthenticated() && isCompanyOwnerOrAuthorized(empresaId);
-      
+
       // CORREÇÃO: Criação segura
       allow create: if isAuthenticated() && (
         // self-signup seguro: docId = uid, e-mail verificado e coerente
@@ -175,13 +155,13 @@ service cloud.firestore {
         isCompanyCollaborator(empresaId) && 
         hasUserSystemAccess('chamados') &&
         request.resource.data.empresaId == empresaId;
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && isCompanyCollaborator(empresaId);
       }
     }
-    
+
     match /financeiro_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
       allow read: if isAuthenticated() && sameCompany(empresaId);
@@ -190,7 +170,7 @@ service cloud.firestore {
         hasUserSystemAccess('financeiro') && 
         (isAdmin() || request.auth.token.role == 'gestor') &&
         request.resource.data.empresaId == empresaId;
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && 
@@ -198,7 +178,7 @@ service cloud.firestore {
           hasUserSystemAccess('financeiro');
       }
     }
-    
+
     match /frota_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
       allow read: if isAuthenticated() && sameCompany(empresaId);
@@ -206,13 +186,13 @@ service cloud.firestore {
         sameCompany(empresaId) && 
         hasUserSystemAccess('frota') &&
         request.resource.data.empresaId == empresaId;
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && sameCompany(empresaId);
       }
     }
-    
+
     match /documentos_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
       allow read: if isAuthenticated() && sameCompany(empresaId);
@@ -220,13 +200,13 @@ service cloud.firestore {
         sameCompany(empresaId) && 
         hasUserSystemAccess('documentos') &&
         request.resource.data.empresaId == empresaId;
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && sameCompany(empresaId);
       }
     }
-    
+
     // CORREÇÃO: Ponto com e-mail verificado + janela de edição
     match /ponto_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
@@ -256,13 +236,13 @@ service cloud.firestore {
                     sameCompany(empresaId) &&
                     hasUserSystemAccess('ponto') &&
                     (isAdmin() || request.auth.token.role == 'gestor');
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && isCompanyCollaborator(empresaId);
       }
     }
-    
+
     match /crm_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
       allow read: if isAuthenticated() && isCompanyCollaborator(empresaId);
@@ -270,7 +250,7 @@ service cloud.firestore {
         sameCompany(empresaId) && 
         hasUserSystemAccess('crm') &&
         request.resource.data.empresaId == empresaId;
-        
+
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
         allow read, write, create: if isAuthenticated() && sameCompany(empresaId);
@@ -292,7 +272,7 @@ service cloud.firestore {
       allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isSuperAdmin();
     }
-    
+
     match /sessions/{document} {
       allow read, write: if isSuperAdmin();
       allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
@@ -300,7 +280,7 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid && 
         hasRequiredFields(['userId', 'empresaId', 'timestamp']);
     }
-    
+
     match /userTutorialStatus/{userId} {
       allow read, write, create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isSuperAdmin();
@@ -311,12 +291,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
-    
+
     match /app_config/{document} {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
-    
+
     match /system_settings/{document} {
       allow read, write: if isSuperAdmin();
       allow read: if isAdmin();
@@ -329,12 +309,12 @@ service cloud.firestore {
     match /system_logs/{document} { 
       allow read, write: if isSuperAdmin(); 
     }
-    
+
     match /security_events/{document} {
       allow read, write: if isSuperAdmin();
       allow create: if isAuthenticated();
     }
-    
+
     match /audit_logs/{document} {
       allow read, write: if isSuperAdmin();
       allow read: if isAdmin();
@@ -354,12 +334,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAuthenticated();
     }
-    
+
     match /health_checks/{document} {
       allow read, write: if isSuperAdmin();
       allow read: if isAdmin();
     }
-    
+
     match /error_reports/{document} {
       allow read, write: if isSuperAdmin();
       allow read: if isAdmin();
@@ -376,15 +356,15 @@ service cloud.firestore {
     match /internal_logs/{document} { 
       allow read, write: if false; 
     }
-    
+
     match /system_secrets/{document} { 
       allow read, write: if false; 
     }
-    
+
     match /backup_data/{document} { 
       allow read, write: if isSuperAdmin(); 
     }
-    
+
     match /bootstrap_admins/{userId} { 
       allow read, write: if isSuperAdmin(); 
     }

@@ -723,7 +723,7 @@ export default function AdminMasterPage() {
   // Mock function for creating company (replace with actual implementation)
   const [creationStatus, setCreationStatus] = useState<{ success: boolean, message: string } | null>(null);
 
-  // Mock function for handling company creation
+  // Função para criar empresa (com lógica para diferentes sistemas e coleção 'users')
   const createEmpresa = async (empresaData: any) => {
     try {
       setCreatingEmpresa(true);
@@ -2548,8 +2548,7 @@ export default function AdminMasterPage() {
                     onClick={() => setShowLoginForm(true)}
                     style={{
                       padding: '1rem 2rem',
-                      background:
-                        'linear-gradient(45deg, #3b82f6, #1e40af)',
+                      background: 'linear-gradient(45deg, #3b82f6, #1e40af)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '12px',
@@ -4839,7 +4838,7 @@ export default function AdminMasterPage() {
             }}>
               {/* Métricas do Sistema CRM */}
               <div style={{
-                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                background: '      linear-gradient(135deg, #3b82f6, #1e40af)',
                 padding: '1.5rem',
                 borderRadius: '16px',
                 textAlign: 'center'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Tutorial from '@/src/components/Tutorial';
 import ThemeSelector from '@/src/components/ThemeSelector';
@@ -8,8 +8,22 @@ import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
 
+// Definição de todos os sistemas disponíveis (necessário para o useMemo)
+const todosOsSistemas = [
+  { key: 'ponto', name: 'Sistema de Ponto', icon: '🕒', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderColor: '#667eea' },
+  { key: 'chamados', name: 'Chamados TI', icon: '🎫', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', borderColor: '#f093fb' },
+  { key: 'vendas', name: 'Sistema de Vendas', icon: '💼', gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', borderColor: '#4facfe' },
+  { key: 'estoque', name: 'Controle de Estoque', icon: '📦', gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', borderColor: '#43e97b' },
+  { key: 'financeiro', name: 'Sistema Financeiro', icon: '💰', gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', borderColor: '#fa709a' },
+  { key: 'rh', name: 'Recursos Humanos', icon: '👥', gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', borderColor: '#a8edea' },
+  { key: 'documentos', name: 'Gerador de Documentos', icon: '📄', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderColor: '#667eea' },
+  { key: 'frota', name: 'Gerenciamento de Frota', icon: '🚗', gradient: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)', borderColor: '#00ff7f' }
+];
 
-
+// Função auxiliar para verificar se o usuário é super admin
+const isSuperAdmin = (userData: any): boolean => {
+  return userData?.role === 'superadmin' || userData?.role === 'adminmaster' || userData?.claims?.bootstrapAdmin;
+};
 
 
 export default function SistemasPage() {
@@ -23,7 +37,7 @@ export default function SistemasPage() {
     if (!user || !userData) return false;
 
     // Admins sempre têm acesso
-    if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.claims?.bootstrapAdmin) {
+    if (isSuperAdmin(userData)) {
       return true;
     }
 
@@ -92,75 +106,35 @@ export default function SistemasPage() {
   }, []);
 
 
+  // Determinar sistemas disponíveis baseado nas permissões do usuário
+  const sistemasDisponiveis = useMemo(() => {
+    if (!userData) return [];
 
+    const isSuperAdminUser = isSuperAdmin(userData);
 
-
-  const systems = [
-    {
-      id: 'ponto',
-      name: 'Sistema de Ponto',
-      description: 'Controle de ponto profissional com GPS e relatórios',
-      icon: '🕒',
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderColor: '#667eea'
-    },
-    {
-      id: 'chamados',
-      name: 'Chamados TI',
-      description: 'Sistema de help desk e suporte técnico com IA',
-      icon: '🎫',
-      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      borderColor: '#f093fb'
-    },
-    {
-      id: 'vendas',
-      name: 'Sistema de Vendas',
-      description: 'CRM e gestão comercial avançada',
-      icon: '💼',
-      gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      borderColor: '#4facfe'
-    },
-    {
-      id: 'estoque',
-      name: 'Controle de Estoque',
-      description: 'Gestão de inventário e logística',
-      icon: '📦',
-      gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      borderColor: '#43e97b'
-    },
-    {
-      id: 'financeiro',
-      name: 'Sistema Financeiro',
-      description: 'Contabilidade avançada com OCR e automação fiscal',
-      icon: '💰',
-      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      borderColor: '#fa709a'
-    },
-    {
-      id: 'rh',
-      name: 'Recursos Humanos',
-      description: 'Gestão de pessoas e folha de pagamento',
-      icon: '👥',
-      gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-      borderColor: '#a8edea'
-    },
-    {
-      id: 'documentos',
-      name: 'Gerador de Documentos',
-      description: 'Criação automática de documentos e relatórios',
-      icon: '📄',
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderColor: '#667eea'
-    },
-    {
-      id: 'frota',
-      name: 'Gerenciamento de Frota',
-      description: 'Sistema neural de controle de frotas com IA e GPS',
-      icon: '🚗',
-      gradient: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)',
-      borderColor: '#00ff7f'
+    if (isSuperAdminUser) {
+      return todosOsSistemas;
     }
-  ];
+
+    // Obter sistemas de todas as fontes possíveis
+    const sistemasDoUsuario = userData.sistemasAtivos || [];
+    const sistemasClaims = userData.claims?.sistemasAtivos || [];
+    const sistemasCanAccess = userData.claims?.canAccessSystems || [];
+
+    // Combinar todas as fontes
+    const todosSistemasDoUsuario = [
+      ...sistemasDoUsuario,
+      ...sistemasClaims,
+      ...sistemasCanAccess
+    ].filter((sistema, index, array) => array.indexOf(sistema) === index); // remover duplicatas
+
+    console.log('Sistemas do usuário:', todosSistemasDoUsuario);
+
+    return todosOsSistemas.filter(sistema =>
+      todosSistemasDoUsuario.includes(sistema.key)
+    );
+  }, [userData]);
+
 
   const handleSystemSelect = (systemId: string) => {
     if (systemId === 'ponto') {
@@ -183,7 +157,7 @@ export default function SistemasPage() {
       window.location.href = '/crm/auth';
     } else {
       // Para outros sistemas, mostrar mensagem
-      alert(`Sistema ${systems.find(s => s.id === systemId)?.name} será implementado em breve!`);
+      alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} será implementado em breve!`);
     }
   };
 
@@ -347,7 +321,7 @@ export default function SistemasPage() {
                 {hasAccess('financeiro') && <span className="tag" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>💰 Financeiro</span>}
                 {(hasAccess('crm') || hasAccess('vendas')) && <span className="tag" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>💼 CRM/Vendas</span>}
                 {userData.claims?.permissions?.admin && <span className="tag" style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)' }}>👑 Admin</span>}
-                {(!userData.sistemasAtivos?.length) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
+                {(!userData.sistemasAtivos?.length && !userData.claims?.sistemasAtivos?.length && !userData.claims?.canAccessSystems?.length) && <span className="tag" style={{ background: 'var(--color-error)' }}>❌ Nenhum sistema ativo</span>}
               </div>
             </div>
           )}
@@ -367,15 +341,15 @@ export default function SistemasPage() {
           gap: 'var(--gap-xl)',
           marginBottom: 'var(--gap-2xl)'
         }}>
-          {systems.map((system) => {
-            const hasSystemAccess = user && userData && hasAccess(system.id);
-            const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.id);
+          {sistemasDisponiveis.map((system) => {
+            const hasSystemAccess = user && userData && hasAccess(system.key);
+            const isAccessible = !user || hasSystemAccess || ['vendas', 'estoque', 'rh'].includes(system.key); // 'vendas', 'estoque', 'rh' são sistemas que podem estar em breve
 
             return (
               <div
-                key={system.id}
+                key={system.key}
                 className="system-card"
-                onClick={() => isAccessible ? handleSystemSelect(system.id) : null}
+                onClick={() => isAccessible ? handleSystemSelect(system.key) : null}
                 style={{
                   background: 'var(--gradient-card)',
                   border: `2px solid ${system.borderColor}`,
@@ -464,7 +438,7 @@ export default function SistemasPage() {
                           <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </>
-                    ) : ['vendas', 'estoque', 'rh'].includes(system.id) ? (
+                    ) : ['vendas', 'estoque', 'rh'].includes(system.key) ? (
                       <>
                         <span>🚧 Em Breve</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
