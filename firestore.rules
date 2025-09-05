@@ -248,6 +248,61 @@ service cloud.firestore {
       }
     }
 
+    // ===== DOCUMENTOS - Sistema de Documentos =====
+    match /document_templates/{templateId} {
+      allow read, write: if isSuperAdmin();
+      
+      // Usuários autenticados podem ler templates globais (sem empresaId)
+      allow read: if isAuthenticated() && (
+        !resource.data.keys().hasAny(['empresaId']) ||
+        resource.data.empresaId == null ||
+        resource.data.empresaId == ""
+      );
+      
+      // Usuários podem ler templates da sua empresa
+      allow read: if isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resource.data.empresaId &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos'])
+      );
+      
+      // Usuários podem criar templates para sua empresa
+      allow create: if isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == request.resource.data.empresaId &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos'])
+      );
+    }
+
+    match /generated_documents/{documentId} {
+      allow read, write: if isSuperAdmin();
+      
+      // Usuário pode ler seus próprios documentos
+      allow read: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      
+      // Usuário pode ler documentos da sua empresa
+      allow read: if isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resource.data.empresaId &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos'])
+      );
+      
+      // Usuário pode criar documentos
+      allow create: if isAuthenticated() && (
+        request.resource.data.createdBy == request.auth.uid &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['documentos']) &&
+        (
+          !request.resource.data.keys().hasAny(['empresaId']) ||
+          request.resource.data.empresaId == "" ||
+          request.resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId
+        )
+      );
+      
+      // Usuário pode editar seus próprios documentos
+      allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
     match /ponto_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
 

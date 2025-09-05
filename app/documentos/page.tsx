@@ -4,11 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ThemeSelector from '@/src/components/ThemeSelector';
 import EmpresaManager from '@/src/components/EmpresaManager';
-import { useAuthData } from '@/src/hooks/useAuth';
 
-// Import dinâmico do Firebase para evitar erros SSR
+// Import dinâmlico do Firebase para evitar erros SSR
 let auth: any, db: any;
-let onAuthStateChanged: any, doc: any, getDoc: any, addDoc: any, collection: any, query: any, where: any, getDocs: any, orderBy: any, deleteDoc: any, updateDoc: any, serverTimestamp: any;
+let onAuthStateChanged: any, doc: any, getDoc: any, addDoc: any, collection: any, query: any, where: any, getDocs: any, orderBy: any, deleteDoc: any, updateDoc: any;
 
 if (typeof window !== 'undefined') {
   Promise.all([
@@ -29,7 +28,6 @@ if (typeof window !== 'undefined') {
     orderBy = firestoreModule.orderBy;
     deleteDoc = firestoreModule.deleteDoc;
     updateDoc = firestoreModule.updateDoc;
-    serverTimestamp = firestoreModule.serverTimestamp;
   }).catch(error => {
     console.error('Erro ao carregar Firebase:', error);
   });
@@ -64,6 +62,7 @@ interface GeneratedDocument {
   data: Record<string, any>;
   createdAt: number;
   createdBy: string;
+  empresaId: string;
   htmlContent?: string;
   aiGenerated?: boolean;
 }
@@ -75,16 +74,28 @@ interface ChatMessage {
   timestamp: number;
 }
 
-export default function DocumentosPage() {
-  const { user, profile, loading: authLoading } = useAuthData();
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+interface UserData {
+  uid: string;
+  email: string;
+  role: string;
+  empresaId: string;
+  sistemasAtivos: string[];
+  ativo: boolean;
+  nome: string;
+  permissions?: {
+    isEmpresa?: boolean;
+    canAccessSystems?: string[];
+  };
+}
 
+export default function DocumentosPage() {
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [empresaData, setEmpresaData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas'>('generator');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [generatedContent, setGeneratedContent] = useState<string>('');
@@ -102,136 +113,197 @@ export default function DocumentosPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedData, setExtractedData] = useState<Record<string, any>>({});
 
-  // Verificação de acesso aprimorada
-  const checkDocumentosAccess = (userProfile: any): boolean => {
-    if (!userProfile) {
-      console.log('❌ Perfil do usuário não disponível');
-      return false;
-    }
-
-    console.log('🔍 Verificando acesso ao sistema documentos para:', userProfile.email);
-    console.log('📊 Dados para verificação:', {
-      sistemasAtivos: userProfile.sistemasAtivos,
-      claimsSistemas: userProfile.claims?.sistemasAtivos,
-      canAccessSystems: userProfile.claims?.permissions?.canAccessSystems,
-      role: userProfile.role,
-      empresaId: userProfile.empresaId
-    });
-
-    // Super admins sempre têm acesso
-    if (['superadmin', 'adminmaster'].includes(userProfile.role)) {
-      console.log('👑 Super admin detectado - acesso total');
-      return true;
-    }
-
-    // Verificar claims do bootstrap admin
-    if (userProfile.claims?.bootstrapAdmin) {
-      console.log('🔧 Bootstrap admin detectado - acesso total');
-      return true;
-    }
-
-    // Verificar sistemas ativos do usuário
-    if (userProfile.sistemasAtivos?.includes('documentos')) {
-      console.log('✅ Sistema documentos encontrado em sistemasAtivos');
-      return true;
-    }
-
-    // Verificar claims do token
-    if (userProfile.claims?.sistemasAtivos?.includes('documentos')) {
-      console.log('✅ Sistema documentos encontrado em claims.sistemasAtivos');
-      return true;
-    }
-
-    // Verificar permissões específicas
-    if (userProfile.claims?.permissions?.canAccessSystems?.includes('documentos')) {
-      console.log('✅ Sistema documentos encontrado em permissions.canAccessSystems');
-      return true;
-    }
-
-    // Verificar se é admin/gestor com acesso geral e tem empresa
-    if (['admin', 'gestor', 'empresa'].includes(userProfile.role) && userProfile.empresaId) {
-      console.log(`👔 Role ${userProfile.role} com empresaId - assumindo acesso`);
-      return true;
-    }
-
-    console.log('❌ Sem acesso ao sistema documentos');
-    return false;
-  };
-
-  // Efeito principal para verificação de acesso
   useEffect(() => {
     let mounted = true;
+    let unsubscribe: any;
 
-    const checkAccess = async () => {
+    const initFirebase = async () => {
       try {
-        console.log('🔍 Iniciando verificação de acesso ao sistema documentos...');
-        console.log('📊 Loading:', authLoading, 'User:', !!user, 'Profile:', !!profile);
+        if (typeof window === 'undefined') return;
 
-        if (authLoading) {
-          console.log('⏳ Ainda carregando dados de autenticação...');
-          return;
-        }
+        const [firebase, authModule, firestoreModule] = await Promise.all([
+          import('@/src/lib/firebase'),
+          import('firebase/auth'),
+          import('firebase/firestore')
+        ]);
 
-        if (!user || !profile) {
-          console.log('❌ Usuário não autenticado ou perfil indisponível, redirecionando para auth');
-          if (mounted) {
-            window.location.href = '/documentos/auth';
-          }
-          return;
-        }
+        if (!mounted) return;
 
-        const hasDocumentosAccess = checkDocumentosAccess(profile);
+        const authInstance = firebase.auth;
 
-        if (!hasDocumentosAccess) {
-          console.log('❌ Usuário sem acesso ao sistema documentos, redirecionando para auth');
-          if (mounted) {
-            window.location.href = '/documentos/auth';
-          }
-          return;
-        }
+        unsubscribe = authModule.onAuthStateChanged(authInstance, async (currentUser) => {
+          if (!mounted) return;
 
-        console.log('✅ Acesso liberado ao sistema documentos');
-
-        if (mounted) {
-          setHasAccess(true);
-          setUserRole(profile.role || null);
-
-          // Inicializar dados do sistema
           try {
-            await loadTemplates();
-            // Chama loadDocuments apenas se houver um empresaId válido
-            if (profile.empresaId) {
-              await loadDocuments(profile.empresaId);
+            if (currentUser) {
+              console.log('🔍 Verificando acesso ao sistema documentos para:', currentUser.email);
+
+              // Buscar dados do usuário
+              const userDocRef = firestoreModule.doc(firebase.db, 'users', currentUser.uid);
+              const userDoc = await firestoreModule.getDoc(userDocRef);
+
+              if (!userDoc.exists()) {
+                console.error('❌ Usuário não encontrado no sistema');
+                if (mounted) {
+                  window.location.href = '/documentos/auth';
+                }
+                return;
+              }
+
+              const userDataFromDB = userDoc.data() as UserData;
+              console.log('📊 Dados do usuário encontrados:', userDataFromDB);
+
+              // Verificar se o usuário está ativo
+              if (!userDataFromDB.ativo) {
+                console.error('❌ Usuário inativo');
+                if (mounted) {
+                  window.location.href = '/documentos/auth';
+                }
+                return;
+              }
+
+              // Verificar acesso ao sistema de documentos
+              const hasDocumentosAccess = userDataFromDB.sistemasAtivos?.includes('documentos') ||
+                                        userDataFromDB.permissions?.canAccessSystems?.includes('documentos') ||
+                                        userDataFromDB.role === 'superadmin' ||
+                                        userDataFromDB.role === 'adminmaster';
+
+              if (!hasDocumentosAccess) {
+                console.error('❌ Usuário sem acesso ao sistema de documentos');
+                if (mounted) {
+                  window.location.href = '/documentos/auth';
+                }
+                return;
+              }
+
+              console.log('✅ Acesso ao sistema de documentos confirmado');
+
+              // Buscar dados da empresa se existir empresaId
+              let empresaInfo = null;
+              if (userDataFromDB.empresaId) {
+                try {
+                  const empresaDocRef = firestoreModule.doc(firebase.db, 'empresas', userDataFromDB.empresaId);
+                  const empresaDoc = await firestoreModule.getDoc(empresaDocRef);
+
+                  if (empresaDoc.exists()) {
+                    empresaInfo = { id: empresaDoc.id, ...empresaDoc.data() };
+                    console.log('🏢 Dados da empresa carregados:', empresaInfo);
+                  }
+                } catch (error) {
+                  console.warn('⚠️ Erro ao carregar dados da empresa:', error);
+                }
+              }
+
+              if (mounted) {
+                setUser(currentUser);
+                setUserData(userDataFromDB);
+                setEmpresaData(empresaInfo);
+
+                // Carregar templates com fallback para templates locais
+                try {
+                  let templatesQuery;
+
+                  // Se tem empresaId, buscar templates da empresa
+                  if (userDataFromDB.empresaId) {
+                    templatesQuery = firestoreModule.query(
+                      firestoreModule.collection(firebase.db, 'document_templates'),
+                      firestoreModule.where('empresaId', '==', userDataFromDB.empresaId),
+                      firestoreModule.orderBy('name', 'asc')
+                    );
+                  } else {
+                    // Templates globais
+                    templatesQuery = firestoreModule.query(
+                      firestoreModule.collection(firebase.db, 'document_templates'),
+                      firestoreModule.orderBy('name', 'asc')
+                    );
+                  }
+
+                  const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
+                  const templatesData = templatesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                  }));
+
+                  // Se não há templates no Firestore, usar templates locais
+                  if (templatesData.length === 0) {
+                    setTemplates(getLocalTemplates());
+                  } else {
+                    setTemplates(templatesData as DocumentTemplate[]);
+                  }
+                } catch (error) {
+                  console.error('Erro ao carregar templates:', error);
+                  setTemplates(getLocalTemplates());
+                }
+
+                // Carregar documentos do usuário
+                try {
+                  let documentsQuery;
+
+                  if (userDataFromDB.empresaId) {
+                    // Buscar documentos da empresa
+                    documentsQuery = firestoreModule.query(
+                      firestoreModule.collection(firebase.db, 'generated_documents'),
+                      firestoreModule.where('empresaId', '==', userDataFromDB.empresaId),
+                      firestoreModule.orderBy('createdAt', 'desc')
+                    );
+                  } else {
+                    // Buscar documentos do usuário
+                    documentsQuery = firestoreModule.query(
+                      firestoreModule.collection(firebase.db, 'generated_documents'),
+                      firestoreModule.where('createdBy', '==', currentUser.uid),
+                      firestoreModule.orderBy('createdAt', 'desc')
+                    );
+                  }
+
+                  const documentsSnapshot = await firestoreModule.getDocs(documentsQuery);
+                  const documentsData = documentsSnapshot.docs.map((doc: any) => ({
+                    id: doc.id,
+                    ...doc.data()
+                  }));
+                  setDocuments(documentsData as GeneratedDocument[]);
+                } catch (error) {
+                  console.error('Erro ao carregar documentos:', error);
+                  setDocuments([]);
+                }
+
+                initializeChatWelcome();
+              }
             } else {
-              console.log("ℹ️ EmpresaId não encontrado no perfil, pulando loadDocuments.");
+              console.log('❌ Usuário não autenticado');
+              if (mounted) {
+                window.location.href = '/documentos/auth';
+              }
+              return;
             }
-            initializeChatWelcome();
           } catch (error) {
-            console.error('Erro ao carregar dados do sistema:', error);
-            // Não bloquear o acesso se houver erro ao carregar dados
+            console.error('Erro ao verificar acesso do usuário:', error);
+            if (mounted) {
+              window.location.href = '/documentos/auth';
+            }
+            return;
           }
-        }
+
+          if (mounted) {
+            setLoading(false);
+          }
+        });
 
       } catch (error) {
-        console.error('Erro na verificação de acesso:', error);
+        console.error('Erro ao inicializar Firebase:', error);
         if (mounted) {
-          setHasAccess(false);
-          // Em caso de erro, redirecionar para auth
+          setLoading(false);
           window.location.href = '/documentos/auth';
-        }
-      } finally {
-        if (mounted) {
-          setIsCheckingAccess(false);
         }
       }
     };
 
-    checkAccess();
+    initFirebase();
 
     return () => {
       mounted = false;
+      if (unsubscribe) unsubscribe();
     };
-  }, [authLoading, user, profile]);
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -241,7 +313,7 @@ export default function DocumentosPage() {
     setChatMessages([{
       id: '1',
       role: 'assistant',
-      content: `👋 Olá! Sou seu assistente inteligente para geração de documentos.
+      content: `👋 Olá${userData?.nome ? `, ${userData.nome}` : ''}! Sou seu assistente inteligente para geração de documentos.
 
 Posso ajudar você a:
 • 📝 Criar qualquer tipo de documento
@@ -389,22 +461,60 @@ _________________________________
 CPF: {{cpf}}`,
         createdAt: Date.now(),
         updatedAt: Date.now()
+      },
+      {
+        id: 'recibo-pagamento',
+        name: 'Recibo de Pagamento',
+        type: 'form',
+        description: 'Recibo para comprovação de pagamento',
+        fields: [
+          { name: 'pagador_cnpj_cpf', label: 'CNPJ/CPF do Pagador', type: 'text', required: true, placeholder: '123.456.789-00' },
+          { name: 'pagador_nome', label: 'Nome do Pagador', type: 'text', required: true, placeholder: 'João Silva' },
+          { name: 'recebedor_cnpj_cpf', label: 'CNPJ/CPF do Recebedor', type: 'text', required: true, placeholder: '987.654.321-00' },
+          { name: 'recebedor_nome', label: 'Nome do Recebedor', type: 'text', required: true, placeholder: 'Maria Santos' },
+          { name: 'valor_pago', label: 'Valor Pago (R$)', type: 'text', required: true, placeholder: '1.500,00' },
+          { name: 'referente_pagamento', label: 'Referente ao Pagamento', type: 'textarea', required: true, placeholder: 'Serviços de consultoria...' },
+          { name: 'forma_pagamento', label: 'Forma de Pagamento', type: 'select', required: true, options: ['Dinheiro', 'PIX', 'Transferência', 'Cartão', 'Cheque'] },
+          { name: 'cidade', label: 'Cidade', type: 'text', required: true, placeholder: 'São Paulo' }
+        ],
+        template: `RECIBO DE PAGAMENTO
+
+Eu, {{recebedor_nome}}, inscrito no CPF/CNPJ {{recebedor_cnpj_cpf}}, recebi de {{pagador_nome}}, inscrito no CPF/CNPJ {{pagador_cnpj_cpf}}, a quantia de R$ {{valor_pago}}, referente a {{referente_pagamento}}.
+
+Forma de pagamento: {{forma_pagamento}}
+
+Para clareza firmo o presente recibo.
+
+{{cidade}}, {{data_atual}}
+
+_________________________________
+{{recebedor_nome}}
+Recebedor`,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
       }
     ];
   };
 
   const loadTemplates = async () => {
+    if (!userData?.empresaId) return;
+
     try {
-      if (!db || !collection || !query || !orderBy || !getDocs) {
-        console.log('Firebase ainda não carregado, usando templates locais');
-        setTemplates(getLocalTemplates());
-        return;
+      let templatesQuery;
+
+      if (userData.empresaId) {
+        templatesQuery = query(
+          collection(db, 'document_templates'),
+          where('empresaId', '==', userData.empresaId),
+          orderBy('name', 'asc')
+        );
+      } else {
+        templatesQuery = query(
+          collection(db, 'document_templates'),
+          orderBy('name', 'asc')
+        );
       }
 
-      const templatesQuery = query(
-        collection(db, 'document_templates'),
-        orderBy('name', 'asc')
-      );
       const snapshot = await getDocs(templatesQuery);
       const templatesData = snapshot.docs.map((doc: any) => ({
         id: doc.id,
@@ -422,56 +532,35 @@ CPF: {{cpf}}`,
     }
   };
 
-  const loadDocuments = async (companyId: string) => {
-    if (!companyId) return;
+  const loadDocuments = async () => {
+    if (!user?.uid || !userData) return;
 
-    setLoadingDocs(true);
     try {
-      console.log("📄 Carregando documentos para empresa:", companyId);
+      let documentsQuery;
 
-      // Tentar carregar de múltiplas coleções possíveis
-      let docs: any[] = [];
-
-      try {
-        // Primeira tentativa: coleção estruturada
-        const docsRef = collection(db, `documentos_empresas/${companyId}/documentos`);
-        const querySnapshot = await getDocs(docsRef);
-        docs = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
-        }));
-
-        console.log("✅ Documentos carregados da estrutura empresas:", docs.length);
-      } catch (error1) {
-        console.log("Tentativa 1 falhou, tentando coleção direta...");
-
-        try {
-          // Segunda tentativa: coleção direta com filtro
-          const docsRef = collection(db, 'documentos');
-          const docsQuery = query(docsRef, where('empresaId', '==', companyId));
-          const querySnapshot = await getDocs(docsQuery);
-          docs = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-            updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
-          }));
-
-          console.log("✅ Documentos carregados da coleção direta:", docs.length);
-        } catch (error2) {
-          console.error("Erro em ambas as tentativas:", error2);
-          throw new Error("Não foi possível carregar os documentos");
-        }
+      if (userData.empresaId) {
+        documentsQuery = query(
+          collection(db, 'generated_documents'),
+          where('empresaId', '==', userData.empresaId),
+          orderBy('createdAt', 'desc')
+        );
+      } else {
+        documentsQuery = query(
+          collection(db, 'generated_documents'),
+          where('createdBy', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
       }
 
-      setDocuments(docs);
+      const snapshot = await getDocs(documentsQuery);
+      const documentsData = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data()
+      })) as GeneratedDocument[];
+      setDocuments(documentsData);
     } catch (error) {
-      console.error("Erro ao carregar documentos:", error);
-      alert(`Erro ao carregar documentos: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-    } finally {
-      setLoadingDocs(false);
+      console.error('Erro ao carregar documents:', error);
+      setDocuments([]);
     }
   };
 
@@ -565,6 +654,65 @@ O documento foi gerado e está pronto para visualização e impressão. Você po
   const generateDocumentLocally = (prompt: string) => {
     const currentDate = new Date().toLocaleDateString('pt-BR');
 
+    const promptLower = prompt.toLowerCase();
+
+    if (promptLower.includes('procuração')) {
+      return {
+        tipo: 'Procuração',
+        titulo: 'Procuração Simples',
+        conteudo_texto: `PROCURAÇÃO
+
+Eu, _________________________, brasileiro(a), _______ (estado civil), _______ (profissão), portador(a) do RG nº ______________ e CPF nº ________________, residente e domiciliado(a) à ______________________________, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) _________________________, brasileiro(a), _______ (estado civil), _______ (profissão), portador(a) do RG nº ______________ e CPF nº ________________, residente e domiciliado(a) à ______________________________, para o fim específico de:
+
+- Representar-me perante repartições públicas, empresas e instituições em geral;
+- Assinar documentos em meu nome;
+- Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.
+
+A presente procuração é válida por 90 (noventa) dias a contar desta data.
+
+_______________________, ${currentDate}
+
+_________________________________
+Assinatura do Outorgante
+
+RECONHECIMENTO DE FIRMA
+________________________`,
+        conteudo_html: `
+<div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">PROCURAÇÃO</h1>
+  </div>
+  <div style="text-align: justify; margin-bottom: 30px;">
+    <p>Eu, <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, por este instrumento particular, nomeio e constituo como meu(minha) bastante procurador(a) o(a) Sr.(a) <strong>_________________________</strong>, brasileiro(a), <strong>_______</strong> (estado civil), <strong>_______</strong> (profissão), portador(a) do RG nº <strong>______________</strong> e CPF nº <strong>________________</strong>, residente e domiciliado(a) à <strong>______________________________</strong>, para o fim específico de:</p>
+  </div>
+  <div style="margin: 30px 0;">
+    <ul style="padding-left: 30px;">
+      <li>Representar-me perante repartições públicas, empresas e instituições em geral;</li>
+      <li>Assinar documentos em meu nome;</li>
+      <li>Praticar todos os atos necessários ao bom e fiel cumprimento do presente mandato.</li>
+    </ul>
+  </div>
+  <div style="margin: 30px 0;">
+    <p>A presente procuração é válida por <strong>90 (noventa) dias</strong> a contar desta data.</p>
+  </div>
+  <div style="margin-top: 60px;">
+    <p>_______________________, ${currentDate}</p>
+  </div>
+  <div style="margin-top: 80px; text-align: center;">
+    <div style="display: inline-block; border-top: 1px solid black; width: 300px; padding-top: 5px;">
+      <strong>Assinatura do Outorgante</strong>
+    </div>
+  </div>
+  <div style="margin-top: 60px;">
+    <p><strong>RECONHECIMENTO DE FIRMA</strong></p>
+    <p>________________________</p>
+  </div>
+</div>`,
+        campos_editaveis: ['outorgante', 'procurador', 'finalidade'],
+        instrucoes: 'Preencha os campos destacados com os dados do outorgante e procurador. Documento válido por 90 dias.'
+      };
+    }
+
     return {
       tipo: 'Documento Personalizado',
       titulo: `Documento - ${currentDate}`,
@@ -591,28 +739,22 @@ Data: ${currentDate}`,
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="font-size: 18px; font-weight: bold; margin: 0;">DOCUMENTO</h1>
   </div>
-
   <div style="margin-bottom: 20px;">
     <p><strong>Data:</strong> ${currentDate}</p>
   </div>
-
   <div style="margin-bottom: 20px;">
     <p><strong>Assunto:</strong> ${prompt}</p>
   </div>
-
   <div style="margin-bottom: 30px;">
     <p>Prezado(a) Senhor(a),</p>
   </div>
-
   <div style="margin-bottom: 30px; text-align: justify;">
     <p>Por meio deste documento, venho formalizar a seguinte solicitação:</p>
     <p style="margin-left: 20px; font-style: italic;">${prompt}</p>
   </div>
-
   <div style="margin-bottom: 30px;">
     <p>Atenciosamente,</p>
   </div>
-
   <div style="margin-top: 80px;">
     <p>_________________________________</p>
     <p><strong>Nome:</strong> _________________________</p>
@@ -626,7 +768,7 @@ Data: ${currentDate}`,
   };
 
   const saveAIDocument = async (documentData: any) => {
-    if (!user || !db || !addDoc || !collection) return;
+    if (!user || !userData) return;
 
     try {
       const documentToSave = {
@@ -638,11 +780,12 @@ Data: ${currentDate}`,
         data: {},
         createdAt: Date.now(),
         createdBy: user.uid,
+        empresaId: userData.empresaId || '',
         aiGenerated: true
       };
 
       await addDoc(collection(db, 'generated_documents'), documentToSave);
-      await loadDocuments(profile?.empresaId || ''); // Use empresaId from profile
+      await loadDocuments();
       console.log('✅ Documento salvo com sucesso');
     } catch (error) {
       console.error('Erro ao salvar documento:', error);
@@ -665,6 +808,512 @@ Data: ${currentDate}`,
     setChatInput('');
 
     await generateDocumentWithAI(currentInput);
+  };
+
+  const buscarCEP = async (cep: string) => {
+    if (!cep || cep.length < 8) return null;
+
+    try {
+      const cepLimpo = cep.replace(/\D/g, '');
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        throw new Error('CEP não encontrado');
+      }
+
+      return {
+        logradouro: data.logradouro,
+        bairro: data.bairro,
+        cidade: data.localidade,
+        uf: data.uf,
+        cep: data.cep
+      };
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      return null;
+    }
+  };
+
+  const buscarDadosCPF = async (cpf: string) => {
+    if (!cpf || cpf.length < 11) return null;
+
+    try {
+      const cpfLimpo = cpf.replace(/\D/g, '');
+      const response = await fetch(`/api/cpf?cpf=${cpfLimpo}`);
+      const data = await response.json();
+
+      if (data.success && data.nome) {
+        return {
+          nome: data.nome,
+          cpf: formatCpfCnpj(cpf),
+          nascimento: data.nascimento || null,
+          genero: data.genero || null
+        };
+      }
+
+      if (data.success && data.validFormat) {
+        return {
+          nome: null,
+          cpf: formatCpfCnpj(cpf),
+          nascimento: null,
+          genero: null,
+          message: data.message || 'CPF válido, mas sem dados disponíveis'
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar dados do CPF:', error);
+      return null;
+    }
+  };
+
+  const buscarDadosCNPJ = async (cnpj: string) => {
+    if (!cnpj || cnpj.length < 14) return null;
+
+    try {
+      const cnpjLimpo = cnpj.replace(/\D/g, '');
+      const response = await fetch(`/api/cnpj?cnpj=${cnpjLimpo}`);
+
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado ou inválido');
+      }
+
+      const data = await response.json();
+
+      if (data.nome) {
+        return {
+          razao_social: data.nome,
+          nome_fantasia: data.fantasia || '',
+          cnpj: formatCpfCnpj(cnpj),
+          situacao: data.status || '',
+          endereco: data.endereco ? `${data.endereco.street || ''}, ${data.endereco.number || ''}` : '',
+          bairro: data.endereco?.district || '',
+          cidade: data.endereco?.city || '',
+          uf: data.endereco?.state || '',
+          cep: data.endereco?.zip || '',
+          telefone: data.endereco?.phone || '',
+          email: data.email,
+          atividade_principal: data.atividadePrincipal || ''
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar dados do CNPJ:', error);
+      return null;
+    }
+  };
+
+  const formatCpfCnpj = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+
+    if (cleaned.length <= 11) {
+      return cleaned
+        .replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, p1, p2, p3, p4) => {
+          return [p1, p2, p3].filter(Boolean).join('.') + (p4 ? `-${p4}` : '');
+        });
+    } else {
+      return cleaned
+        .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, p1, p2, p3, p4, p5) => {
+          return `${p1}.${p2}.${p3}/${p4}-${p5}`;
+        });
+    }
+  };
+
+  const isValidCpfCnpj = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      return /^\d{11}$/.test(cleaned);
+    } else if (cleaned.length === 14) {
+      return /^\d{14}$/.test(cleaned);
+    }
+    return false;
+  };
+
+  const formatCEP = (cep: string) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length === 0) return '';
+    if (cepLimpo.length <= 5) return cepLimpo;
+    return cepLimpo.replace(/(\d{5})(\d{1,3})/, '$1-$2').substring(0, 9);
+  };
+
+  const formatTelefone = (telefone: string) => {
+    const telLimpo = telefone.replace(/\D/g, '');
+    if (telLimpo.length === 0) return '';
+    if (telLimpo.length <= 2) return `(${telLimpo}`;
+    if (telLimpo.length <= 6) return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2)}`;
+    if (telLimpo.length <= 10) {
+      return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 6)}-${telLimpo.substring(6)}`;
+    }
+    return `(${telLimpo.substring(0, 2)}) ${telLimpo.substring(2, 7)}-${telLimpo.substring(7, 11)}`;
+  };
+
+  const validateCPF = (cpf: string): { valid: boolean; message?: string } => {
+    const cpfLimpo = cpf.replace(/\D/g, '');
+
+    if (cpfLimpo.length !== 11) {
+      return { valid: false, message: 'CPF deve conter exatamente 11 dígitos' };
+    }
+
+    if (!isValidCpfCnpj(cpfLimpo)) {
+      return { valid: false, message: 'CPF inválido' };
+    }
+
+    return { valid: true };
+  };
+
+  const validateCNPJ = (cnpj: string): { valid: boolean; message?: string } => {
+    const cnpjLimpo = cnpj.replace(/\D/g, '');
+
+    if (cnpjLimpo.length !== 14) {
+      return { valid: false, message: 'CNPJ deve conter exatamente 14 dígitos' };
+    }
+
+    if (!isValidCpfCnpj(cnpjLimpo)) {
+      return { valid: false, message: 'CNPJ inválido' };
+    }
+
+    return { valid: true };
+  };
+
+  const validateCEP = (cep: string): { valid: boolean; message?: string } => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) {
+      return { valid: false, message: 'CEP deve conter exatamente 8 dígitos' };
+    }
+    if (!/^\d{8}$/.test(cepLimpo)) {
+      return { valid: false, message: 'CEP deve conter apenas números' };
+    }
+    return { valid: true };
+  };
+
+  const validateTelefone = (telefone: string): { valid: boolean; message?: string } => {
+    const telLimpo = telefone.replace(/\D/g, '');
+    if (telLimpo.length < 10) {
+      return { valid: false, message: 'Telefone deve ter pelo menos 10 dígitos' };
+    }
+    if (telLimpo.length > 11) {
+      return { valid: false, message: 'Telefone deve ter no máximo 11 dígitos' };
+    }
+    const ddd = parseInt(telLimpo.substring(0, 2));
+    if (ddd < 11 || ddd > 99) {
+      return { valid: false, message: 'DDD inválido. Deve estar entre 11 e 99' };
+    }
+    return { valid: true };
+  };
+
+  const applyMask = (value: string, fieldName: string): string => {
+    if (fieldName.toLowerCase().includes('cpf') || fieldName.toLowerCase().includes('cnpj')) {
+      return formatCpfCnpj(value);
+    } else if (fieldName.toLowerCase().includes('cep')) {
+      return formatCEP(value);
+    } else if (fieldName.toLowerCase().includes('telefone') || fieldName.toLowerCase().includes('fone')) {
+      return formatTelefone(value);
+    }
+    return value;
+  };
+
+  const preencherPorCEP = async (cep: string, fieldName: string) => {
+    const validation = validateCEP(cep);
+    if (!validation.valid) {
+      alert(`❌ ${validation.message}`);
+      return;
+    }
+
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Buscando endereço...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCEP = await buscarCEP(cep);
+
+      if (dadosCEP) {
+        const novoFormData = { ...formData };
+
+        const mapeamento: Record<string, string> = {
+          'endereco': dadosCEP.logradouro,
+          'bairro': dadosCEP.bairro,
+          'cidade': dadosCEP.cidade,
+          'uf': dadosCEP.uf,
+          'cep': formatCEP(cep),
+          'outorgante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'procurador_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'contratante_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`,
+          'contratado_endereco': `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}, ${dadosCEP.cidade} - ${dadosCEP.uf}`
+        };
+
+        Object.keys(mapeamento).forEach(campo => {
+          if (selectedTemplate?.fields.some(field => field.name === campo)) {
+            novoFormData[campo] = mapeamento[campo];
+          }
+        });
+
+        if (fieldName.includes('endereco')) {
+          novoFormData[fieldName] = `${dadosCEP.logradouro}, [NÚMERO], ${dadosCEP.bairro}`;
+        }
+
+        setFormData(novoFormData);
+
+        loadingAlert.innerHTML = '✅ Endereço encontrado!';
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+
+        setTimeout(() => {
+          const numeroInput = document.querySelector(`input[placeholder*="Número"]`) as HTMLInputElement;
+          if (numeroInput) numeroInput.focus();
+        }, 500);
+
+      } else {
+        loadingAlert.innerHTML = '❌ CEP não encontrado';
+        loadingAlert.style.background = '#ef4444';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      loadingAlert.innerHTML = '❌ Erro ao buscar CEP';
+      loadingAlert.style.background = '#ef4444';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+    }
+  };
+
+  const preencherPorCPF = async (cpf: string, fieldName: string) => {
+    const validation = validateCPF(cpf);
+    if (!validation.valid) {
+      alert(`❌ CPF inválido: ${validation.message}`);
+      return;
+    }
+
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Consultando CPF...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCPF = await buscarDadosCPF(cpf);
+
+      if (dadosCPF) {
+        const novoFormData = { ...formData };
+
+        if (dadosCPF.nome) {
+          const isOutorgante = fieldName.toLowerCase().includes('outorgante');
+          const isProcurador = fieldName.toLowerCase().includes('procurador');
+          const isContratante = fieldName.toLowerCase().includes('contratante');
+          const isContratado = fieldName.toLowerCase().includes('contratado');
+
+          const mapeamento: Record<string, string> = {
+            'nome_completo': dadosCPF.nome,
+            'nome': dadosCPF.nome,
+            'cpf': formatCpfCnpj(cpf)
+          };
+
+          if (isOutorgante) {
+            mapeamento['outorgante_nome'] = dadosCPF.nome;
+            mapeamento['outorgante_cpf'] = formatCpfCnpj(cpf);
+
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['outorgante_genero'] = generoTexto;
+              mapeamento['genero'] = generoTexto;
+            }
+
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['outorgante_nascimento'] = nascimentoFormatado;
+              mapeamento['data_nascimento'] = nascimentoFormatado;
+              mapeamento['nascimento'] = nascimentoFormatado;
+            }
+          } else if (isProcurador) {
+            mapeamento['procurador_nome'] = dadosCPF.nome;
+            mapeamento['procurador_cpf'] = formatCpfCnpj(cpf);
+
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['procurador_genero'] = generoTexto;
+            }
+
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['procurador_nascimento'] = nascimentoFormatado;
+            }
+          } else if (isContratante) {
+            mapeamento['contratante_nome'] = dadosCPF.nome;
+            mapeamento['contratante_cnpj_cpf'] = formatCpfCnpj(cpf);
+
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['contratante_genero'] = generoTexto;
+            }
+
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['contratante_nascimento'] = nascimentoFormatado;
+            }
+          } else if (isContratado) {
+            mapeamento['contratado_nome'] = dadosCPF.nome;
+            mapeamento['contratado_cnpj_cpf'] = formatCpfCnpj(cpf);
+
+            if (dadosCPF.genero) {
+              const generoTexto = dadosCPF.genero === 'M' ? 'masculino' :
+                                dadosCPF.genero === 'F' ? 'feminino' : 'não informado';
+              mapeamento['contratado_genero'] = generoTexto;
+            }
+
+            if (dadosCPF.nascimento) {
+              const dataNascimento = new Date(dadosCPF.nascimento);
+              const nascimentoFormatado = dataNascimento.toLocaleDateString('pt-BR');
+              mapeamento['contratado_nascimento'] = nascimentoFormatado;
+            }
+          }
+
+          Object.keys(mapeamento).forEach(campo => {
+            if (selectedTemplate?.fields.some(field => field.name === campo)) {
+              novoFormData[campo] = mapeamento[campo];
+            }
+          });
+
+          let detalhes = ['Nome: ' + dadosCPF.nome];
+          if (dadosCPF.genero) {
+            const generoTexto = dadosCPF.genero === 'M' ? 'Masculino' :
+                              dadosCPF.genero === 'F' ? 'Feminino' : 'Não informado';
+            detalhes.push('Gênero: ' + generoTexto);
+          }
+          if (dadosCPF.nascimento) {
+            const dataNascimento = new Date(dadosCPF.nascimento);
+            detalhes.push('Nascimento: ' + dataNascimento.toLocaleDateString('pt-BR'));
+          }
+
+          loadingAlert.textContent = '✅ Dados encontrados!';
+          const detailsElement = document.createElement('small');
+          detailsElement.textContent = detalhes.join(' • ');
+          detailsElement.style.display = 'block';
+          loadingAlert.appendChild(detailsElement);
+          loadingAlert.style.background = '#10b981';
+        } else {
+          novoFormData[fieldName] = formatCpfCnpj(cpf);
+
+          loadingAlert.textContent = dadosCPF.message || '⚠️ CPF válido, mas sem dados disponíveis';
+          loadingAlert.style.background = '#f59e0b';
+        }
+
+        setFormData(novoFormData);
+        setTimeout(() => document.body.removeChild(loadingAlert), 4000);
+
+      } else {
+        loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual necessário';
+        loadingAlert.style.background = '#f59e0b';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+
+        const novoFormData = { ...formData };
+        novoFormData[fieldName] = formatCpfCnpj(cpf);
+        setFormData(novoFormData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CPF:', error);
+      loadingAlert.innerHTML = '⚠️ CPF válido, preenchimento manual';
+      loadingAlert.style.background = '#f59e0b';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+
+      const novoFormData = { ...formData };
+      novoFormData[fieldName] = formatCpfCnpj(cpf);
+      setFormData(novoFormData);
+    }
+  };
+
+  const preencherPorCNPJ = async (cnpj: string, fieldName: string) => {
+    const validation = validateCNPJ(cnpj);
+    if (!validation.valid) {
+      alert(`❌ CNPJ inválido: ${validation.message}`);
+      return;
+    }
+
+    const loadingAlert = document.createElement('div');
+    loadingAlert.innerHTML = '🔍 Consultando CNPJ...';
+    loadingAlert.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 10000;
+      background: #3b82f6; color: white; padding: 1rem;
+      border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(loadingAlert);
+
+    try {
+      const dadosCNPJ = await buscarDadosCNPJ(cnpj);
+
+      if (dadosCNPJ && dadosCNPJ.razao_social) {
+        const novoFormData = { ...formData };
+
+        const mapeamento: Record<string, string> = {
+          'nome_completo': dadosCNPJ.razao_social,
+          'razao_social': dadosCNPJ.razao_social,
+          'nome_fantasia': dadosCNPJ.nome_fantasia,
+          'contratante_nome': dadosCNPJ.razao_social,
+          'contratado_nome': dadosCNPJ.razao_social,
+          'empresa': dadosCNPJ.razao_social,
+          'cnpj': formatCpfCnpj(cnpj),
+          'contratante_cnpj_cpf': formatCpfCnpj(cnpj),
+          'contratado_cnpj_cpf': formatCpfCnpj(cnpj),
+          'endereco': dadosCNPJ.endereco,
+          'contratante_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+          'contratado_endereco': `${dadosCNPJ.endereco}, ${dadosCNPJ.bairro}, ${dadosCNPJ.cidade} - ${dadosCNPJ.uf}`,
+          'cidade': dadosCNPJ.cidade,
+          'telefone': dadosCNPJ.telefone ? formatTelefone(dadosCNPJ.telefone) : '',
+          'email': dadosCNPJ.email,
+          'atividade_principal': dadosCNPJ.atividade_principal
+        };
+
+        Object.keys(mapeamento).forEach(campo => {
+          if (selectedTemplate?.fields.some(field => field.name === campo)) {
+            novoFormData[campo] = mapeamento[campo];
+          }
+        });
+
+        setFormData(novoFormData);
+
+        loadingAlert.innerHTML = '✅ Empresa encontrada!';
+        loadingAlert.style.background = '#10b981';
+        setTimeout(() => document.body.removeChild(loadingAlert), 2000);
+
+      } else {
+        loadingAlert.innerHTML = '⚠️ CNPJ válido, mas sem dados disponíveis';
+        loadingAlert.style.background = '#f59e0b';
+        setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+
+        const novoFormData = { ...formData };
+        novoFormData[fieldName] = formatCpfCnpj(cnpj);
+        setFormData(novoFormData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CNPJ:', error);
+      loadingAlert.innerHTML = '⚠️ CNPJ válido, preenchimento manual';
+      loadingAlert.style.background = '#f59e0b';
+      setTimeout(() => document.body.removeChild(loadingAlert), 3000);
+
+      const novoFormData = { ...formData };
+      novoFormData[fieldName] = formatCpfCnpj(cnpj);
+      setFormData(novoFormData);
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(loadingAlert)) {
+          document.body.removeChild(loadingAlert);
+        }
+      }, 5000);
+    }
   };
 
   const processOCR = async () => {
@@ -719,7 +1368,7 @@ Data: ${currentDate}`,
   };
 
   const generateDocument = async () => {
-    if (!selectedTemplate || !user) return;
+    if (!selectedTemplate || !user || !userData) return;
 
     setIsGenerating(true);
     try {
@@ -784,74 +1433,28 @@ Data: ${currentDate}`,
       finalContent = finalContent.replace(/{{data_atual}}/g, currentDate);
 
       setGeneratedContent(finalContent);
-      setGeneratedContent(content);
       setGeneratedHtml(htmlContent);
 
-      if (db && addDoc && collection && profile?.empresaId) {
-        const documentData = {
-          templateId: selectedTemplate.id,
-          templateName: selectedTemplate.name,
-          title: `${selectedTemplate.name} - ${currentDate}`,
-          content,
-          htmlContent,
-          data: formData,
-          createdAt: Date.now(),
-          createdBy: user.uid
-        };
+      const documentData = {
+        templateId: selectedTemplate.id,
+        templateName: selectedTemplate.name,
+        title: `${selectedTemplate.name} - ${currentDate}`,
+        content,
+        htmlContent,
+        data: formData,
+        createdAt: Date.now(),
+        createdBy: user.uid,
+        empresaId: userData.empresaId || ''
+      };
 
-        await saveDocument(documentData);
-        await loadDocuments(profile.empresaId);
-      }
+      await addDoc(collection(db, 'generated_documents'), documentData);
+      await loadDocuments();
 
     } catch (error) {
       console.error('Erro ao gerar documento:', error);
       alert('Erro ao gerar documento. Tente novamente.');
     }
     setIsGenerating(false);
-  };
-
-  const saveDocument = async (documentData: any) => {
-    if (!profile?.empresaId || !user) return;
-
-    const empresaId = profile.empresaId;
-
-    try {
-      const docData = {
-        ...documentData,
-        empresaId,
-        userId: user.uid,
-        userEmail: user.email,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'ativo'
-      };
-
-      let docRef;
-
-      try {
-        // Primeira tentativa: estrutura de empresa
-        docRef = await addDoc(
-          collection(db, `documentos_empresas/${empresaId}/documentos`),
-          docData
-        );
-        console.log("✅ Documento salvo na estrutura empresa:", docRef.id);
-      } catch (error1) {
-        console.log("Tentando salvar na coleção direta...");
-
-        // Segunda tentativa: coleção direta
-        docRef = await addDoc(
-          collection(db, 'documentos'),
-          docData
-        );
-        console.log("✅ Documento salvo na coleção direta:", docRef.id);
-      }
-
-      await loadDocuments(empresaId);
-      return docRef.id;
-    } catch (error) {
-      console.error("Erro ao salvar documento:", error);
-      throw error;
-    }
   };
 
   const printDocument = () => {
@@ -899,19 +1502,10 @@ Data: ${currentDate}`,
 
   const deleteDocument = async (documentId: string) => {
     if (!confirm('Deseja realmente excluir este documento?')) return;
-    if (!profile?.empresaId) return;
 
     try {
-      if (db && deleteDoc && doc) {
-        // Tentar deletar da estrutura empresa primeiro
-        try {
-          await deleteDoc(doc(db, `documentos_empresas/${profile.empresaId}/documentos`, documentId));
-        } catch (error1) {
-          // Se falhar, tentar da coleção direta
-          await deleteDoc(doc(db, 'documentos', documentId));
-        }
-        await loadDocuments(profile.empresaId);
-      }
+      await deleteDoc(doc(db, 'generated_documents', documentId));
+      await loadDocuments();
     } catch (error) {
       console.error('Erro ao excluir documento:', error);
       alert('Erro ao excluir documento.');
@@ -927,8 +1521,7 @@ Data: ${currentDate}`,
     { id: 'empresas', label: 'Empresas', icon: '🏢' }
   ];
 
-  // Loading state
-  if (authLoading || isCheckingAccess) {
+  if (loading) {
     return (
       <div className="container" style={{
         display: 'flex',
@@ -946,38 +1539,7 @@ Data: ${currentDate}`,
             animation: 'spin 1s linear infinite',
             margin: '0 auto 1rem'
           }}></div>
-          <p>Verificando acesso ao sistema...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Access denied or user not logged in
-  if (hasAccess === false || !user || !profile) {
-    return (
-      <div className="container">
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          textAlign: 'center',
-          padding: '2rem'
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
-          <h1 style={{ marginBottom: '1rem' }}>Acesso Negado</h1>
-          <p style={{ marginBottom: '2rem', maxWidth: '500px' }}>
-            Você não tem permissão para acessar o sistema de documentos ou precisa estar logado.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <Link href="/documentos/auth" className="button button-primary">
-              Fazer Login
-            </Link>
-            <Link href="/sistemas" className="button button-outline">
-              Voltar aos Sistemas
-            </Link>
-          </div>
+          <p>Carregando sistema...</p>
         </div>
       </div>
     );
@@ -1138,6 +1700,16 @@ Data: ${currentDate}`,
           <div className="badge">
             📄 Gerador de Documentos v2.0 AI
           </div>
+          {userData && (
+            <div className="badge">
+              👤 {userData.nome} ({userData.role})
+            </div>
+          )}
+          {empresaData && (
+            <div className="badge">
+              🏢 {empresaData.nome}
+            </div>
+          )}
         </div>
         <ThemeSelector size="medium" />
       </div>
@@ -1345,41 +1917,96 @@ Data: ${currentDate}`,
         <div className="card">
           <h3>📋 Templates de Documentos</h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-            {templates.map(template => (
-              <div
-                key={template.id}
-                className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
-                onClick={() => {
-                  setSelectedTemplate(template);
-                  setActiveTab('generator');
-                }}
-              >
-                <h4>{template.name}</h4>
-                <p style={{ color: 'var(--color-textSecondary)', margin: '0.5rem 0' }}>
-                  {template.description}
-                </p>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: '1rem'
-                }}>
-                  <span className="badge">{template.type}</span>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
-                    {template.fields.length} campos
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const categorias = {
+              'Jurídico': templates.filter(t =>
+                t.name.toLowerCase().includes('procuração') ||
+                t.name.toLowerCase().includes('confidencialidade') ||
+                t.name.toLowerCase().includes('nda')
+              ),
+              'Comercial': templates.filter(t =>
+                t.name.toLowerCase().includes('contrato') && (
+                  t.name.toLowerCase().includes('serviços') ||
+                  t.name.toLowerCase().includes('compra') ||
+                  t.name.toLowerCase().includes('venda') ||
+                  t.name.toLowerCase().includes('locação') ||
+                  t.name.toLowerCase().includes('parceria')
+                )
+              ),
+              'Fiscal/Contábil': templates.filter(t =>
+                t.name.toLowerCase().includes('declaração') ||
+                t.name.toLowerCase().includes('renda') ||
+                t.name.toLowerCase().includes('residência') ||
+                t.name.toLowerCase().includes('dependência')
+              ),
+              'Financeiro': templates.filter(t =>
+                t.name.toLowerCase().includes('recibo') ||
+                t.name.toLowerCase().includes('pagamento')
+              )
+            };
 
-          {templates.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-textSecondary)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-              <p>Nenhum template disponível</p>
-            </div>
-          )}
+            const categoriasComTemplates = Object.entries(categorias).filter(([_, temps]) => temps.length > 0);
+
+            return (
+              <div>
+                {categoriasComTemplates.map(([categoria, categoryTemplates]) => (
+                  <div key={categoria} style={{ marginBottom: '2rem' }}>
+                    <h4 style={{
+                      margin: '0 0 1rem 0',
+                      padding: '1rem',
+                      background: 'var(--color-primary)',
+                      color: 'white',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '1.1rem',
+                      fontWeight: '700'
+                    }}>
+                      {categoria === 'Jurídico' && '⚖️'}
+                      {categoria === 'Comercial' && '💼'}
+                      {categoria === 'Fiscal/Contábil' && '📊'}
+                      {categoria === 'Financeiro' && '💰'}
+                      {categoria}
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                      {categoryTemplates.map(template => (
+                        <div
+                          key={template.id}
+                          className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedTemplate(template);
+                            setActiveTab('generator');
+                          }}
+                        >
+                          <h4>{template.name}</h4>
+                          <p style={{ color: 'var(--color-textSecondary)', margin: '0.5rem 0' }}>
+                            {template.description}
+                          </p>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginTop: '1rem'
+                          }}>
+                            <span className="badge">{template.type}</span>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
+                              {template.fields.length} campos
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {templates.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-textSecondary)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
+                    <p>Nenhum template disponível</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1422,46 +2049,235 @@ Data: ${currentDate}`,
                 </button>
               </div>
 
+              {/* Inicializar preview do template */}
+              {(() => {
+                if (!generatedHtml && selectedTemplate) {
+                  let previewContent = selectedTemplate.template;
+
+                  selectedTemplate.fields.forEach(field => {
+                    const regex = new RegExp(`{{${field.name}}}`, 'g');
+                    previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${field.label} ___</span>`);
+                  });
+
+                  const currentDate = new Date().toLocaleDateString('pt-BR');
+                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${currentDate}</span>`);
+
+                  const initialHtmlContent = `
+                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                      <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                      </div>
+                      <div style="text-align: justify; line-height: 1.8;">
+                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                      </div>
+                    </div>
+                  `;
+
+                  setTimeout(() => setGeneratedHtml(initialHtmlContent), 0);
+                }
+                return null;
+              })()}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div>
                   <h4>📝 Preencher Campos</h4>
 
-                  {selectedTemplate.fields.map(field => (
-                    <div key={field.name} style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                        {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
-                      </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {selectedTemplate.fields.map(field => (
+                      <div key={field.name} style={{ marginBottom: '1rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                          {field.label} {field.required && <span style={{ color: 'red' }}>*</span>}
+                        </label>
 
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          className="input"
-                          value={formData[field.name] || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                          placeholder={field.placeholder}
-                          rows={4}
-                        />
-                      ) : field.type === 'select' ? (
-                        <select
-                          className="input"
-                          value={formData[field.name] || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                        >
-                          <option value="">Selecione...</option>
-                          {field.options?.map((option: string) => (
-                            <option key={option} value={option}>{option}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={field.type}
-                          className="input"
-                          value={formData[field.name] || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                          placeholder={field.placeholder}
-                        />
-                      )}
-                    </div>
-                  ))}
+                        {field.type === 'textarea' ? (
+                          <textarea
+                            className="input"
+                            value={formData[field.name] || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                            placeholder={field.placeholder}
+                            rows={4}
+                          />
+                        ) : field.type === 'select' ? (
+                          <select
+                            className="input"
+                            value={formData[field.name] || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                          >
+                            <option value="">Selecione...</option>
+                            {field.options?.map((option: string) => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={field.type}
+                              className="input"
+                              value={formData[field.name] || ''}
+                              onChange={(e) => {
+                                let value = e.target.value;
+
+                                const maskedValue = applyMask(value, field.name);
+
+                                const newFormData = { ...formData, [field.name]: maskedValue };
+                                setFormData(newFormData);
+
+                                if (selectedTemplate) {
+                                  let previewContent = selectedTemplate.template;
+
+                                  selectedTemplate.fields.forEach(templateField => {
+                                    const fieldValue = (newFormData as Record<string, any>)[templateField.name] || '';
+                                    const regex = new RegExp(`{{${templateField.name}}}`, 'g');
+                                    if (fieldValue) {
+                                      previewContent = previewContent.replace(regex, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${fieldValue}</span>`);
+                                    } else {
+                                      previewContent = previewContent.replace(regex, `<span style="background: #fff2cc; padding: 2px 4px; border-radius: 3px; border: 1px dashed #fbbf24; color: #92400e; font-weight: bold;">___ ${templateField.label} ___</span>`);
+                                    }
+                                  });
+
+                                  const previewCurrentDate = new Date().toLocaleDateString('pt-BR');
+                                  previewContent = previewContent.replace(/{{data_atual}}/g, `<span style="background: #e8f5e8; padding: 2px 4px; border-radius: 3px; font-weight: bold;">${previewCurrentDate}</span>`);
+
+                                  const updatedHtmlContent = `
+                                    <div style="font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px; background: white; color: black;">
+                                      <div style="text-align: center; margin-bottom: 30px;">
+                                        <h1 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">${selectedTemplate.name}</h1>
+                                      </div>
+                                      <div style="text-align: justify; line-height: 1.8;">
+                                        ${previewContent.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+                                      </div>
+                                    </div>
+                                  `;
+
+                                  setGeneratedHtml(updatedHtmlContent);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value;
+                                if (!value) return;
+
+                                let isValid = true;
+                                let errorMessage = '';
+
+                                if (field.name.toLowerCase().includes('cep') && value.replace(/\D/g, '').length >= 8) {
+                                  const cepValidation = validateCEP(value);
+                                  if (cepValidation.valid) {
+                                    preencherPorCEP(value, field.name);
+                                  } else {
+                                    errorMessage = cepValidation.message || 'CEP inválido';
+                                    isValid = false;
+                                  }
+                                }
+                                else if ((field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) && value.replace(/\D/g, '').length >= 11) {
+                                  const cpfValidation = validateCPF(value);
+                                  if (cpfValidation.valid) {
+                                    preencherPorCPF(value, field.name);
+                                  } else {
+                                    errorMessage = cpfValidation.message || 'CPF inválido';
+                                    isValid = false;
+                                  }
+                                }
+                                else if (field.name.toLowerCase().includes('cnpj') && value.replace(/\D/g, '').length >= 14) {
+                                  const cnpjValidation = validateCNPJ(value);
+                                  if (cnpjValidation.valid) {
+                                    preencherPorCNPJ(value, field.name);
+                                  } else {
+                                    errorMessage = cnpjValidation.message || 'CNPJ inválido';
+                                    isValid = false;
+                                  }
+                                }
+                                else if ((field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) && value.length > 0) {
+                                  const telefoneValidation = validateTelefone(value);
+                                  if (!telefoneValidation.valid) {
+                                    errorMessage = telefoneValidation.message || 'Telefone inválido';
+                                    isValid = false;
+                                  }
+                                }
+
+                                if (!isValid && value.length > 0) {
+                                  e.target.style.borderColor = '#ef4444';
+                                  e.target.style.boxShadow = '0 0 0 1px #ef4444';
+                                  e.target.title = errorMessage;
+
+                                  const errorTooltip = document.createElement('div');
+                                  errorTooltip.textContent = errorMessage;
+                                  errorTooltip.style.cssText = `
+                                    position: absolute; top: -2.5rem; left: 0; z-index: 1000;
+                                    background: #ef4444; color: white; padding: 0.5rem;
+                                    border-radius: 0.25rem; font-size: 0.75rem;
+                                    white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                  `;
+                                  e.target.parentElement?.appendChild(errorTooltip);
+                                  setTimeout(() => {
+                                    if (errorTooltip.parentElement) {
+                                      errorTooltip.parentElement.removeChild(errorTooltip);
+                                    }
+                                  }, 3000);
+                                } else {
+                                  e.target.style.borderColor = '';
+                                  e.target.style.boxShadow = '';
+                                  e.target.title = '';
+                                }
+                              }}
+                              placeholder={field.placeholder}
+                              style={{
+                                paddingRight: (
+                                  field.name.toLowerCase().includes('cep') ||
+                                  field.name.toLowerCase().includes('cpf') ||
+                                  field.name.toLowerCase().includes('cnpj') ||
+                                  field.name.toLowerCase().includes('telefone') ||
+                                  field.name.toLowerCase().includes('fone')
+                                ) ? '2.5rem' : undefined
+                              }}
+                            />
+
+                            {(field.name.toLowerCase().includes('cep') ||
+                              field.name.toLowerCase().includes('cpf') ||
+                              field.name.toLowerCase().includes('cnpj')) && (
+                              <div style={{
+                                position: 'absolute',
+                                right: '0.5rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '1rem',
+                                color: 'var(--color-primary)',
+                                cursor: 'help'
+                              }}
+                              title="Campo com preenchimento automático">
+                                🔍
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {(field.name.toLowerCase().includes('cep') ||
+                          field.name.toLowerCase().includes('cpf') ||
+                          field.name.toLowerCase().includes('cnpj') ||
+                          field.name.toLowerCase().includes('telefone') ||
+                          field.name.toLowerCase().includes('fone')) && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-textSecondary)',
+                            marginTop: '0.25rem',
+                            fontStyle: 'italic',
+                            background: 'var(--color-surface)',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            border: '1px solid var(--color-border)'
+                          }}>
+                            {field.name.toLowerCase().includes('cep') &&
+                              '🔍 CEP com preenchimento automático (Ex: 01234-567 ou 01234567)'}
+                            {(field.name.toLowerCase().includes('cpf') && !field.name.toLowerCase().includes('cnpj')) &&
+                              '🔍 CPF com preenchimento automático (Ex: 123.456.789-09)'}
+                            {field.name.toLowerCase().includes('cnpj') &&
+                              '🔍 CNPJ com preenchimento automático (Ex: 12.345.678/0001-90)'}
+                            {(field.name.toLowerCase().includes('telefone') || field.name.toLowerCase().includes('fone')) &&
+                              '📞 Telefone com formatação automática (Ex: (11) 99999-9999)'}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
                   <button
                     className="button button-primary"
@@ -1477,6 +2293,11 @@ Data: ${currentDate}`,
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                       <h4>📄 {generatedContent ? 'Documento Gerado' : 'Preview do Documento'}</h4>
+                      {!generatedContent && (
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-textSecondary)' }}>
+                          <span style={{ color: '#92400e' }}>⚠️ Campos em amarelo</span> precisam ser preenchidos
+                        </div>
+                      )}
                     </div>
 
                     <div className="document-html-preview">
@@ -1515,9 +2336,9 @@ Data: ${currentDate}`,
         <div className="card">
           <EmpresaManager
             sistema="documentos"
-            allowCreate={userRole === 'admin' || userRole === 'superadmin'}
-            allowEdit={userRole === 'admin' || userRole === 'superadmin'}
-            allowDelete={userRole === 'superadmin'}
+            allowCreate={userData?.role === 'admin' || userData?.role === 'superadmin'}
+            allowEdit={userData?.role === 'admin' || userData?.role === 'superadmin'}
+            allowDelete={userData?.role === 'superadmin'}
             onEmpresaSelect={(empresa) => {
               console.log('Empresa selecionada para documentos:', empresa);
             }}
@@ -1530,20 +2351,7 @@ Data: ${currentDate}`,
         <div className="card">
           <h3>📂 Histórico de Documentos</h3>
 
-          {loadingDocs ? (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-              <div className="spinner" style={{
-                width: '40px',
-                height: '40px',
-                border: '4px solid var(--color-border)',
-                borderTop: '4px solid var(--color-primary)',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                margin: '0 auto 1rem'
-              }}></div>
-              <p>Carregando documentos...</p>
-            </div>
-          ) : documents.length > 0 ? (
+          {documents.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {documents.map((document) => (
                 <div
