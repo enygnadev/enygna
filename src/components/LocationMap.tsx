@@ -26,10 +26,29 @@ export default function LocationMap({
   samePlaceRadius = 120,
 }: Props) {
   const [isClient, setIsClient] = React.useState(false);
+  const [mapInstance, setMapInstance] = React.useState<any>(null);
+  const mapContainerRef = React.useRef<HTMLDivElement>(null);
+  const [shouldRenderMap, setShouldRenderMap] = React.useState(false);
+  const mapKey = React.useMemo(() => `map-${Date.now()}-${Math.random()}`, []);
 
   React.useEffect(() => {
     setIsClient(true);
+    // Pequeno delay para garantir que o DOM está pronto
+    setTimeout(() => setShouldRenderMap(true), 100);
   }, []);
+
+  // Limpar instância do mapa ao desmontar
+  React.useEffect(() => {
+    return () => {
+      if (mapInstance) {
+        try {
+          mapInstance.remove();
+        } catch (error) {
+          console.warn('Erro ao limpar mapa:', error);
+        }
+      }
+    };
+  }, [mapInstance]);
 
   // Calcular distância se tiver ponto de comparação
   const distance = React.useMemo(() => {
@@ -51,121 +70,200 @@ export default function LocationMap({
 
   const isInsideRadius = distance !== null && distance <= samePlaceRadius;
 
-  // Converter coordenadas para posição no mapa visual
-  const convertCoordToPosition = (latitude: number, longitude: number) => {
-    const x = ((longitude + 180) / 360) * 100;
-    const y = ((90 - latitude) / 180) * 100;
-    return {
-      x: Math.max(10, Math.min(90, x)),
-      y: Math.max(10, Math.min(90, y))
+  // Carregar e inicializar o mapa Leaflet
+  React.useEffect(() => {
+    if (!isClient || !shouldRenderMap || !mapContainerRef.current) return;
+
+    let isMounted = true;
+
+    const initMap = async () => {
+      try {
+        // Importar Leaflet dinamicamente
+        const L = (await import('leaflet')).default;
+
+        // Configurar ícones
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        });
+
+        if (!isMounted || !mapContainerRef.current) return;
+
+        // Criar o mapa
+        const map = L.map(mapContainerRef.current, {
+          center: [lat, lng],
+          zoom: 16,
+          zoomControl: true,
+          scrollWheelZoom: true,
+          doubleClickZoom: true,
+          boxZoom: true,
+          keyboard: true,
+          dragging: true,
+          touchZoom: true,
+          attributionControl: true
+        });
+
+        // Adicionar tiles do OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+          className: 'map-tiles'
+        }).addTo(map);
+
+        // Ícone customizado para localização principal
+        const mainIcon = L.divIcon({
+          className: 'custom-marker-main',
+          html: `
+            <div style="
+              width: 30px;
+              height: 30px;
+              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+              border: 3px solid white;
+              border-radius: 50% 50% 50% 0;
+              transform: rotate(-45deg);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+              position: relative;
+            ">
+              <span style="
+                transform: rotate(45deg);
+                font-size: 16px;
+                color: white;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+                font-weight: bold;
+              ">📍</span>
+            </div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+          popupAnchor: [0, -30]
+        });
+
+        // Adicionar marcador principal
+        L.marker([lat, lng], { icon: mainIcon }).addTo(map)
+          .bindPopup(`
+            <div style="
+              padding: 8px;
+              font-family: system-ui, -apple-system, sans-serif;
+              text-align: center;
+            ">
+              <strong style="color: #1f2937; font-size: 14px;">${label}</strong><br>
+              <span style="color: #6b7280; font-size: 12px;">
+                📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}
+              </span>
+              ${accuracy ? `<br><span style="color: #059669; font-size: 11px;">🎯 Precisão: ±${Math.round(accuracy)}m</span>` : ''}
+            </div>
+          `);
+
+        // Círculo de precisão
+        if (accuracy && accuracy > 0) {
+          L.circle([lat, lng], {
+            color: '#3b82f6',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.1,
+            radius: accuracy,
+            weight: 2,
+            dashArray: '5, 5'
+          }).addTo(map);
+        }
+
+        // Ponto de comparação se existir
+        if (compareTo) {
+          const compareIcon = L.divIcon({
+            className: 'custom-marker-compare',
+            html: `
+              <div style="
+                width: 26px;
+                height: 26px;
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                border: 3px solid white;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+                position: relative;
+              ">
+                <span style="
+                  transform: rotate(45deg);
+                  font-size: 14px;
+                  color: white;
+                  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+                  font-weight: bold;
+                ">🏢</span>
+              </div>
+            `,
+            iconSize: [26, 26],
+            iconAnchor: [13, 26],
+            popupAnchor: [0, -26]
+          });
+
+          L.marker([compareTo.lat, compareTo.lng], { icon: compareIcon }).addTo(map)
+            .bindPopup(`
+              <div style="
+                padding: 8px;
+                font-family: system-ui, -apple-system, sans-serif;
+                text-align: center;
+              ">
+                <strong style="color: #1f2937; font-size: 14px;">${compareTo.label || 'Referência'}</strong><br>
+                <span style="color: #6b7280; font-size: 12px;">
+                  📍 ${compareTo.lat.toFixed(5)}, ${compareTo.lng.toFixed(5)}
+                </span>
+              </div>
+            `);
+
+          // Área de geofencing
+          L.circle([compareTo.lat, compareTo.lng], {
+            color: '#10b981',
+            fillColor: '#10b981',
+            fillOpacity: 0.1,
+            radius: samePlaceRadius,
+            weight: 2,
+            dashArray: '8, 4'
+          }).addTo(map);
+
+          // Linha conectando os pontos
+          L.polyline([[lat, lng], [compareTo.lat, compareTo.lng]], {
+            color: '#6366f1',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 5'
+          }).addTo(map);
+
+          // Ajustar visualização para mostrar ambos os pontos
+          const group = L.featureGroup([
+            L.marker([lat, lng]),
+            L.marker([compareTo.lat, compareTo.lng])
+          ]);
+          map.fitBounds(group.getBounds().pad(0.1));
+        }
+
+        // Definir instância do mapa
+        setMapInstance(map);
+
+        // Invalidar tamanho após um pequeno delay
+        setTimeout(() => {
+          if (map && isMounted) {
+            map.invalidateSize();
+          }
+        }, 100);
+
+      } catch (error) {
+        console.error('Erro ao carregar mapa:', error);
+      }
     };
-  };
 
-  const mainPosition = convertCoordToPosition(lat, lng);
-  const comparePosition = compareTo ? convertCoordToPosition(compareTo.lat, compareTo.lng) : null;
+    initMap();
 
-  // Gerar elementos urbanos baseados nas coordenadas
-  const generateUrbanElements = () => {
-    const elements = [];
-    const seed = Math.abs(lat * lng * 1000) % 1000;
-    
-    // Gerar ruas principais
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * 45) + (seed % 30);
-      const length = 60 + (seed % 40);
-      elements.push(
-        <div
-          key={`street-${i}`}
-          className="street"
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: `${length}%`,
-            height: '3px',
-            background: 'linear-gradient(90deg, #9ca3af, #d1d5db)',
-            transformOrigin: '0 50%',
-            transform: `translate(-50%, -50%) rotate(${angle}deg)`,
-            opacity: 0.8,
-            zIndex: 1
-          }}
-        />
-      );
-    }
-
-    // Gerar quarteirões
-    for (let i = 0; i < 12; i++) {
-      const x = 15 + ((seed + i * 37) % 70);
-      const y = 15 + ((seed + i * 23) % 70);
-      const size = 8 + ((seed + i * 17) % 12);
-      elements.push(
-        <div
-          key={`block-${i}`}
-          className="city-block"
-          style={{
-            position: 'absolute',
-            left: `${x}%`,
-            top: `${y}%`,
-            width: `${size}%`,
-            height: `${size * 0.8}%`,
-            background: 'linear-gradient(135deg, #f3f4f6, #e5e7eb)',
-            border: '1px solid #d1d5db',
-            borderRadius: '2px',
-            zIndex: 2
-          }}
-        />
-      );
-    }
-
-    // Gerar áreas verdes (parques)
-    for (let i = 0; i < 3; i++) {
-      const x = 20 + ((seed + i * 67) % 60);
-      const y = 20 + ((seed + i * 43) % 60);
-      const size = 12 + ((seed + i * 29) % 8);
-      elements.push(
-        <div
-          key={`park-${i}`}
-          className="park"
-          style={{
-            position: 'absolute',
-            left: `${x}%`,
-            top: `${y}%`,
-            width: `${size}%`,
-            height: `${size * 0.7}%`,
-            background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
-            border: '1px solid #86efac',
-            borderRadius: '50%',
-            zIndex: 2
-          }}
-        />
-      );
-    }
-
-    // Gerar prédios importantes
-    for (let i = 0; i < 5; i++) {
-      const x = 25 + ((seed + i * 53) % 50);
-      const y = 25 + ((seed + i * 41) % 50);
-      elements.push(
-        <div
-          key={`building-${i}`}
-          className="important-building"
-          style={{
-            position: 'absolute',
-            left: `${x}%`,
-            top: `${y}%`,
-            width: '6px',
-            height: '6px',
-            background: '#4f46e5',
-            borderRadius: '2px',
-            border: '1px solid #6366f1',
-            zIndex: 3
-          }}
-        />
-      );
-    }
-
-    return elements;
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [isClient, shouldRenderMap, lat, lng, compareTo, label, accuracy, samePlaceRadius]);
 
   if (!isClient) {
     return (
@@ -189,7 +287,7 @@ export default function LocationMap({
             animation: 'spin 1s linear infinite',
             margin: '0 auto 12px'
           }} />
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Carregando localização...</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Carregando mapa...</p>
         </div>
       </div>
     );
@@ -203,83 +301,25 @@ export default function LocationMap({
           100% { transform: rotate(360deg); }
         }
         
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.8; }
+        .custom-marker-main {
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
         }
         
-        @keyframes ripple {
-          0% { transform: scale(0.5); opacity: 1; }
-          100% { transform: scale(2); opacity: 0; }
+        .custom-marker-compare {
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
         }
         
-        .map-marker {
-          position: absolute;
-          transform: translate(-50%, -50%);
-          z-index: 20;
-          cursor: pointer;
-          transition: all 0.3s ease;
+        .leaflet-div-icon {
+          background: transparent !important;
+          border: none !important;
         }
         
-        .map-marker:hover {
-          transform: translate(-50%, -50%) scale(1.1);
-        }
-        
-        .marker-pulse {
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          animation: ripple 2s infinite;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-        }
-        
-        .accuracy-circle {
-          position: absolute;
-          border: 2px dashed #3b82f6;
-          border-radius: 50%;
-          background: rgba(59, 130, 246, 0.1);
-          transform: translate(-50%, -50%);
-          pointer-events: none;
-          z-index: 15;
-        }
-        
-        .geofence-circle {
-          position: absolute;
-          border: 2px dashed #10b981;
-          border-radius: 50%;
-          background: rgba(16, 185, 129, 0.1);
-          transform: translate(-50%, -50%);
-          pointer-events: none;
-          z-index: 15;
-        }
-        
-        .connection-line {
-          position: absolute;
-          height: 2px;
-          background: linear-gradient(90deg, #3b82f6, #10b981);
-          transform-origin: left center;
-          pointer-events: none;
-          opacity: 0.6;
-          z-index: 10;
-        }
-
-        .street {
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .city-block {
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .park {
-          box-shadow: inset 0 1px 2px rgba(34, 197, 94, 0.2);
-        }
-
-        .important-building {
-          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+        .map-tiles {
+          filter: saturate(1.1) contrast(1.05);
         }
       `}</style>
 
@@ -325,9 +365,10 @@ export default function LocationMap({
         </div>
       )}
 
-      {/* Mapa visual realista */}
+      {/* Container do mapa */}
       <div style={{ position: 'relative' }}>
         <div 
+          ref={mapContainerRef}
           style={{ 
             width: '100%', 
             height: 320,
@@ -335,247 +376,39 @@ export default function LocationMap({
             overflow: 'hidden',
             border: '2px solid #e2e8f0',
             boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-            position: 'relative'
+            background: '#f8fafc'
           }} 
-        >
-          {/* Base do mapa com textura */}
+        />
+        
+        {/* Loading overlay */}
+        {!shouldRenderMap && (
           <div style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: `
-              radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 70% 70%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
-              linear-gradient(45deg, transparent 25%, rgba(156, 163, 175, 0.03) 25%, rgba(156, 163, 175, 0.03) 50%, transparent 50%, transparent 75%, rgba(156, 163, 175, 0.03) 75%)
-            `,
-            backgroundSize: '100px 100px'
-          }} />
-
-          {/* Grid de ruas menores */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `
-              linear-gradient(rgba(156, 163, 175, 0.3) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(156, 163, 175, 0.3) 1px, transparent 1px)
-            `,
-            backgroundSize: '25px 25px',
-            zIndex: 1
-          }} />
-
-          {/* Avenidas principais */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `
-              linear-gradient(rgba(75, 85, 99, 0.6) 3px, transparent 3px),
-              linear-gradient(90deg, rgba(75, 85, 99, 0.6) 3px, transparent 3px)
-            `,
-            backgroundSize: '80px 80px',
-            zIndex: 2
-          }} />
-
-          {/* Elementos urbanos gerados */}
-          {generateUrbanElements()}
-
-          {/* Linha de conexão entre pontos */}
-          {comparePosition && (
-            <div
-              className="connection-line"
-              style={{
-                left: `${mainPosition.x}%`,
-                top: `${mainPosition.y}%`,
-                width: Math.sqrt(
-                  Math.pow((comparePosition.x - mainPosition.x) * 3.2, 2) + 
-                  Math.pow((comparePosition.y - mainPosition.y) * 3.2, 2)
-                ),
-                transform: `rotate(${Math.atan2(
-                  (comparePosition.y - mainPosition.y) * 3.2,
-                  (comparePosition.x - mainPosition.x) * 3.2
-                ) * 180 / Math.PI}deg)`
-              }}
-            />
-          )}
-
-          {/* Círculo de precisão */}
-          {accuracy && accuracy > 0 && (
-            <div
-              className="accuracy-circle"
-              style={{
-                left: `${mainPosition.x}%`,
-                top: `${mainPosition.y}%`,
-                width: Math.min(accuracy / 2, 100),
-                height: Math.min(accuracy / 2, 100),
-                border: '2px dashed #3b82f6',
-                background: 'rgba(59, 130, 246, 0.1)'
-              }}
-            />
-          )}
-
-          {/* Área de geofencing */}
-          {comparePosition && (
-            <div
-              className="geofence-circle"
-              style={{
-                left: `${comparePosition.x}%`,
-                top: `${comparePosition.y}%`,
-                width: Math.min(samePlaceRadius / 3, 120),
-                height: Math.min(samePlaceRadius / 3, 120)
-              }}
-            />
-          )}
-
-          {/* Marcador principal */}
-          <div
-            className="map-marker"
-            style={{
-              left: `${mainPosition.x}%`,
-              top: `${mainPosition.y}%`
-            }}
-            title={`${label} - ${lat.toFixed(5)}, ${lng.toFixed(5)}`}
-          >
-            <div style={{
-              width: 32,
-              height: 32,
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              border: '3px solid white',
-              borderRadius: '50% 50% 50% 0',
-              transform: 'rotate(-45deg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
-              position: 'relative'
-            }}>
-              <span style={{
-                transform: 'rotate(45deg)',
-                fontSize: 16,
-                color: 'white',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
-                fontWeight: 'bold'
-              }}>📍</span>
-            </div>
-            <div className="marker-pulse" style={{
-              background: 'rgba(59, 130, 246, 0.3)'
-            }} />
-          </div>
-
-          {/* Marcador de comparação */}
-          {comparePosition && (
-            <div
-              className="map-marker"
-              style={{
-                left: `${comparePosition.x}%`,
-                top: `${comparePosition.y}%`
-              }}
-              title={`${compareTo!.label || 'Referência'} - ${compareTo!.lat.toFixed(5)}, ${compareTo!.lng.toFixed(5)}`}
-            >
+            background: 'rgba(248, 250, 252, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 16,
+            zIndex: 1000
+          }}>
+            <div style={{ textAlign: 'center', color: '#64748b' }}>
               <div style={{
-                width: 28,
-                height: 28,
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                border: '3px solid white',
-                borderRadius: '50% 50% 50% 0',
-                transform: 'rotate(-45deg)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 6px 16px rgba(239, 68, 68, 0.4)',
-                position: 'relative'
-              }}>
-                <span style={{
-                  transform: 'rotate(45deg)',
-                  fontSize: 14,
-                  color: 'white',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
-                  fontWeight: 'bold'
-                }}>🏢</span>
-              </div>
-              <div className="marker-pulse" style={{
-                background: 'rgba(239, 68, 68, 0.3)'
+                width: 32,
+                height: 32,
+                border: '3px solid #e2e8f0',
+                borderTop: '3px solid #3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 8px'
               }} />
-            </div>
-          )}
-
-          {/* Legenda no canto */}
-          <div style={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            fontSize: 11,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            zIndex: 25
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: 4, color: '#374151' }}>
-              {label}
-            </div>
-            <div style={{ color: '#6b7280', lineHeight: 1.3 }}>
-              📍 {lat.toFixed(4)}, {lng.toFixed(4)}
-            </div>
-            {accuracy && (
-              <div style={{ color: '#059669', fontSize: 10, marginTop: 2 }}>
-                🎯 ±{Math.round(accuracy)}m
-              </div>
-            )}
-          </div>
-
-          {/* Informações do mapa */}
-          <div style={{
-            position: 'absolute',
-            bottom: 12,
-            left: 12,
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            fontSize: 11,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            zIndex: 25
-          }}>
-            <div style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-              🗺️ Mapa da Cidade
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 10, marginTop: 2 }}>
-              Ruas, quarteirões e pontos de interesse
+              <p style={{ margin: 0, fontSize: 12 }}>Carregando mapa...</p>
             </div>
           </div>
-
-          {/* Legenda dos elementos */}
-          <div style={{
-            position: 'absolute',
-            bottom: 12,
-            right: 12,
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 8,
-            padding: '6px 8px',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            fontSize: 9,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            zIndex: 25,
-            maxWidth: 120
-          }}>
-            <div style={{ color: '#9ca3af', marginBottom: 2 }}>━ Ruas</div>
-            <div style={{ color: '#d1d5db', marginBottom: 2 }}>▢ Quarteirões</div>
-            <div style={{ color: '#22c55e', marginBottom: 2 }}>● Áreas Verdes</div>
-            <div style={{ color: '#4f46e5' }}>▪ Edifícios</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
