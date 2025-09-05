@@ -1,7 +1,6 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, db as adminDb } from '@/src/lib/firebaseAdmin';
-import { getDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { adminAuth } from '@/src/lib/firebaseAdmin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 interface SetClaimsRequest {
   userId: string;
@@ -35,10 +34,10 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    
+
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
-      
+
       // Verificar se quem está fazendo a requisição é admin
       if (!['superadmin', 'adminmaster', 'admin'].includes(decodedToken.role)) {
         return NextResponse.json(
@@ -61,13 +60,14 @@ export async function POST(request: NextRequest) {
 
       // Também atualizar no Firestore para backup
       try {
-        await updateDoc(doc(adminDb, 'users', userId), {
+        const firestore = getFirestore();
+        await firestore.collection('users').doc(userId).update({
           role: customClaims.role,
           empresaId: customClaims.empresaId,
           sistemasAtivos: customClaims.sistemasAtivos,
           permissions: customClaims.permissions,
-          claimsUpdatedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          claimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
       } catch (firestoreError) {
         console.warn('Erro ao atualizar Firestore (claims definidas no Auth):', firestoreError);
@@ -120,10 +120,10 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    
+
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
-      
+
       // Verificar permissão
       if (!['superadmin', 'adminmaster', 'admin'].includes(decodedToken.role)) {
         return NextResponse.json(
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
 
       // Obter usuário e claims
       const userRecord = await adminAuth.getUser(userId);
-      
+
       return NextResponse.json({
         userId: userRecord.uid,
         email: userRecord.email,

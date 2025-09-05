@@ -39,4 +39,7 @@ export async function verifySessionCookie(sessionCookie: string) {
   }
 }
 
-export default admin;
+// Exportando o adminAuth corretamente para evitar conflitos
+const adminAuth = getAuth(app);
+export { adminAuth };
+export default adminAuth;

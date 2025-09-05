@@ -215,7 +215,7 @@ export default function EmpresaManager({
       // Validar campos obrigatórios antes de criar
       const requiredFields = ['nome', 'email'];
       for (const field of requiredFields) {
-        if (!empresaData[field]) {
+        if (!(empresaData as any)[field]) {
           throw new Error(`Campo obrigatório ausente: ${field}`);
         }
       }

@@ -34,7 +34,7 @@ import {
   where, // Added import for 'where'
   FieldValue // Import FieldValue
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import {
   format,
   isAfter,

@@ -83,7 +83,7 @@ export default function SimpleLocationMap({
           borderRadius: 8,
           border: '1px solid #ddd'
         }}
-        whenCreated={(map) => {
+        whenCreated={(map: any) => {
           setMapInstance(map);
           // Garantir que o mapa seja redimensionado corretamente
           setTimeout(() => {
