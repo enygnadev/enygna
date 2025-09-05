@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, updateProfile, getIdTokenResult } from 'firebase/auth'; // ← NOVO: getIdTokenResult
-import { collection, doc, getDoc, onSnapshot, query, setDoc, updateDoc, where, serverTimestamp } from 'firebase/firestore'; // ← NOVO: serverTimestamp
+import { collection, doc, getDoc, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import PunchButton from '@/components/PunchButton';
 import EarningsSummary from '@/components/EarningsSummary';
 
@@ -177,17 +177,6 @@ export default function DashboardPro(){
     return ()=>{ window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
   },[mounted]);
 
-  // Helper para obter o ID da empresa do usuário
-  const getUserEmpresaId = (userData: any): string | null => {
-    // Prioriza claims, se disponíveis e válidos
-    if (claimEmpresaId) return claimEmpresaId;
-
-    // Caso contrário, tenta obter do perfil do usuário (Firestore)
-    // Assume que o `userData` passado tem a propriedade `empresaId`
-    return userData?.empresaId || null;
-  };
-
-
   useEffect(() => {
     if (!mounted) return;
     let unAuth: (() => void) | null = null;
@@ -223,85 +212,24 @@ export default function DashboardPro(){
 
       const docRef = doc(db, 'users', u.uid);
       const snap = await getDoc(docRef);
-      let userData: any = {}; // Para guardar os dados do usuário, usado no check de sistemas
-
       if (!snap.exists()) {
         await setDoc(docRef, {
           email: u.email, displayName: u.displayName || '',
           hourlyRate: 0, monthlySalary: 0, monthlyBaseHours: 220,
           toleranceMinutes: 0, lunchBreakMinutes: 0, lunchThresholdMinutes: 360,
-          isAdmin: false, createdAt: new Date().toISOString(),
-          // Inicializa sistemasAtivos como um array vazio, a menos que venha das claims
-          sistemasAtivos: claimEmpresaId ? ['ponto'] : [],
+          isAdmin: false, createdAt: new Date().toISOString()
         });
-        userData = { // Cria um objeto inicial para as verificações seguintes
-          role: 'colaborador',
-          sistemasAtivos: claimEmpresaId ? ['ponto'] : [],
-        };
       } else {
-        userData = snap.data();
-        setHourlyRate(Number(userData.hourlyRate || 0));
-        setMonthlySalary(Number(userData.monthlySalary || 0));
-        setMonthlyBaseHours(Number(userData.monthlyBaseHours || 220));
-        setToleranceMinutes(Number(userData.toleranceMinutes || 0));
-        setLunchBreakMinutes(Number(userData.lunchBreakMinutes || 0));
-        setLunchThresholdMinutes(Number(userData.lunchThresholdMinutes || 360));
+        const d: any = snap.data();
+        setHourlyRate(Number(d.hourlyRate || 0));
+        setMonthlySalary(Number(d.monthlySalary || 0));
+        setMonthlyBaseHours(Number(d.monthlyBaseHours || 220));
+        setToleranceMinutes(Number(d.toleranceMinutes || 0));
+        setLunchBreakMinutes(Number(d.lunchBreakMinutes || 0));
+        setLunchThresholdMinutes(Number(d.lunchThresholdMinutes || 360));
         // NOVO: se claims já dizem que é admin/superadmin, respeita as claims; senão, cai no Firestore
         const claimSaysAdmin = claimRole === 'admin' || claimRole === 'gestor' || claimRole === 'superadmin';
-        setIsAdmin(claimSaysAdmin || !!userData.isAdmin);
-      }
-
-      // Checagem de acesso ao sistema de ponto
-      let userHasAccess = false;
-      if (userData.role === 'colaborador') {
-        // Prioriza sistemasAtivos no perfil do usuário (se já foram atualizados pela empresa)
-        if (userData.sistemasAtivos?.includes('ponto')) {
-          userHasAccess = true;
-        } else if (claimEmpresaId) {
-          // Se não tem no perfil, verifica nas claims (que já podem ter sido sincronizadas)
-          userHasAccess = true; // Se chegou aqui com claimEmpresaId, assume acesso ao ponto
-          // Atualiza o perfil do usuário com os sistemas da empresa e lastLogin se ainda não foi feito
-          const userDocRef = doc(db, 'users', u.uid);
-          await updateDoc(userDocRef, {
-            sistemasAtivos: userData.sistemasAtivos || ['ponto'], // Garante que 'ponto' esteja presente
-            lastLogin: serverTimestamp()
-          });
-        } else {
-           // Se não tem acesso nas claims e não tem no perfil, verifica na empresa (caso de criação mais antiga)
-          const userEmpresaId = getUserEmpresaId(userData);
-          if (userEmpresaId) {
-            try {
-              const empresaDoc = await getDoc(doc(db, "empresas", userEmpresaId));
-              if (empresaDoc.exists()) {
-                const empresaData = empresaDoc.data() as any;
-                if ((empresaData.sistemasAtivos || []).includes('ponto')) {
-                  userHasAccess = true;
-                  // Atualizar o usuário com os sistemas da empresa
-                  const userDocRef = doc(db, 'users', u.uid);
-                  await updateDoc(userDocRef, {
-                    sistemasAtivos: empresaData.sistemasAtivos || ['ponto'],
-                    lastLogin: serverTimestamp()
-                  });
-                } else {
-                  console.log(`Sistema de ponto não ativo para a empresa: ${userEmpresaId}`);
-                }
-              }
-            } catch (empresaError) {
-              console.error(`Erro ao verificar sistema ativo para empresa ${userEmpresaId}:`, empresaError);
-            }
-          }
-        }
-      } else {
-        // Se não é colaborador, o acesso é implícito (gerenciado pela rota /empresa)
-        userHasAccess = true;
-      }
-
-      // Se o usuário não tem acesso ao sistema de ponto, redireciona para a página inicial ou de login
-      if (!userHasAccess) {
-        show('Você não tem permissão para acessar o sistema de ponto.');
-        signOut(auth); // Desloga o usuário
-        window.location.href = '/'; // Redireciona
-        return;
+        setIsAdmin(claimSaysAdmin || !!d.isAdmin);
       }
 
       // Listener para sessões do dia (fecha ganhos + detecta ativas)
@@ -336,7 +264,7 @@ export default function DashboardPro(){
       if (unDay) unDay();
       if (unAuth) unAuth();
     };
-  }, [mounted, claimRole, claimEmpresaId]); // inclui claimRole/EmpresaId para sincronizar quando claims chegarem
+  }, [mounted, claimRole]); // inclui claimRole para sincronizar "isAdmin" quando claims chegarem
 
   const effectiveHourlyRate = useMemo(() => {
     if (monthlySalary && monthlyBaseHours) return Number((monthlySalary / monthlyBaseHours).toFixed(2));
@@ -356,10 +284,7 @@ export default function DashboardPro(){
         monthlyBaseHours: Number(monthlyBaseHours || 220),
         toleranceMinutes: Number(toleranceMinutes || 0),
         lunchBreakMinutes: Number(lunchBreakMinutes || 0),
-        lunchThresholdMinutes: Number(lunchThresholdMinutes || 360),
-        // Atualiza sistemasAtivos se for colaborador e tiver um ID de empresa
-        ...(claimRole === 'colaborador' && claimEmpresaId && { sistemasAtivos: ['ponto'] }),
-        lastLogin: serverTimestamp() // Atualiza lastLogin ao salvar perfil
+        lunchThresholdMinutes: Number(lunchThresholdMinutes || 360)
       });
       show('Perfil salvo com sucesso!');
     } finally { setSaving(false); }
