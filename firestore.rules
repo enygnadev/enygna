@@ -91,6 +91,9 @@ service cloud.firestore {
       
       // leitura por admin (exceto superadmin de terceiros)
       allow read: if isAdmin() && resource.data.role != 'superadmin';
+      
+      // permitir leitura básica para verificação de perfil durante auth
+      allow read: if isAuthenticated() && userId == request.auth.uid;
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====
@@ -284,6 +287,8 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
       allow read: if isAdmin();
       allow read: if isAuthenticated() && isEmpresa();
+      // permitir leitura básica para usuários autenticados
+      allow read: if isAuthenticated();
     }
 
     // ===== LOGS E AUDITORIA =====
