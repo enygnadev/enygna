@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, query, orderBy, limit, onSnapshot, where, startAfter, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, where, addDoc } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 import { Ticket, TicketFilter, TICKET_STATUS_LABELS, TICKET_PRIORITIES } from '@/src/types/ticket';
 import { format } from 'date-fns';
@@ -49,14 +49,18 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function ChamadosPage() {
   const router = useRouter();
   const { loading: authLoading, profile } = useChamadosSessionProfile();
-  const { user, userData, loading: generalAuthLoading, hasAccess } = useAuth();
+  const { user, profile: userProfile, loading: generalAuthLoading } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TicketFilter>({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  
   const itemsPerPage = 20;
+
+  // Função local para verificar acesso aos sistemas
+  const hasAccess = (sistema: string) => {
+    return userProfile?.sistemasAtivos?.includes(sistema) || false;
+  };
 
   // Menu lateral (exemplo, pode ser substituído por um componente de navegação real)
   const [activeTab, setActiveTab] = useState('tickets'); // Estado para controlar a aba ativa
@@ -86,10 +90,10 @@ function ChamadosPage() {
     }
 
     // Se está logado, verificar acesso ao sistema de chamados
-    if (user && userData) {
+    if (user && userProfile) {
       const hasSystemAccess = hasAccess('chamados');
       console.log('🔍 Acesso ao sistema chamados:', hasSystemAccess);
-      console.log('📋 Sistemas ativos do usuário:', userData.sistemasAtivos);
+      console.log('📋 Sistemas ativos do usuário:', userProfile.sistemasAtivos);
       
       if (!hasSystemAccess) {
         console.log('❌ Usuário não tem acesso ao sistema chamados');
@@ -99,7 +103,7 @@ function ChamadosPage() {
 
       console.log('✅ Usuário tem acesso ao sistema chamados');
     }
-  }, [authLoading, generalAuthLoading, user, userData, hasAccess, router]);
+  }, [authLoading, generalAuthLoading, user, userProfile, router]);
 
   // Mostrar loading durante autenticação
   if (authLoading || generalAuthLoading) {
@@ -119,18 +123,18 @@ function ChamadosPage() {
   }
 
   // Redirecionar se não autenticado ou sem acesso
-  if (!user || !userData || !hasAccess('chamados')) {
+  if (!user || !userProfile || !hasAccess('chamados')) {
     return null;
   }
 
   // Carregar tickets
   useEffect(() => {
-    if (!profile || !userData) return;
+    if (!profile || !userProfile) return;
 
     setLoading(true);
 
     // Obter empresaId do usuário
-    const empresaId = userData.empresaId || userData.company;
+    const empresaId = userProfile.empresaId || userProfile.company;
     
     if (!empresaId) {
       console.error('❌ EmpresaId não encontrado para o usuário');
@@ -181,12 +185,11 @@ function ChamadosPage() {
       }
 
       setTickets(filteredTickets);
-      setHasMore(ticketsData.length === itemsPerPage);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [filter, searchTerm, profile, userData]); // Adicionado userData como dependência
+  }, [filter, searchTerm, profile, userProfile, user]); // Adicionado userProfile como dependência
 
   const getPriorityBadge = (ticket: Ticket) => {
     const priority = ticket.analysis?.prioridade.prioridade_resultante;
@@ -320,8 +323,8 @@ function ChamadosPage() {
               color: 'var(--color-text-secondary)',
               fontSize: '0.8rem'
             }}>
-              Olá, {profile.displayName || profile.email} • {profile.role}
-              {profile.departamento && ` • ${profile.departamento}`}
+              Olá, {profile?.displayName || profile?.email} • {profile?.role}
+              {profile?.departamento && ` • ${profile.departamento}`}
             </p>
           </div>
 
@@ -577,12 +580,11 @@ function ChamadosPage() {
         {/* Aba Novo Chamado */}
         {activeTab === 'create' && (
           <TicketForm 
-            empresaId={userData.empresaId || userData.company}
             onSubmit={async (ticket) => {
               try {
                 const ticketData = {
                   ...ticket,
-                  empresaId: userData.empresaId || userData.company,
+                  empresaId: userProfile?.empresaId || userProfile?.company,
                   createdBy: user?.uid,
                   createdAt: Date.now(),
                   updatedAt: Date.now(),
