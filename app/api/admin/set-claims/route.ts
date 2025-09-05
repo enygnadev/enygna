@@ -1,80 +1,160 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
-import { cookies } from 'next/headers';
+import { adminAuth, db as adminDb } from '@/src/lib/firebaseAdmin';
+import { getDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+
+interface SetClaimsRequest {
+  userId: string;
+  claims: {
+    role?: string;
+    empresaId?: string;
+    sistemasAtivos?: string[];
+    permissions?: Record<string, boolean>;
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação do admin
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
+    const body: SetClaimsRequest = await request.json();
+    const { userId, claims } = body;
+
+    if (!userId || !claims) {
+      return NextResponse.json(
+        { error: 'userId e claims são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se o usuário solicitante tem permissão
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Token de autorização necessário' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
     
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      
+      // Verificar se quem está fazendo a requisição é admin
+      if (!['superadmin', 'adminmaster', 'admin'].includes(decodedToken.role)) {
+        return NextResponse.json(
+          { error: 'Permissão insuficiente' },
+          { status: 403 }
+        );
+      }
+
+      // Preparar claims customizados
+      const customClaims: Record<string, any> = {
+        role: claims.role || 'colaborador',
+        empresaId: claims.empresaId || null,
+        sistemasAtivos: claims.sistemasAtivos || [],
+        permissions: claims.permissions || {},
+        updatedAt: Date.now()
+      };
+
+      // Definir claims no Firebase Auth
+      await adminAuth.setCustomUserClaims(userId, customClaims);
+
+      // Também atualizar no Firestore para backup
+      try {
+        await updateDoc(doc(adminDb, 'users', userId), {
+          role: customClaims.role,
+          empresaId: customClaims.empresaId,
+          sistemasAtivos: customClaims.sistemasAtivos,
+          permissions: customClaims.permissions,
+          claimsUpdatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } catch (firestoreError) {
+        console.warn('Erro ao atualizar Firestore (claims definidas no Auth):', firestoreError);
+      }
+
+      console.log(`Claims definidas para usuário ${userId}:`, customClaims);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Claims definidas com sucesso',
+        claims: customClaims
+      });
+
+    } catch (authError) {
+      console.error('Erro de autenticação:', authError);
+      return NextResponse.json(
+        { error: 'Token inválido' },
+        { status: 401 }
+      );
     }
 
-    // Verificar se o usuário autenticado é admin
-    const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie);
-    const currentUserRole = decodedClaims.role;
-    
-    if (!['superadmin', 'adminmaster'].includes(currentUserRole)) {
-      return NextResponse.json({ error: 'Permissão negada' }, { status: 403 });
-    }
-
-    const { uid, empresaId, role, sistemasAtivos } = await request.json();
-
-    if (!uid || !role) {
-      return NextResponse.json({ 
-        error: 'UID e role são obrigatórios' 
-      }, { status: 400 });
-    }
-
-    // Definir claims customizados
-    const customClaims: Record<string, any> = {
-      role,
-      timestamp: Date.now()
-    };
-
-    if (empresaId) {
-      customClaims.empresaId = empresaId;
-    }
-
-    if (sistemasAtivos && Array.isArray(sistemasAtivos)) {
-      customClaims.sistemasAtivos = sistemasAtivos;
-    }
-
-    // Aplicar claims no Firebase Auth
-    await adminAuth.setCustomUserClaims(uid, customClaims);
-
-    // Atualizar documento do usuário no Firestore
-    await adminDb.collection('users').doc(uid).set({
-      role,
-      empresaId: empresaId || null,
-      sistemasAtivos: sistemasAtivos || [],
-      updatedAt: new Date().toISOString(),
-      updatedBy: decodedClaims.uid
-    }, { merge: true });
-
-    // Log de auditoria
-    await adminDb.collection('audit_logs').add({
-      action: 'set_claims',
-      adminId: decodedClaims.uid,
-      targetUserId: uid,
-      changes: customClaims,
-      timestamp: new Date().toISOString(),
-      ip: request.ip || 'unknown'
-    });
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Claims atualizados com sucesso' 
-    });
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro ao definir claims:', error);
-    return NextResponse.json({ 
-      error: 'Erro interno do servidor',
-      details: error.message 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    );
+  }
+}
+
+// Endpoint para obter claims atuais
+export async function GET(request: NextRequest) {
+  try {
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'userId é obrigatório' },
+        { status: 400 }
+      );
+    }
+
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Token de autorização necessário' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      
+      // Verificar permissão
+      if (!['superadmin', 'adminmaster', 'admin'].includes(decodedToken.role)) {
+        return NextResponse.json(
+          { error: 'Permissão insuficiente' },
+          { status: 403 }
+        );
+      }
+
+      // Obter usuário e claims
+      const userRecord = await adminAuth.getUser(userId);
+      
+      return NextResponse.json({
+        userId: userRecord.uid,
+        email: userRecord.email,
+        claims: userRecord.customClaims || {},
+        emailVerified: userRecord.emailVerified
+      });
+
+    } catch (authError) {
+      console.error('Erro de autenticação:', authError);
+      return NextResponse.json(
+        { error: 'Token inválido' },
+        { status: 401 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Erro ao obter claims:', error);
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    );
   }
 }

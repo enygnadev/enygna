@@ -1,112 +1,268 @@
+
 'use client';
 
-import { ReactNode } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { hasSystemAccess, canAccessRoute, handlePermissionError } from '@/lib/securityHelpers';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/src/hooks/useAuth';
+import { hasAccess, canAccessRoute, getCurrentEmpresaId, isEmailVerified } from '@/src/lib/security';
 
 interface ProtectedRouteProps {
-  children: ReactNode;
-  sistema?: string;
-  route?: string;
-  adminOnly?: boolean;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  requiredSystems?: string[];
+  requiredRoles?: string[];
+  requireEmailVerified?: boolean;
+  requireEmpresa?: boolean;
+  fallback?: React.ReactNode;
+  onAccessDenied?: () => void;
 }
 
-export default function ProtectedRoute({ 
-  children, 
-  sistema, 
-  route, 
-  adminOnly = false,
-  fallback 
+export default function ProtectedRoute({
+  children,
+  requiredSystems = [],
+  requiredRoles = [],
+  requireEmailVerified = false,
+  requireEmpresa = false,
+  fallback = null,
+  onAccessDenied
 }: ProtectedRouteProps) {
-  const { loading, user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [accessError, setAccessError] = useState<string>('');
 
-  if (loading) {
+  useEffect(() => {
+    async function checkAccess() {
+      if (!user) {
+        setHasPermission(false);
+        setAccessError('Usuário não autenticado');
+        return;
+      }
+
+      try {
+        // Verificar email verificado se necessário
+        if (requireEmailVerified) {
+          const emailVerified = await isEmailVerified();
+          if (!emailVerified) {
+            setHasPermission(false);
+            setAccessError('Email não verificado. Verifique seu email antes de continuar.');
+            return;
+          }
+        }
+
+        // Verificar se possui empresa se necessário
+        if (requireEmpresa) {
+          const empresaId = await getCurrentEmpresaId();
+          if (!empresaId) {
+            setHasPermission(false);
+            setAccessError('Usuário não está associado a uma empresa');
+            return;
+          }
+        }
+
+        // Verificar acesso aos sistemas e roles
+        const canAccess = await canAccessRoute(requiredSystems, requiredRoles);
+        
+        if (!canAccess) {
+          setHasPermission(false);
+          setAccessError('Você não tem permissão para acessar esta página');
+          onAccessDenied?.();
+          return;
+        }
+
+        setHasPermission(true);
+        setAccessError('');
+
+      } catch (error) {
+        console.error('Erro ao verificar permissões:', error);
+        setHasPermission(false);
+        setAccessError('Erro ao verificar permissões');
+      }
+    }
+
+    if (!loading) {
+      checkAccess();
+    }
+  }, [user, profile, loading, requiredSystems, requiredRoles, requireEmailVerified, requireEmpresa, onAccessDenied]);
+
+  // Loading state
+  if (loading || hasPermission === null) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '200px',
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          color: 'white'
+        }}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderTop: '2px solid white',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          Verificando permissões...
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
-  if (!user) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
-          <p className="text-gray-600 mb-4">Você precisa estar logado para acessar esta página.</p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Ir para Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Access denied
+  if (!hasPermission) {
+    if (fallback) {
+      return <>{fallback}</>;
+    }
 
-  // Verificar acesso administrativo
-  if (adminOnly && !profile?.claims?.role) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
-          <p className="text-gray-600 mb-4">Esta área é restrita a administradores.</p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '300px',
+        background: 'rgba(239, 68, 68, 0.1)',
+        borderRadius: '12px',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        padding: '2rem',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '48px', marginBottom: '1rem' }}>🚫</div>
+        <h2 style={{ 
+          color: '#ef4444', 
+          marginBottom: '1rem',
+          fontSize: '1.5rem',
+          fontWeight: 'bold'
+        }}>
+          Acesso Negado
+        </h2>
+        <p style={{ 
+          color: 'rgba(255,255,255,0.8)', 
+          marginBottom: '1.5rem',
+          maxWidth: '400px',
+          lineHeight: '1.5'
+        }}>
+          {accessError}
+        </p>
+        
+        {!user && (
+          <button
+            onClick={() => window.location.href = '/login'}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(45deg, #3b82f6, #1d4ed8)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
           >
-            Voltar
+            Fazer Login
           </button>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  // Verificar acesso ao sistema específico
-  if (sistema && !hasSystemAccess(sistema, user)) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Sistema Não Disponível</h2>
-          <p className="text-gray-600 mb-4">
-            Você não tem acesso ao sistema {sistema}. Entre em contato com o administrador.
-          </p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mr-2"
+        {user && accessError.includes('email') && (
+          <button
+            onClick={() => window.location.href = '/verify-email'}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(45deg, #f59e0b, #d97706)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
           >
-            Voltar
+            Verificar Email
           </button>
-          <button 
-            onClick={() => window.location.href = '/sistemas'}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Ver Sistemas Disponíveis
-          </button>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  // Verificar acesso à rota específica
-  if (route && !canAccessRoute(route, user)) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
-          <p className="text-gray-600 mb-4">Você não tem permissão para acessar esta rota.</p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        {user && accessError.includes('empresa') && (
+          <button
+            onClick={() => window.location.href = '/empresa/criar'}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(45deg, #10b981, #047857)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
           >
-            Voltar
+            Criar/Vincular Empresa
           </button>
-        </div>
+        )}
+
+        {user && accessError.includes('permissão') && (
+          <button
+            onClick={() => window.location.href = '/contato'}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(45deg, #6366f1, #4f46e5)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Solicitar Acesso
+          </button>
+        )}
       </div>
     );
   }
 
   return <>{children}</>;
+}
+
+// Hook para usar proteção de rota
+export function useRouteProtection(
+  requiredSystems: string[] = [],
+  requiredRoles: string[] = [],
+  requireEmailVerified = false
+) {
+  const [canAccess, setCanAccess] = useState<boolean | null>(null);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    async function check() {
+      try {
+        if (requireEmailVerified && !(await isEmailVerified())) {
+          setCanAccess(false);
+          setError('Email não verificado');
+          return;
+        }
+
+        const access = await canAccessRoute(requiredSystems, requiredRoles);
+        setCanAccess(access);
+        
+        if (!access) {
+          setError('Acesso negado');
+        }
+      } catch (err) {
+        setCanAccess(false);
+        setError('Erro ao verificar acesso');
+      }
+    }
+
+    check();
+  }, [requiredSystems, requiredRoles, requireEmailVerified]);
+
+  return { canAccess, error };
 }

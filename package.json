@@ -11,10 +11,15 @@
     "build": "next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "audit:prod": "npm audit --omit=dev",
-    "fix:red": "ts-node scripts/gpt-red-fix.ts",
-    "fix:manual": "node scripts/fix-typescript-errors.js"
+    "deploy": "vercel --prod",
+    "emu": "firebase emulators:start --import ./.emu --export-on-exit",
+    "emu:start": "firebase emulators:start",
+    "emu:dev": "concurrently \"npm run emu\" \"npm run dev\"",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:emu": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 AUTH_EMULATOR_HOST=127.0.0.1:9099 jest",
+    "seed": "ts-node scripts/seed.ts",
+    "seed:emu": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 AUTH_EMULATOR_HOST=127.0.0.1:9099 ts-node scripts/seed.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

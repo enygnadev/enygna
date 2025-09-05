@@ -527,3 +527,293 @@ export function useSecurity() {
     logEvent
   };
 }
+'use client';
+
+import { auth, db } from './firebase';
+import { getIdTokenResult, User } from 'firebase/auth';
+import { query, where, Query, DocumentReference, collection } from 'firebase/firestore';
+
+// ===== TIPOS =====
+export interface AuthClaims {
+  role?: string;
+  empresaId?: string;
+  company?: string;
+  sistemasAtivos?: string[];
+  canAccessSystems?: string[];
+  permissions?: Record<string, boolean>;
+  bootstrapAdmin?: boolean;
+  email_verified?: boolean;
+}
+
+export interface SecureUser {
+  uid: string;
+  email?: string;
+  claims: AuthClaims;
+}
+
+// ===== CACHE DE CLAIMS =====
+let claimsCache: AuthClaims | null = null;
+let lastClaimsUpdate = 0;
+const CLAIMS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+// ===== OBTER CLAIMS ATUAIS =====
+export async function getClaims(forceRefresh = false): Promise<AuthClaims> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  const now = Date.now();
+  
+  // Usar cache se não forçar refresh e cache ainda válido
+  if (!forceRefresh && claimsCache && (now - lastClaimsUpdate) < CLAIMS_CACHE_TTL) {
+    return claimsCache;
+  }
+
+  try {
+    // Forçar refresh do token se solicitado
+    const tokenResult = await user.getIdTokenResult(forceRefresh);
+    claimsCache = tokenResult.claims as AuthClaims;
+    lastClaimsUpdate = now;
+    
+    console.log('Claims obtidas:', claimsCache);
+    return claimsCache;
+  } catch (error) {
+    console.error('Erro ao obter claims:', error);
+    
+    // Fallback para claims vazias
+    claimsCache = {};
+    return claimsCache;
+  }
+}
+
+// ===== FORÇAR REFRESH DE CLAIMS =====
+export async function refreshClaims(): Promise<AuthClaims> {
+  console.log('Forçando refresh das claims...');
+  return await getClaims(true);
+}
+
+// ===== INJETAR EMPRESAID EM DOCUMENTOS =====
+export async function withEmpresa<T extends Record<string, any>>(doc: T): Promise<T & { empresaId: string }> {
+  const claims = await getClaims();
+  const empresaId = claims.empresaId || claims.company;
+  
+  if (!empresaId) {
+    throw new Error('EmpresaId não encontrado nas claims do usuário');
+  }
+
+  return {
+    ...doc,
+    empresaId
+  };
+}
+
+// ===== QUERY SEGURA COM FILTRO DE EMPRESA =====
+export async function secureQuery<T>(colRef: Query<T> | any): Promise<Query<T>> {
+  const claims = await getClaims();
+  const empresaId = claims.empresaId || claims.company;
+  
+  if (!empresaId) {
+    throw new Error('EmpresaId não encontrado nas claims do usuário. Usuário não está associado a uma empresa.');
+  }
+
+  // Aplicar filtro de empresa
+  return query(colRef, where('empresaId', '==', empresaId)) as Query<T>;
+}
+
+// ===== VERIFICAR ACESSO A SISTEMA =====
+export async function hasAccess(system: 'crm' | 'frota' | 'ponto' | 'financeiro' | 'documentos' | 'chamados'): Promise<boolean> {
+  try {
+    const claims = await getClaims();
+    
+    // SuperAdmins têm acesso a tudo
+    if (claims.role === 'superadmin' || claims.role === 'adminmaster' || claims.bootstrapAdmin) {
+      return true;
+    }
+
+    // Admins e gestores têm acesso a tudo
+    if (claims.role === 'admin' || claims.role === 'gestor') {
+      return true;
+    }
+
+    // Verificar sistemasAtivos
+    if (claims.sistemasAtivos && claims.sistemasAtivos.includes(system)) {
+      return true;
+    }
+
+    // Verificar canAccessSystems (fallback)
+    if (claims.canAccessSystems && claims.canAccessSystems.includes(system)) {
+      return true;
+    }
+
+    // Verificar permissions específicas
+    if (claims.permissions && claims.permissions[system] === true) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Erro ao verificar acesso:', error);
+    return false;
+  }
+}
+
+// ===== VERIFICAR SE É ADMIN =====
+export async function isAdmin(): Promise<boolean> {
+  try {
+    const claims = await getClaims();
+    return ['superadmin', 'adminmaster', 'admin', 'gestor'].includes(claims.role || '');
+  } catch {
+    return false;
+  }
+}
+
+// ===== VERIFICAR SE É SUPERADMIN =====
+export async function isSuperAdmin(): Promise<boolean> {
+  try {
+    const claims = await getClaims();
+    return claims.role === 'superadmin' || 
+           claims.role === 'adminmaster' || 
+           claims.bootstrapAdmin === true;
+  } catch {
+    return false;
+  }
+}
+
+// ===== VERIFICAR SE EMAIL ESTÁ VERIFICADO =====
+export async function isEmailVerified(): Promise<boolean> {
+  try {
+    const claims = await getClaims();
+    return claims.email_verified === true;
+  } catch {
+    return false;
+  }
+}
+
+// ===== OBTER EMPRESAID ATUAL =====
+export async function getCurrentEmpresaId(): Promise<string | null> {
+  try {
+    const claims = await getClaims();
+    return claims.empresaId || claims.company || null;
+  } catch {
+    return null;
+  }
+}
+
+// ===== VERIFICAR SE USUÁRIO PERTENCE À EMPRESA =====
+export async function belongsToCompany(empresaId: string): Promise<boolean> {
+  try {
+    const currentEmpresaId = await getCurrentEmpresaId();
+    return currentEmpresaId === empresaId;
+  } catch {
+    return false;
+  }
+}
+
+// ===== LIMPAR CACHE DE CLAIMS =====
+export function clearClaimsCache(): void {
+  claimsCache = null;
+  lastClaimsUpdate = 0;
+}
+
+// ===== VERIFICAR PERMISSÕES PARA OPERAÇÕES ESPECÍFICAS =====
+export async function canCreatePonto(): Promise<boolean> {
+  const emailVerified = await isEmailVerified();
+  const systemAccess = await hasAccess('ponto');
+  return emailVerified && systemAccess;
+}
+
+export async function canEditFinanceiro(): Promise<boolean> {
+  const adminAccess = await isAdmin();
+  const systemAccess = await hasAccess('financeiro');
+  return adminAccess && systemAccess;
+}
+
+export async function canEditPonto(pontoTimestamp: number): Promise<boolean> {
+  const isAdminUser = await isAdmin();
+  const systemAccess = await hasAccess('ponto');
+  
+  if (!systemAccess) return false;
+  if (isAdminUser) return true;
+  
+  // Verificar janela de 5 minutos para edição própria
+  const now = Date.now();
+  const fiveMinutesInMs = 5 * 60 * 1000;
+  return (now - pontoTimestamp) <= fiveMinutesInMs;
+}
+
+// ===== TRATAMENTO DE ERROS DE PERMISSÃO =====
+export function handlePermissionError(error: any): string {
+  if (error?.code === 'permission-denied') {
+    return 'Você não tem permissão para realizar esta ação. Entre em contato com o administrador do sistema.';
+  }
+  
+  if (error?.message?.includes('empresaId')) {
+    return 'Erro: Usuário não está associado a uma empresa válida.';
+  }
+  
+  if (error?.message?.includes('email_verified')) {
+    return 'Erro: É necessário verificar seu email antes de continuar.';
+  }
+  
+  return error?.message || 'Erro desconhecido ao processar a solicitação.';
+}
+
+// ===== VERIFICAR SE PODE ACESSAR ROTA =====
+export async function canAccessRoute(requiredSystems: string[], requiredRoles?: string[]): Promise<boolean> {
+  try {
+    const claims = await getClaims();
+    
+    // SuperAdmins podem acessar tudo
+    if (await isSuperAdmin()) {
+      return true;
+    }
+    
+    // Verificar role se especificado
+    if (requiredRoles && requiredRoles.length > 0) {
+      if (!requiredRoles.includes(claims.role || '')) {
+        return false;
+      }
+    }
+    
+    // Verificar acesso aos sistemas necessários
+    for (const system of requiredSystems) {
+      if (!(await hasAccess(system as any))) {
+        return false;
+      }
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ===== DEBUG: IMPRIMIR INFORMAÇÕES DE SEGURANÇA =====
+export async function debugSecurity(): Promise<void> {
+  try {
+    console.group('🔐 Informações de Segurança');
+    
+    const user = auth.currentUser;
+    console.log('👤 Usuário:', user?.email, user?.uid);
+    
+    const claims = await getClaims();
+    console.log('🎫 Claims:', claims);
+    
+    const empresaId = await getCurrentEmpresaId();
+    console.log('🏢 EmpresaId:', empresaId);
+    
+    const isEmailVerifiedResult = await isEmailVerified();
+    console.log('📧 Email Verificado:', isEmailVerifiedResult);
+    
+    const systems = ['crm', 'frota', 'ponto', 'financeiro', 'documentos', 'chamados'];
+    for (const system of systems) {
+      const access = await hasAccess(system as any);
+      console.log(`🎯 Acesso ${system}:`, access);
+    }
+    
+    console.groupEnd();
+  } catch (error) {
+    console.error('Erro ao imprimir informações de segurança:', error);
+  }
+}
