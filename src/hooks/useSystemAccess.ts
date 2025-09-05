@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface SystemAccess {
@@ -68,6 +68,18 @@ export function useSystemAccess(user: User | null): SystemAccess {
 
                 // Atualizar o usuário com os sistemas da empresa
                 if (sistemas.length > 0) {
+                  // SINCRONIZAR: Atualizar o documento do usuário com os sistemas da empresa
+                  try {
+                    await updateDoc(doc(db, 'users', user.uid), {
+                      sistemasAtivos: sistemas,
+                      empresaId: userEmpresaId,
+                      updatedAt: new Date()
+                    });
+                    console.log('Usuário sincronizado com sistemas da empresa');
+                  } catch (syncError) {
+                    console.log('Erro ao sincronizar usuário (pode ser permissão):', syncError);
+                  }
+                  
                   setSystemsAvailable(sistemas);
                   setEmpresaId(userEmpresaId);
                   setLoading(false);
@@ -255,6 +267,24 @@ export function useSystemAccess(user: User | null): SystemAccess {
 
               const sistemas = empresaData.sistemasAtivos || [];
               console.log('Sistemas encontrados na empresa:', sistemas);
+              
+              // SINCRONIZAR: Criar/atualizar documento do usuário com os dados da empresa
+              try {
+                await setDoc(doc(db, 'users', user.uid), {
+                  uid: user.uid,
+                  email: user.email,
+                  role: 'colaborador',
+                  empresaId: empresaId,
+                  sistemasAtivos: sistemas,
+                  tipo: 'empresa',
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                }, { merge: true });
+                console.log('Documento do usuário criado/atualizado com dados da empresa');
+              } catch (syncError) {
+                console.log('Erro ao criar/atualizar usuário:', syncError);
+              }
+
               setSystemsAvailable(sistemas);
               setEmpresaId(empresaId);
               setLoading(false);

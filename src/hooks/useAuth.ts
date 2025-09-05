@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User, signOut as firebaseSignOut, getIdTokenResult } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'firebase/firestore';
 import { UserData, UserPermissions } from '@/src/lib/types';
 import { AuthClaims } from '@/src/lib/securityHelpers';
 import SecurityMonitor from '../lib/securityMonitor';
@@ -156,18 +156,101 @@ export const useAuthData = (): AuthContextType => {
           const tokenResult = await firebaseUser.getIdTokenResult();
           const claims = tokenResult.claims as AuthClaims;
 
+          // Tentar carregar dados do usuário do Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          const userData = userDoc.exists() ? userDoc.data() as UserData : {} as UserData;
 
-          setProfile({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || undefined,
-            displayName: firebaseUser.displayName || userData?.displayName,
-            role: (claims.role || userData?.role || 'colaborador') as 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster',
-            empresaId: claims.empresaId || userData?.empresaId,
-            sistemasAtivos: claims.sistemasAtivos || userData?.sistemasAtivos || [],
-            claims
-          });
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log('Dados do usuário carregados:', userData);
+
+            // Se o usuário não tem sistemas mas tem empresaId, buscar sistemas da empresa
+            let sistemasFinais = userData.sistemasAtivos || [];
+            if ((!sistemasFinais.length || sistemasFinais.length === 0) && userData.empresaId) {
+              try {
+                const empresaDoc = await getDoc(doc(db, 'empresas', userData.empresaId));
+                if (empresaDoc.exists()) {
+                  const empresaData = empresaDoc.data();
+                  sistemasFinais = empresaData.sistemasAtivos || [];
+                  console.log('Sistemas carregados da empresa:', sistemasFinais);
+
+                  // Atualizar documento do usuário
+                  await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                    sistemasAtivos: sistemasFinais,
+                    updatedAt: new Date()
+                  });
+                }
+              } catch (empresaError) {
+                console.log('Erro ao buscar empresa do usuário:', empresaError);
+              }
+            }
+
+            setProfile({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || userData.displayName || userData.nome,
+              role: userData.role || 'colaborador',
+              empresaId: userData.empresaId || userData.company,
+              sistemasAtivos: sistemasFinais,
+              claims: {
+                ...tokenResult.claims,
+                role: userData.role || tokenResult.claims.role || 'colaborador',
+                empresaId: userData.empresaId || userData.company || tokenResult.claims.empresaId,
+                sistemasAtivos: sistemasFinais,
+                permissions: userData.permissions || tokenResult.claims.permissions || {}
+              }
+            });
+          } else {
+            // Se não tem documento, tentar buscar empresa por email
+            console.log('Documento do usuário não encontrado, buscando empresa...');
+            const empresaQuery = query(collection(db, 'empresas'), where('email', '==', firebaseUser.email));
+            const empresaSnapshot = await getDocs(empresaQuery);
+
+            if (!empresaSnapshot.empty) {
+              const empresaDoc = empresaSnapshot.docs[0];
+              const empresaData = empresaDoc.data();
+              const empresaId = empresaDoc.id;
+
+              console.log('Empresa encontrada para usuário:', empresaId, empresaData);
+
+              // Criar documento do usuário
+              await setDoc(doc(db, 'users', firebaseUser.uid), {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                role: 'colaborador',
+                empresaId: empresaId,
+                sistemasAtivos: empresaData.sistemasAtivos || [],
+                tipo: 'empresa',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+
+              setProfile({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || empresaData.nome,
+                role: 'colaborador',
+                empresaId: empresaId,
+                sistemasAtivos: empresaData.sistemasAtivos || [],
+                claims: {
+                  ...tokenResult.claims,
+                  role: 'colaborador',
+                  empresaId: empresaId,
+                  sistemasAtivos: empresaData.sistemasAtivos || [],
+                  permissions: {}
+                }
+              });
+            } else {
+              // Perfil padrão se não encontrar nada
+              setProfile({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                role: 'colaborador',
+                sistemasAtivos: [],
+                claims: tokenResult.claims
+              });
+            }
+          }
         } catch (error) {
           console.error('Erro ao carregar perfil no AuthProvider:', error);
           setProfile({

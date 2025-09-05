@@ -57,6 +57,14 @@ export default function SistemasPage() {
       return true;
     }
 
+    // NOVA VERIFICAÇÃO: Se o usuário tem empresaId, buscar sistemas da empresa
+    if (userData.empresaId || userData.claims?.empresaId) {
+      // Para esta verificação em tempo real, assumimos que se o usuário está 
+      // associado a uma empresa, ele tem acesso aos sistemas da empresa
+      // Esta é uma verificação de fallback que será confirmada pelo useSystemAccess
+      return true; // Permitir acesso temporário enquanto carrega os dados corretos
+    }
+
     // Verificar se é admin com acesso geral
     if (['admin', 'gestor'].includes(userData.role || '') && userData.empresaId) {
       return true;

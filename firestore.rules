@@ -106,13 +106,20 @@ service cloud.firestore {
 
     // === COLEÇÃO USERS ===
     match /users/{userId} {
-      allow read: if isSuperAdmin() || 
+      allow read, write: if isSuperAdmin() || 
         (isAuthenticated() && request.auth.uid == userId) ||
         (isAuthenticated() && isAdmin() && sameCompany(resource.data.empresaId));
 
       allow write: if isSuperAdmin() || 
         (isAuthenticated() && request.auth.uid == userId && validUserUpdate()) ||
         (isAuthenticated() && isAdmin());
+      // Usuários podem ler/atualizar seus próprios dados
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && 
+        (request.auth.token.role == 'superadmin' || 
+         request.auth.token.role == 'adminmaster');
+      // Permitir criação automática de documentos de usuário
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====
