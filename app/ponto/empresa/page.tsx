@@ -34,6 +34,7 @@ import {
   where, // Added import for 'where'
   FieldValue // Import FieldValue
 } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import {
   format,
   isAfter,
@@ -375,10 +376,7 @@ function EmpresaDashboard() {
   };
 
   const validatePassword = (password: string): boolean => {
-    return password.length >= 8 &&
-           /[A-Z]/.test(password) &&
-           /[a-z]/.test(password) &&
-           /[0-9]/.test(password);
+    return password.length >= 6;
   };
   const [newUserWorkDays, setNewUserWorkDays] = useState(22);
   const [newUserSalaryType, setNewUserSalaryType] = useState<'hourly' | 'daily' | 'monthly'>('monthly');
@@ -784,8 +782,8 @@ function EmpresaDashboard() {
       alert("Email inválido");
       return;
     }
-    if (!sanitizedPassword || !validatePassword(sanitizedPassword)) {
-      alert("Senha deve ter no mínimo 8 caracteres, incluindo maiúscula, minúscula e número");
+    if (!sanitizedPassword || sanitizedPassword.length < 6) {
+      alert("Senha deve ter no mínimo 6 caracteres");
       return;
     }
     if (!sanitizedName || sanitizedName.length < 2) {
@@ -813,6 +811,17 @@ function EmpresaDashboard() {
     setIsAddingUser(true);
 
     try {
+      // Verificar se já existe um colaborador com este email na empresa
+      const colaboradoresRef = collection(db, 'empresas', empresaId, 'colaboradores');
+      const colaboradorQuery = query(colaboradoresRef, where('email', '==', sanitizedEmail));
+      const colaboradorSnapshot = await getDocs(colaboradorQuery);
+
+      if (!colaboradorSnapshot.empty) {
+        alert("Já existe um colaborador cadastrado com este email nesta empresa.");
+        setIsAddingUser(false);
+        return;
+      }
+
       // Buscar sistemas ativos da empresa
       const empresaDoc = await getDoc(doc(db, "empresas", empresaId));
       const empresaData = empresaDoc.exists() ? empresaDoc.data() : {};
@@ -821,10 +830,15 @@ function EmpresaDashboard() {
       // Criar usuário no Firebase Auth
       const newUser = await createUserSecondaryAuth(newUserEmail, newUserPassword, newUserName);
 
+      // Calcular valor hora efetivo
+      const effectiveHourlyRate = hasValidHourly ? parsedHourly : 
+                                 hasValidDaily ? (parsedDaily / 8) : 
+                                 hasValidMonthly ? (parsedMonthly / (newUserWorkDays * 8)) : 0;
+
       // Criar documento na coleção principal 'users'
       const userDocRef = doc(db, 'users', newUser.uid);
       await setDoc(userDocRef, {
-        id: newUser.uid,
+        uid: newUser.uid,
         email: newUserEmail,
         displayName: newUserName,
         role: 'colaborador',
@@ -833,17 +847,18 @@ function EmpresaDashboard() {
         sistemasAtivos: sistemasAtivos,
         permissions: {
           canAccessSystems: sistemasAtivos,
-          admin: false // Usuário padrão é colaborador, não admin
+          admin: false
         },
-        hourlyRate: hasValidHourly ? parsedHourly : 0,
+        hourlyRate: effectiveHourlyRate,
         monthlySalary: hasValidMonthly ? parsedMonthly : 0,
-        monthlyBaseHours: 220, // Valor padrão, pode ser ajustado
-        toleranceMinutes: 0, // Valor padrão
-        lunchBreakMinutes: 0, // Valor padrão
-        lunchThresholdMinutes: 360, // Valor padrão
+        monthlyBaseHours: newUserWorkDays * 8, // Dias * 8 horas
+        toleranceMinutes: 0,
+        lunchBreakMinutes: 0,
+        lunchThresholdMinutes: 360,
+        isAdmin: false,
         ativo: true,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        lastLogin: serverTimestamp()
       });
 
       // Criar documento na subcoleção da empresa
@@ -859,19 +874,27 @@ function EmpresaDashboard() {
         hourlyRate: hasValidHourly ? parsedHourly : 0,
         dailyRate: hasValidDaily ? parsedDaily : 0,
         monthlyRate: hasValidMonthly ? parsedMonthly : 0,
-        monthlySalary: hasValidMonthly ? parsedMonthly : 0, // Duplica para compatibilidade
-        effectiveHourlyRate: newUserSalaryType === 'hourly' ? parsedHourly : (hasValidMonthly ? (parsedMonthly / 220) : 0), // Calcula hourly rate se for mensal
-        monthlyBaseHours: 220,
+        monthlySalary: hasValidMonthly ? parsedMonthly : 0,
+        effectiveHourlyRate: effectiveHourlyRate,
+        monthlyBaseHours: newUserWorkDays * 8,
         toleranceMinutes: 0,
         lunchBreakMinutes: 0,
         lunchThresholdMinutes: 360,
         isAuthUser: true,
+        ativo: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       // Sucesso - usuário principal permanece logado
-      showToast("✅ Colaborador criado com sucesso! Ele pode fazer login no sistema agora.");
+      showToast(`✅ Colaborador ${newUserName} criado com sucesso! 
+      
+📧 Email: ${newUserEmail}
+🔑 Senha: ${newUserPassword}
+💰 Salário: ${hasValidMonthly ? `R$ ${parsedMonthly}/mês` : hasValidHourly ? `R$ ${parsedHourly}/hora` : `R$ ${parsedDaily}/dia`}
+📅 Dias/mês: ${newUserWorkDays}
+
+O colaborador pode fazer login em /ponto/auth`);
 
       // Limpar formulário
       setNewUserEmail("");
@@ -894,7 +917,7 @@ function EmpresaDashboard() {
       if (error.code === 'auth/email-already-in-use') {
         errorMessage += "Este email já está em uso.";
       } else if (error.code === 'auth/weak-password') {
-        errorMessage += "A senha é muito fraca.";
+        errorMessage += "A senha é muito fraca (mínimo 6 caracteres).";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage += "Email inválido.";
       } else if (error.code === 'auth/missing-password') {
