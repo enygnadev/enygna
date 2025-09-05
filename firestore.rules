@@ -107,15 +107,19 @@ service cloud.firestore {
       // criar apenas o próprio perfil
       allow create: if isAuthenticated() && 
         request.auth.uid == userId && 
-        hasRequiredFields(['email']) &&
-        request.auth.token.email_verified == true &&
-        request.resource.data.email == request.auth.token.email;
+        hasRequiredFields(['email']);
       
       // leitura por admin (exceto superadmin de terceiros)
       allow read: if isAdmin() && resource.data.role != 'superadmin';
       
       // permitir leitura para o próprio usuário sempre
       allow read: if isAuthenticated() && userId == request.auth.uid;
+      
+      // permitir que admins criem/atualizem usuários da mesma empresa
+      allow create, update: if isAdmin() && (
+        request.resource.data.empresaId == request.auth.token.empresaId ||
+        request.resource.data.empresaId == request.auth.token.company
+      );
       
       // acesso especial para contas de desenvolvimento
       allow read, write: if isAuthenticated() && (

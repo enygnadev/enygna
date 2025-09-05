@@ -27,13 +27,23 @@ export default function SistemasPage() {
       return true;
     }
 
-    // Verificar sistemas ativos do usuário
+    // Verificar sistemas ativos do usuário (priorizar dados do Firestore)
     if (userData.sistemasAtivos?.includes(sistema)) {
+      return true;
+    }
+
+    // Verificar claims do token
+    if (userData.claims?.sistemasAtivos?.includes(sistema)) {
       return true;
     }
 
     // Verificar permissões específicas
     if (userData.claims?.permissions?.canAccessSystems?.includes(sistema)) {
+      return true;
+    }
+
+    // Verificar se é admin com acesso geral
+    if (['admin', 'gestor'].includes(userData.role || '') && userData.empresaId) {
       return true;
     }
 
