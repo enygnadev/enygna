@@ -21,10 +21,11 @@ const todosOsSistemas = [
   { key: 'frota', name: 'Gerenciamento de Frota', icon: '🚗', gradient: 'linear-gradient(135deg, #00ff7f 0%, #8a2be2 100%)', borderColor: '#00ff7f' }
 ];
 
-// Função para verificar se o usuário é super admin
+// Função auxiliar para verificar se o usuário é super admin
 const isSuperAdmin = (userData: any): boolean => {
   return userData?.role === 'superadmin' || userData?.role === 'adminmaster' || userData?.claims?.bootstrapAdmin;
 };
+
 
 export default function SistemasPage() {
   const [isOnline, setIsOnline] = useState(false);
@@ -32,109 +33,61 @@ export default function SistemasPage() {
   const { user, profile, loading, signOut } = useAuthData();
   const userData = profile;
 
-  // Função para verificar acesso aos sistemas - agora com tratamento de erro
+  // Função para verificar acesso aos sistemas
   const hasAccess = (sistema: string): boolean => {
-    // Se não está logado, permite visualizar mas não acessar
-    if (!user || !userData) {
-      return false;
+    if (!user || !userData) return false;
+
+    // Admins sempre têm acesso
+    if (isSuperAdmin(userData)) {
+      return true;
     }
 
-    try {
-      // Admins sempre têm acesso
-      if (isSuperAdmin(userData)) {
-        return true;
-      }
-
-      // Verificar sistemas ativos do usuário (priorizar dados do Firestore)
-      if (userData.sistemasAtivos?.includes(sistema)) {
-        return true;
-      }
-
-      // Verificar claims do token
-      if (userData.claims?.sistemasAtivos?.includes(sistema)) {
-        return true;
-      }
-
-      // Verificar permissões específicas
-      if (userData.claims?.permissions?.canAccessSystems?.includes(sistema)) {
-        return true;
-      }
-
-      // NOVA VERIFICAÇÃO: Se o usuário tem empresaId, buscar sistemas da empresa
-      if (userData.empresaId || userData.claims?.empresaId) {
-        // Para esta verificação em tempo real, assumimos que se o usuário está 
-        // associado a uma empresa, ele tem acesso aos sistemas da empresa
-        // Esta é uma verificação de fallback que será confirmada pelo useSystemAccess
-        return true; // Permitir acesso temporário para verificação
-      }
-
-      return false;
-    } catch (error) {
-      // Tratar erros de Firestore silenciosamente
-      if (error?.code === 'permission-denied') {
-        console.log('Permissão negada para verificar sistemas - usuário sem permissão');
-        return false;
-      }
-      console.error('Erro ao verificar permissões:', error);
-      return false;
+    // Verificar sistemas ativos do usuário (priorizar dados do Firestore)
+    if (userData.sistemasAtivos?.includes(sistema)) {
+      return true;
     }
-  };
 
-  // Função para tratar erros de Firestore de forma silenciosa
-  const handleFirestoreError = (error: any, operation: string) => {
-    if (error?.code === 'permission-denied') {
-      console.log(`Permissão negada para ${operation} - usuário não autenticado ou sem permissão`);
-      return null;
+    // Verificar claims do token
+    if (userData.claims?.sistemasAtivos?.includes(sistema)) {
+      return true;
     }
-    if (error?.code === 'failed-precondition') {
-      console.log(`Pré-condição falhou para ${operation} - dados podem não estar disponíveis`);
-      return null;
+
+    // Verificar permissões específicas
+    if (userData.claims?.permissions?.canAccessSystems?.includes(sistema)) {
+      return true;
     }
-    if (error?.code === 'unavailable') {
-      console.log(`Serviço indisponível para ${operation} - tentando novamente mais tarde`);
-      return null;
+
+    // NOVA VERIFICAÇÃO: Se o usuário tem empresaId, buscar sistemas da empresa
+    if (userData.empresaId || userData.claims?.empresaId) {
+      // Para esta verificação em tempo real, assumimos que se o usuário está 
+      // associado a uma empresa, ele tem acesso aos sistemas da empresa
+      // Esta é uma verificação de fallback que será confirmada pelo useSystemAccess
+      return true; // Permitir acesso temporário enquanto carrega os dados corretos
     }
-    console.error(`Erro em ${operation}:`, error);
-    return null;
+
+    // Verificar se é admin com acesso geral
+    if (['admin', 'gestor'].includes(userData.role || '') && userData.empresaId) {
+      return true;
+    }
+
+    return false;
   };
 
   // Debug para verificar o que está acontecendo
   useEffect(() => {
     if (!loading && user) {
-      try {
-        console.log('Debug sistemas completo:', {
-          userEmail: user.email,
-          userId: user.uid,
-          userData: userData,
-          sistemasAtivos: userData?.sistemasAtivos || [],
-          hasAccessPonto: hasAccess('ponto'),
-          hasAccessChamados: hasAccess('chamados'),
-          hasAccessCrm: hasAccess('crm'),
-          loading
-        });
-      } catch (error) {
-        handleFirestoreError(error, 'debug sistemas');
-      }
+      console.log('Debug sistemas completo:', {
+        userEmail: user.email,
+        userId: user.uid,
+        userData: userData,
+        sistemasAtivos: userData?.sistemasAtivos || [],
+        hasAccessPonto: hasAccess('ponto'),
+        hasAccessChamados: hasAccess('chamados'),
+        hasAccessCrm: hasAccess('crm'),
+        loading
+      });
     }
   }, [loading, user, userData]);
-
-  // Interceptar erros globais do Firestore nesta página
-  useEffect(() => {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      const errorMessage = args[0];
-      if (typeof errorMessage === 'string' && errorMessage.includes('FirebaseError')) {
-        // Tratar erro do Firebase silenciosamente
-        console.log('Erro do Firebase tratado silenciosamente:', args);
-        return;
-      }
-      originalConsoleError.apply(console, args);
-    };
-
-    return () => {
-      console.error = originalConsoleError;
-    };
-  }, []);
 
 
   // Check online status and PWA mode
@@ -161,17 +114,6 @@ export default function SistemasPage() {
     themeManager.getCurrentTheme();
   }, []);
 
-  // Mock de dados de sistemas para a página de login
-  const sistemas = [
-    { id: 'ponto', nome: 'Sistema de Ponto', icon: '🕒', descricao: 'Controle de jornada de trabalho.' },
-    { id: 'chamados', nome: 'Chamados TI', icon: '🎫', descricao: 'Gerenciamento de solicitações de TI.' },
-    { id: 'vendas', nome: 'Sistema de Vendas', icon: '💼', descricao: 'Otimização do processo de vendas.' },
-    { id: 'estoque', nome: 'Controle de Estoque', icon: '📦', descricao: 'Gestão de inventário.' },
-    { id: 'financeiro', nome: 'Sistema Financeiro', icon: '💰', descricao: 'Controle de fluxo de caixa.' },
-    { id: 'rh', nome: 'Recursos Humanos', icon: '👥', descricao: 'Gerenciamento de pessoal.' },
-    { id: 'documentos', nome: 'Gerador de Documentos', icon: '📄', descricao: 'Criação de documentos padronizados.' },
-    { id: 'frota', nome: 'Gerenciamento de Frota', icon: '🚗', descricao: 'Controle de veículos e manutenções.' }
-  ];
 
   // Determinar sistemas disponíveis baseado nas permissões do usuário
   const sistemasDisponiveis = useMemo(() => {
@@ -212,352 +154,47 @@ export default function SistemasPage() {
 
 
   const handleSystemSelect = (systemId: string) => {
-    try {
-      if (systemId === 'ponto') {
-        // Redirecionar para a autenticação do sistema de ponto
-        window.location.href = '/ponto/auth';
-      } else if (systemId === 'chamados') {
-        // Redirecionar para o sistema de chamados
-        window.location.href = '/chamados/auth';
-      } else if (systemId === 'documentos') {
-        // Redirecionar para o sistema de documentos
-        window.location.href = '/documentos/auth';
-      } else if (systemId === 'frota') {
-        // Redirecionar para o sistema de frota
-        window.location.href = '/frota/auth';
-      } else if (systemId === 'financeiro') {
-        // Redirecionar para o sistema financeiro
-        window.location.href = '/financeiro/auth';
-      } else if (systemId === 'vendas') {
-        // Redirecionar para o sistema de CRM/Vendas
-        window.location.href = '/crm/auth';
-      } else {
-        // Para outros sistemas, mostrar mensagem
+    // Se não está logado, redirecionar para login
+    if (!user) {
+      // Salvar o sistema desejado para redirecionar após login
+      sessionStorage.setItem('redirectAfterLogin', `/sistemas?target=${systemId}`);
+      window.location.href = '/';
+      return;
+    }
+
+    // Se está logado, verificar acesso
+    if (user && userData) {
+      const hasSystemAccess = hasAccess(systemId);
+      
+      if (hasSystemAccess) {
+        // Tem acesso, redirecionar para o sistema
+        if (systemId === 'ponto') {
+          window.location.href = '/ponto/auth';
+        } else if (systemId === 'chamados') {
+          window.location.href = '/chamados/auth';
+        } else if (systemId === 'documentos') {
+          window.location.href = '/documentos/auth';
+        } else if (systemId === 'frota') {
+          window.location.href = '/frota/auth';
+        } else if (systemId === 'financeiro') {
+          window.location.href = '/financeiro/auth';
+        } else if (systemId === 'vendas') {
+          window.location.href = '/crm/auth';
+        }
+      } else if (['vendas', 'estoque', 'rh'].includes(systemId)) {
+        // Sistema em desenvolvimento
         alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} será implementado em breve!`);
+      } else {
+        // Sem acesso - redirecionar para contato
+        const sistemaNome = todosOsSistemas.find(s => s.key === systemId)?.name;
+        if (confirm(`Você não tem acesso ao ${sistemaNome}. Deseja entrar em contato para solicitar acesso?`)) {
+          window.location.href = `/contato?sistema=${systemId}`;
+        }
       }
-    } catch (error) {
-      handleFirestoreError(error, 'seleção de sistema');
-      console.log('Erro ao redirecionar para sistema:', systemId);
     }
   };
 
-  // Se está carregando, mostrar loading
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Carregando...</p>
-      </div>
-    );
-  }
 
-  // Renderização para usuários não logados - PÁGINA PÚBLICA
-  if (!user) {
-    return (
-      <div className="sistemas-container">
-        <header className="header">
-          <div className="header-content">
-            <h1 className="main-title">
-              🚀 Sistemas Empresariais Enygna
-            </h1>
-            <p className="subtitle">
-              Plataforma completa para gestão empresarial
-            </p>
-          </div>
-        </header>
-
-        <main className="main-content">
-          <div className="welcome-section">
-            <h2>Bem-vindo à nossa plataforma!</h2>
-            <p>Acesse nossos sistemas especializados para otimizar sua empresa:</p>
-          </div>
-
-          <div className="sistemas-grid">
-            {sistemas.map((sistema) => (
-              <div key={sistema.id} className="sistema-card disabled">
-                <div className="sistema-header">
-                  <span className="sistema-icon">{sistema.icon}</span>
-                  <h3>{sistema.nome}</h3>
-                </div>
-                <p className="sistema-descricao">{sistema.descricao}</p>
-                <div className="sistema-status">
-                  <span className="status-badge locked">🔒 Login Necessário</span>
-                </div>
-                <div className="sistema-actions">
-                  <button className="btn-disabled" disabled>
-                    Acesso Restrito
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="auth-section">
-            <h3>Para acessar os sistemas:</h3>
-            <div className="auth-buttons">
-              <Link href="/admin/auth" className="btn-login">
-                <span>👤</span> Fazer Login
-              </Link>
-              <Link href="/criar" className="btn-register">
-                <span>✨</span> Criar Conta Empresa
-              </Link>
-            </div>
-          </div>
-
-          <div className="features-section">
-            <h3>Nossos Diferenciais:</h3>
-            <div className="features-grid">
-              <div className="feature-item">
-                <span>🔒</span>
-                <h4>Segurança Avançada</h4>
-                <p>Proteção de dados com criptografia de ponta</p>
-              </div>
-              <div className="feature-item">
-                <span>☁️</span>
-                <h4>Cloud Native</h4>
-                <p>Acesse de qualquer lugar, a qualquer hora</p>
-              </div>
-              <div className="feature-item">
-                <span>📊</span>
-                <h4>Analytics Integrado</h4>
-                <p>Relatórios e dashboards em tempo real</p>
-              </div>
-              <div className="feature-item">
-                <span>🤖</span>
-                <h4>IA Integrada</h4>
-                <p>Assistente inteligente para otimização</p>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        <style jsx>{`
-          .sistemas-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          }
-
-          .header {
-            text-align: center;
-            padding: 2rem 1rem;
-            background: rgba(0, 0, 0, 0.1);
-          }
-
-          .main-title {
-            font-size: clamp(2rem, 5vw, 3.5rem);
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, #fff, #f0f8ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-          }
-
-          .subtitle {
-            font-size: clamp(1rem, 3vw, 1.5rem);
-            opacity: 0.9;
-            margin-bottom: 0;
-          }
-
-          .main-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-          }
-
-          .welcome-section {
-            text-align: center;
-            margin-bottom: 3rem;
-          }
-
-          .welcome-section h2 {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
-            margin-bottom: 1rem;
-          }
-
-          .welcome-section p {
-            font-size: clamp(1rem, 2.5vw, 1.2rem);
-            opacity: 0.9;
-            max-width: 600px;
-            margin: 0 auto;
-          }
-
-          .sistemas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-          }
-
-          .sistema-card.disabled {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            opacity: 0.8;
-          }
-
-          .sistema-card.disabled:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.15);
-          }
-
-          .sistema-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-          }
-
-          .sistema-icon {
-            font-size: 2rem;
-          }
-
-          .sistema-header h3 {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin: 0;
-          }
-
-          .sistema-descricao {
-            opacity: 0.8;
-            margin-bottom: 1rem;
-            line-height: 1.5;
-          }
-
-          .status-badge.locked {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-          }
-
-          .btn-disabled {
-            background: rgba(108, 117, 125, 0.3);
-            color: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(108, 117, 125, 0.5);
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: not-allowed;
-            font-weight: 500;
-          }
-
-          .auth-section {
-            text-align: center;
-            background: rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-            border-radius: 16px;
-            margin-bottom: 3rem;
-          }
-
-          .auth-section h3 {
-            margin-bottom: 1.5rem;
-            font-size: 1.5rem;
-          }
-
-          .auth-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-          }
-
-          .btn-login, .btn-register {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 1rem 2rem;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            min-width: 160px;
-            justify-content: center;
-          }
-
-          .btn-login {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            color: white;
-            border: 2px solid transparent;
-          }
-
-          .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4);
-          }
-
-          .btn-register {
-            background: transparent;
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-          }
-
-          .btn-register:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.5);
-          }
-
-          .features-section {
-            text-align: center;
-          }
-
-          .features-section h3 {
-            margin-bottom: 2rem;
-            font-size: 1.8rem;
-          }
-
-          .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-            gap: 1.5rem;
-          }
-
-          .feature-item {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-          }
-
-          .feature-item span {
-            font-size: 2.5rem;
-            display: block;
-            margin-bottom: 1rem;
-          }
-
-          .feature-item h4 {
-            margin-bottom: 0.5rem;
-            font-size: 1.1rem;
-          }
-
-          .feature-item p {
-            opacity: 0.8;
-            font-size: 0.9rem;
-            margin: 0;
-          }
-
-          @media (max-width: 768px) {
-            .auth-buttons {
-              flex-direction: column;
-            }
-
-            .btn-login, .btn-register {
-              width: 100%;
-              max-width: 300px;
-            }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   return (
       <div className="container" style={{
@@ -565,6 +202,13 @@ export default function SistemasPage() {
         minHeight: '100vh',
         padding: 'var(--gap-xl)'
       }}>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+
         <Tutorial
           steps={homeTutorialSteps}
           tutorialKey="home"
@@ -747,28 +391,28 @@ export default function SistemasPage() {
               <div
                 key={system.key}
                 className="system-card"
-                onClick={() => handleSystemSelect(system.key)}
+                onClick={() => !user ? handleSystemSelect(system.key) : (isAccessible ? handleSystemSelect(system.key) : null)}
                 style={{
                   background: 'var(--gradient-card)',
                   border: `2px solid ${system.borderColor}`,
                   borderRadius: '20px',
                   padding: 'var(--gap-xl)',
-                  cursor: ['vendas', 'estoque', 'rh'].includes(system.key) ? 'not-allowed' : 'pointer',
+                  cursor: isAccessible ? 'pointer' : 'not-allowed',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   backdropFilter: 'blur(20px)',
                   position: 'relative',
                   overflow: 'hidden',
-                  opacity: ['vendas', 'estoque', 'rh'].includes(system.key) ? 0.5 : 1
+                  opacity: isAccessible ? 1 : 0.5
                 }}
                 onMouseEnter={(e) => {
-                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
+                  if (isAccessible) {
                     e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
                     e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
                     e.currentTarget.style.borderColor = system.borderColor;
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
+                  if (isAccessible) {
                     e.currentTarget.style.transform = 'translateY(0) scale(1)';
                     e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
                     e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -818,32 +462,116 @@ export default function SistemasPage() {
 
                 <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: 'column',
                   gap: 'var(--gap-sm)',
-                  padding: 'var(--gap-sm) var(--gap-md)',
-                  background: isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
-                  borderRadius: '12px',
-                  color: 'white',
-                  fontWeight: '600',
-                  fontSize: '0.9rem'
+                  width: '100%'
                 }}>
-                  {['vendas', 'estoque', 'rh'].includes(system.key) ? (
-                    <>
-                      <span>🚧 Em Breve</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                        <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
-                      </svg>
-                    </>
-                  ) : (
-                    <>
-                      <span>✅ Acessar Sistema</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </>
-                  )}
+                  {/* Botão Principal */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'var(--gap-sm)',
+                    padding: 'var(--gap-md)',
+                    background: !user ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 
+                               isAccessible ? system.gradient : 'rgba(128, 128, 128, 0.5)',
+                    borderRadius: '12px',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}>
+                    {!user ? (
+                      <>
+                        <span>🔑 Entrar para Acessar</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </>
+                    ) : user && userData ? (
+                      hasSystemAccess ? (
+                        <>
+                          <span>🚀 Acessar {system.name}</span>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </>
+                      ) : ['vendas', 'estoque', 'rh'].includes(system.key) ? (
+                        <>
+                          <span>🚧 Sistema em Desenvolvimento</span>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                            <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
+                          </svg>
+                        </>
+                      ) : (
+                        <>
+                          <span>📞 Solicitar Acesso</span>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <span>⏳ Verificando Acesso...</span>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTop: '2px solid white',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }} />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Status/Info adicional */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'var(--gap-xs)',
+                    padding: 'var(--gap-sm)',
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: 'rgba(255,255,255,0.8)'
+                  }}>
+                    {!user ? (
+                      <>
+                        <span>🌐</span>
+                        <span>Área pública - Faça login para acessar</span>
+                      </>
+                    ) : user && userData ? (
+                      hasSystemAccess ? (
+                        <>
+                          <span>✅</span>
+                          <span>Acesso liberado</span>
+                        </>
+                      ) : ['vendas', 'estoque', 'rh'].includes(system.key) ? (
+                        <>
+                          <span>🛠️</span>
+                          <span>Em desenvolvimento</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📋</span>
+                          <span>Entre em contato para solicitar</span>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        <span>Verificando permissões...</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
