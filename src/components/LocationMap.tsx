@@ -67,13 +67,40 @@ export default function LocationMap({
         // Importar Leaflet dinamicamente
         const L = (await import('leaflet')).default;
 
-        // Configurar ícones
+        // Configurar ícones com fallback
         delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        });
+        
+        // Criar ícones customizados com CSS em vez de imagens externas
+        const createCustomIcon = (color: string, emoji: string) => {
+          return L.divIcon({
+            className: 'custom-div-icon',
+            html: `
+              <div style="
+                width: 30px;
+                height: 30px;
+                background: ${color};
+                border: 3px solid white;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                position: relative;
+              ">
+                <span style="
+                  transform: rotate(45deg);
+                  font-size: 16px;
+                  color: white;
+                  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+                ">${emoji}</span>
+              </div>
+            `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 30],
+            popupAnchor: [0, -30]
+          });
+        };
 
         if (!isMounted || !mapContainerRef.current) return;
 
@@ -95,29 +122,9 @@ export default function LocationMap({
           className: 'map-tiles'
         }).addTo(map);
 
-        // Marcador principal com ícone personalizado
-        const mainIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div style="
-              width: 24px;
-              height: 24px;
-              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 12px;
-              font-weight: bold;
-            ">📍</div>
-          `,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        });
-
+        // Marcador principal
+        const mainIcon = createCustomIcon('linear-gradient(135deg, #3b82f6, #1d4ed8)', '📍');
+        
         L.marker([lat, lng], { icon: mainIcon }).addTo(map)
           .bindPopup(`
             <div style="
@@ -154,27 +161,8 @@ export default function LocationMap({
 
         // Ponto de comparação se existir
         if (compareTo) {
-          const compareIcon = L.divIcon({
-            className: 'custom-marker-compare',
-            html: `
-              <div style="
-                width: 20px;
-                height: 20px;
-                background: linear-gradient(135deg, #ef4444, #dc2626);
-                border: 2px solid white;
-                border-radius: 50%;
-                box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-size: 10px;
-              ">🏢</div>
-            `,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          });
-
+          const compareIcon = createCustomIcon('linear-gradient(135deg, #ef4444, #dc2626)', '🏢');
+          
           L.marker([compareTo.lat, compareTo.lng], { icon: compareIcon }).addTo(map)
             .bindPopup(`
               <div style="
@@ -311,6 +299,17 @@ export default function LocationMap({
         
         .map-tiles {
           filter: saturate(1.1) contrast(1.05);
+        }
+        
+        .custom-div-icon {
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
+        }
+        
+        .leaflet-div-icon {
+          background: transparent !important;
+          border: none !important;
         }
       `}</style>
 
