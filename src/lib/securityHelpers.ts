@@ -27,6 +27,7 @@ export interface UserPermissions {
 export interface AuthClaims extends UserClaims {
   custom_claims_set?: boolean;
   security_level?: 'low' | 'medium' | 'high';
+  auth_time?: number;
   permissions?: UserPermissions & {
     canAccessSystems?: string[];
     admin?: boolean;

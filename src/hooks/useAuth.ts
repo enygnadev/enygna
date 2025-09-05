@@ -186,8 +186,8 @@ export const useAuthData = (): AuthContextType => {
 
             setProfile({
               uid: firebaseUser.uid,
-              email: firebaseUser.email || undefined,
-              displayName: firebaseUser.displayName || userData?.displayName,
+              email: firebaseUser.email ?? undefined,
+              displayName: firebaseUser.displayName ?? userData?.displayName ?? undefined,
               role: (claims.role || userData?.role || 'colaborador') as 'colaborador' | 'admin' | 'gestor' | 'superadmin' | 'adminmaster',
               empresaId: claims.empresaId || userData?.empresaId,
               sistemasAtivos: sistemasFinais,
@@ -197,10 +197,10 @@ export const useAuthData = (): AuthContextType => {
                 empresaId: userData?.empresaId || userData?.company || tokenResult.claims.empresaId,
                 sistemasAtivos: sistemasFinais,
                 permissions: userData?.permissions || tokenResult.claims.permissions || {},
-                exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
-                iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
-                auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
-              }
+                exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
+                iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
+                auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+              } as AuthClaims
             });
           } else {
             // Se não tem documento, tentar buscar empresa por email
@@ -229,8 +229,8 @@ export const useAuthData = (): AuthContextType => {
 
               setProfile({
                 uid: firebaseUser.uid,
-                email: firebaseUser.email || undefined,
-                displayName: firebaseUser.displayName || empresaData.nome,
+                email: firebaseUser.email ?? undefined,
+                displayName: firebaseUser.displayName ?? empresaData.nome ?? undefined,
                 role: 'colaborador',
                 empresaId: empresaId,
                 sistemasAtivos: empresaData.sistemasAtivos || [],
@@ -240,25 +240,27 @@ export const useAuthData = (): AuthContextType => {
                   empresaId: empresaId,
                   sistemasAtivos: empresaData.sistemasAtivos || [],
                   permissions: {},
-                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
-                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
-                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
-                }
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+                } as AuthClaims
               });
             } else {
               // Perfil padrão se não encontrar nada
               setProfile({
                 uid: firebaseUser.uid,
-                email: firebaseUser.email || undefined,
-                displayName: firebaseUser.displayName || undefined,
+                email: firebaseUser.email ?? undefined,
+                displayName: firebaseUser.displayName ?? undefined,
                 role: 'colaborador',
                 sistemasAtivos: [],
                 claims: {
                   ...tokenResult.claims,
-                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : tokenResult.claims.exp,
-                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : tokenResult.claims.iat,
-                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : tokenResult.claims.auth_time
-                }
+                  role: 'colaborador',
+                  permissions: {},
+                  exp: typeof tokenResult.claims.exp === 'string' ? parseInt(tokenResult.claims.exp) : (tokenResult.claims.exp as number),
+                  iat: typeof tokenResult.claims.iat === 'string' ? parseInt(tokenResult.claims.iat) : (tokenResult.claims.iat as number),
+                  auth_time: typeof tokenResult.claims.auth_time === 'string' ? parseInt(tokenResult.claims.auth_time) : (tokenResult.claims.auth_time as number)
+                } as AuthClaims
               });
             }
           }
