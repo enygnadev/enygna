@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import admin, { createSessionCookie, verifySessionCookie } from '@/lib/firebaseAdmin';
+import { adminAuth, createSessionCookie, verifySessionCookie } from '@/src/lib/firebaseAdmin';
 import { rateLimit } from '@/lib/ratelimit';
 import { generateCSRFToken, validateCSRFToken, csrfConfig } from '@/lib/csrf';
 
@@ -169,7 +169,7 @@ export async function DELETE(request: NextRequest) {
         const decodedClaims = await verifySessionCookie(sessionCookie);
         if (decodedClaims) {
           // Revogar refresh tokens do usuário
-          await admin.auth().revokeRefreshTokens(decodedClaims.uid);
+          await adminAuth.revokeRefreshTokens(decodedClaims.uid);
         }
       } catch (error) {
         // Ignorar erros na revogação
