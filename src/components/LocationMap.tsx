@@ -1,4 +1,3 @@
-
 'use client';
 
 import dynamic from 'next/dynamic';
@@ -34,10 +33,10 @@ type Props = {
   /** Precisão (±m) da posição inicial, opcional */
   accuracy?: number;
 
-  /** Ponto de comparação (ex.: local do "início do ponto") */
+  /** Ponto de comparação (ex.: local do “início do ponto”) */
   compareTo?: { lat: number; lng: number; label?: string };
 
-  /** Raio (m) para considerar "mesmo local" */
+  /** Raio (m) para considerar “mesmo local” */
   samePlaceRadius?: number;
 
   /** Atualização automática (ms). Padrão: 5 min */
@@ -120,11 +119,10 @@ export default function LocationMap({
   useGeoWatch = true,            // ativa GPS por padrão
   autoRecenter = true,
 }: Props) {
-  // Estados do mapa
   const [leafletMap, setLeafletMap] = React.useState<any>(null);
   const [mapKey, setMapKey] = React.useState<string>(() => `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
-  const [shouldRenderMap, setShouldRenderMap] = React.useState(true);
+  const [isMapReady, setIsMapReady] = React.useState(false);
 
   // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
   const firstLatRef = React.useRef<number>(lat);
@@ -139,36 +137,8 @@ export default function LocationMap({
   const [pos, setPos] = React.useState<LatLng>({ lat, lng, acc: accuracy, label });
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
   const [source, setSource] = React.useState<'gps' | 'firestore' | 'props' | 'poll'>('props');
-  const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
-  // Função para forçar recriação do mapa de forma segura
-  const recreateMap = React.useCallback(() => {
-    console.log('Recriando mapa...');
-    
-    // 1. Remover o mapa atual se existir
-    if (leafletMap) {
-      try {
-        leafletMap.remove();
-      } catch (error) {
-        console.warn('Erro ao remover mapa:', error);
-      }
-    }
-    
-    // 2. Limpar estado
-    setLeafletMap(null);
-    setShouldRenderMap(false);
-    
-    // 3. Gerar nova chave e permitir renderização após um tick
-    const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setMapKey(newKey);
-    
-    // 4. Permitir renderização novamente após cleanup
-    setTimeout(() => {
-      setShouldRenderMap(true);
-    }, 50);
-  }, [leafletMap]);
-
-  // Detectar mudanças drásticas de posição e recriar mapa
+  // Força nova instância do mapa se as coordenadas mudarem drasticamente
   React.useEffect(() => {
     const currentLat = pos.lat;
     const currentLng = pos.lng;
@@ -181,12 +151,25 @@ export default function LocationMap({
       { lat: initialLat, lng: initialLng }
     );
 
-    if (distance > 1000 && leafletMap) {
+    if (distance > 1000 && isMapReady) {
+      setIsMapReady(false);
+      if (leafletMap) {
+        try {
+          leafletMap.remove();
+        } catch (error) {
+          console.warn('Erro ao remover mapa anterior:', error);
+        }
+      }
+      setLeafletMap(null);
+      const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      setMapKey(newKey);
       firstLatRef.current = currentLat;
       firstLngRef.current = currentLng;
-      recreateMap();
+      // Aguardar um pouco antes de permitir nova criação
+      setTimeout(() => setIsMapReady(true), 100);
     }
-  }, [pos.lat, pos.lng, leafletMap, recreateMap]);
+  }, [pos.lat, pos.lng, isMapReady, leafletMap]);
+  const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
   // --- Permissão de geolocalização (Permissions API) ---
   React.useEffect(() => {
@@ -267,7 +250,7 @@ export default function LocationMap({
     let unsub: undefined | (() => void);
     (async () => {
       try {
-        const { db } = await import('@/src/lib/firebase');
+        const { db } = await import('@/lib/firebase');
         const { doc, onSnapshot, getDoc } = await import('firebase/firestore');
 
         const ref = doc(db, docPath);
@@ -327,7 +310,7 @@ export default function LocationMap({
       // 1) tenta Firestore
       if (docPath) {
         try {
-          const { db } = await import('@/src/lib/firebase');
+          const { db } = await import('@/lib/firebase');
           const { doc, getDoc } = await import('firebase/firestore');
           const d = await getDoc(doc(db, docPath));
           const data: any = d.data() || {};
@@ -385,7 +368,7 @@ export default function LocationMap({
     // 1) tenta Firestore
     if (docPath) {
       try {
-        const { db } = await import('@/src/lib/firebase');
+        const { db } = await import('@/lib/firebase');
         const { doc, getDoc } = await import('firebase/firestore');
         const d = await getDoc(doc(db, docPath));
         const data: any = d.data() || {};
@@ -433,18 +416,32 @@ export default function LocationMap({
     } catch {}
   }, [leafletMap, pos.lat, pos.lng]);
 
-  // Cleanup principal - executado apenas quando o componente é desmontado
+  const forceMapRecreation = React.useCallback(() => {
+    const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setMapKey(newKey);
+    setLeafletMap(null);
+  }, []);
+
+  // Cleanup effect para prevenir vazamentos de memória
   React.useEffect(() => {
     return () => {
       if (leafletMap) {
         try {
+          setIsMapReady(false);
           leafletMap.remove();
+          setLeafletMap(null);
         } catch (error) {
-          console.warn('Erro ao limpar mapa no cleanup:', error);
+          // Ignora erros de cleanup
+          console.warn('Erro ao limpar mapa:', error);
         }
       }
     };
   }, [leafletMap]);
+
+  // Inicializar estado do mapa
+  React.useEffect(() => {
+    setIsMapReady(true);
+  }, []);
 
   // UI de ajuda para permissão negada/pendente
   const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
@@ -511,21 +508,6 @@ export default function LocationMap({
           >
             Centralizar
           </button>
-
-          <button
-            onClick={recreateMap}
-            style={{
-              borderRadius: 8,
-              padding: '6px 10px',
-              border: '1px solid rgba(255,255,255,.2)',
-              background: 'rgba(255,255,255,.06)',
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-            title="Recriar mapa"
-          >
-            Reset Mapa
-          </button>
         </div>
       </div>
 
@@ -545,69 +527,64 @@ export default function LocationMap({
         </div>
       )}
 
-      <div ref={mapContainerRef} style={{ width: '100%', height: 300 }}>
-        {shouldRenderMap && (
+      <div ref={mapContainerRef} key={mapKey}>
+        {isMapReady !== false && (
           <MapContainer
-            key={mapKey}
             center={[pos.lat, pos.lng]}
             zoom={16}
             scrollWheelZoom
-            style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden' }}
+            style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
             whenCreated={(map) => {
-              console.log('Mapa criado com sucesso:', mapKey);
               setLeafletMap(map);
+              setIsMapReady(true);
               // Garante que o mapa seja invalidated após criação
               setTimeout(() => {
                 if (map) {
-                  try {
-                    map.invalidateSize();
-                  } catch (error) {
-                    console.warn('Erro ao invalidar tamanho do mapa:', error);
-                  }
+                  map.invalidateSize();
                 }
               }, 100);
             }}
           >
-            {/* OSM tiles — string literal (sem erro TS2304) */}
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* OSM tiles — string literal (sem erro TS2304) */}
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-            {/* Geofence (âncora) */}
-            <LeafletCircleMeters
-              map={leafletMap}
-              center={[anchor.lat, anchor.lng]}
-              radius={samePlaceRadius}
-              options={{ color: inside ? '#16a34a' : '#ef4444', opacity: 0.8 }}
-            />
-            <Marker position={[anchor.lat, anchor.lng]}>
-              <Popup>
-                {anchor.label || 'Âncora'}
-                <br />
-                {anchor.lat.toFixed(5)}, {anchor.lng.toFixed(5)}
-              </Popup>
-            </Marker>
+        {/* Geofence (âncora) */}
+        <LeafletCircleMeters
+          map={leafletMap}
+          center={[anchor.lat, anchor.lng]}
+          radius={samePlaceRadius}
+          options={{ color: inside ? '#16a34a' : '#ef4444', opacity: 0.8 }}
+        />
+        <Marker position={[anchor.lat, anchor.lng]}>
+          <Popup>
+            {anchor.label || 'Âncora'}
+            <br />
+            {anchor.lat.toFixed(5)}, {anchor.lng.toFixed(5)}
+          </Popup>
+        </Marker>
 
-            {/* Posição atual + precisão */}
-            <Marker position={[pos.lat, pos.lng]}>
-              <Popup>
-                {pos.label || 'Atual'}
-                <br />
-                {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
-                {typeof pos.acc === 'number' ? (
-                  <>
-                    <br />±{Math.round(pos.acc)}m
-                  </>
-                ) : null}
-              </Popup>
-            </Marker>
+        {/* Posição atual + precisão */}
+        <Marker position={[pos.lat, pos.lng]}>
+          <Popup>
+            {pos.label || 'Atual'}
+            <br />
+            {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
+            {typeof pos.acc === 'number' ? (
+              <>
+                <br />±{Math.round(pos.acc)}m
+              </>
+            ) : null}
+          </Popup>
+        </Marker>
 
-            {typeof pos.acc === 'number' && pos.acc > 0 && (
-              <LeafletCircleMeters
-                map={leafletMap}
-                center={[pos.lat, pos.lng]}
-                radius={pos.acc}
-                options={{ color: '#3b82f6', opacity: 0.4 }}
-              />
-            )}
+        {typeof pos.acc === 'number' && pos.acc > 0 && (
+          <LeafletCircleMeters
+            map={leafletMap}
+            center={[pos.lat, pos.lng]}
+            radius={pos.acc}
+            options={{ color: '#3b82f6', opacity: 0.4 }}
+          />
+        )}
           </MapContainer>
         )}
       </div>
