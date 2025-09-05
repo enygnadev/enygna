@@ -5,23 +5,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-
-interface UserData {
-  uid: string;
-  email: string;
-  nome: string;
-  role: string;
-  tipo: 'colaborador' | 'empresa' | 'adminmaster';
-  empresaId?: string;
-  permissions?: {
-    frota: boolean;
-    ponto: boolean;
-    chamados: boolean;
-    documentos: boolean;
-    admin?: boolean;
-  };
-  ativo: boolean;
-}
+import { UserData, UserPermissions } from '@/src/lib/types';
 
 interface AuthContextType {
   user: User | null;
@@ -91,7 +75,7 @@ export const useAuthData = () => {
     return () => unsubscribe();
   }, []);
 
-  const hasPermission = (system: keyof UserData['permissions']): boolean => {
+  const hasPermission = (system: keyof UserPermissions): boolean => {
     if (!userData || !userData.permissions) return false;
     return userData.permissions[system] === true;
   };

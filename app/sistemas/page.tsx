@@ -32,7 +32,7 @@ export default function SistemasPage() {
     }
 
     // Verificar permissões específicas
-    if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
+    if (userData.permissions?.canAccessSystems?.includes(sistema)) {
       return true;
     }
 
