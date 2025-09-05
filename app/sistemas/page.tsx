@@ -154,12 +154,6 @@ export default function SistemasPage() {
 
 
   const handleSystemSelect = (systemId: string) => {
-    // Se não está logado, redirecionar para login
-    if (!user) {
-      window.location.href = '/';
-      return;
-    }
-
     if (systemId === 'ponto') {
       // Redirecionar para a autenticação do sistema de ponto
       window.location.href = '/ponto/auth';
@@ -374,28 +368,28 @@ export default function SistemasPage() {
               <div
                 key={system.key}
                 className="system-card"
-                onClick={() => !user ? handleSystemSelect(system.key) : (isAccessible ? handleSystemSelect(system.key) : null)}
+                onClick={() => handleSystemSelect(system.key)}
                 style={{
                   background: 'var(--gradient-card)',
                   border: `2px solid ${system.borderColor}`,
                   borderRadius: '20px',
                   padding: 'var(--gap-xl)',
-                  cursor: isAccessible ? 'pointer' : 'not-allowed',
+                  cursor: ['vendas', 'estoque', 'rh'].includes(system.key) ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   backdropFilter: 'blur(20px)',
                   position: 'relative',
                   overflow: 'hidden',
-                  opacity: isAccessible ? 1 : 0.5
+                  opacity: ['vendas', 'estoque', 'rh'].includes(system.key) ? 0.5 : 1
                 }}
                 onMouseEnter={(e) => {
-                  if (isAccessible) {
+                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
                     e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
                     e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
                     e.currentTarget.style.borderColor = system.borderColor;
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (isAccessible) {
+                  if (!['vendas', 'estoque', 'rh'].includes(system.key)) {
                     e.currentTarget.style.transform = 'translateY(0) scale(1)';
                     e.currentTarget.style.boxShadow = 'var(--shadow-medium)';
                     e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -455,45 +449,19 @@ export default function SistemasPage() {
                   fontWeight: '600',
                   fontSize: '0.9rem'
                 }}>
-                  {!user ? (
+                  {['vendas', 'estoque', 'rh'].includes(system.key) ? (
                     <>
-                      <span>🔑 Fazer Login</span>
+                      <span>🚧 Em Breve</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
                       </svg>
                     </>
-                  ) : user && userData ? (
-                    hasSystemAccess ? (
-                      <>
-                        <span>✅ Acessar Sistema</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </>
-                    ) : ['vendas', 'estoque', 'rh'].includes(system.key) ? (
-                      <>
-                        <span>🚧 Em Breve</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                          <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      </>
-                    ) : (
-                      <>
-                        <span>🔒 Sem Acesso</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
-                          <circle cx="12" cy="16" r="1" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                      </>
-                    )
                   ) : (
                     <>
-                      <span>⏳ Carregando...</span>
+                      <span>✅ Acessar Sistema</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </>
                   )}
