@@ -99,12 +99,6 @@ service cloud.firestore {
     }
 
     // ----- Funções auxiliares para sistemas unificados -----
-    function getUserCompanyId() {
-      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId 
-        : null;
-    }
-
     function hasSystemAccess(systemName) {
       return request.auth != null && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
