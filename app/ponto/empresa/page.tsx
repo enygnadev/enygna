@@ -510,7 +510,14 @@ function EmpresaDashboard() {
               userHasAccess = true;
             }
             // Verificar permissões específicas do sistema de ponto
-            if (!userHasAccess && canAccessSystem(userData, 'ponto')) {
+            if (!userHasAccess && userData && canAccessSystem({
+              ...userData.claims,
+              email: userData.email || undefined,
+              role: userData.role,
+              empresaId: userData.empresaId,
+              sistemasAtivos: userData.sistemasAtivos,
+              permissions: userData.permissions
+            } as AuthClaims, 'ponto')) {
               userHasAccess = true;
             }
             // Para colaboradores, o acesso é implícito se o sistema está ativo na empresa

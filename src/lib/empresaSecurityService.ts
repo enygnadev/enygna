@@ -205,9 +205,15 @@ export class EmpresaSecurityService {
       const snapshot = await getDocs(systemQuery);
       return snapshot.docs.map(doc => {
         const data = doc.data();
+        if (data && typeof data === 'object') {
+          return {
+            id: doc.id,
+            ...data
+          };
+        }
         return {
           id: doc.id,
-          ...data
+          data: data
         };
       });
     } catch (error) {
