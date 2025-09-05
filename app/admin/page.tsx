@@ -772,7 +772,6 @@ export default function AdminMasterPage() {
         hourlyRate: 0,
         isAdmin: true, // Empresa é sempre admin do próprio sistema
         lunchBreakMinutes: 0,
-        lunchThresholdMinutes: 360,
         monthlyBaseHours: 220,
         monthlySalary: 0,
         toleranceMinutes: 0,
@@ -5529,12 +5528,13 @@ export default function AdminMasterPage() {
                               cursor: 'pointer',
                               fontSize: '1rem',
                               fontWeight: '600'
-                            >
-                          > Cancelar
-                          > </button>
-                        > </div>
-                      > </div>
-                    > </div>
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
