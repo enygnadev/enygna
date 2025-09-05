@@ -1,16 +1,20 @@
 // src/lib/security.ts - Sistema de Segurança Avançado
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  query, 
-  where, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
   getDocs,
   serverTimestamp,
   limit,
-  orderBy 
+  orderBy,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  FieldPath
 } from 'firebase/firestore';
 
 export interface SecurityEvent {
@@ -44,6 +48,14 @@ export interface SecurityPolicy {
   allowedCountries: string[];
   blockedIPs: string[];
   rateLimits: RateLimitRule[];
+}
+
+export interface UserSecurityData {
+  failedLoginAttempts: number;
+  lastFailedLoginTime: any;
+  isLockedOut: boolean;
+  lockoutEndTime: any;
+  blockedIPs: string[];
 }
 
 class SecurityService {
@@ -83,6 +95,61 @@ class SecurityService {
     }
   }
 
+  // Obter dados de segurança do usuário
+  private async getUserSecurityData(userId: string): Promise<UserSecurityData> {
+    try {
+      const userDoc = await getDoc(doc(db, 'user_security_data', userId));
+      if (userDoc.exists()) {
+        return userDoc.data() as UserSecurityData;
+      }
+      return {
+        failedLoginAttempts: 0,
+        lastFailedLoginTime: null,
+        isLockedOut: false,
+        lockoutEndTime: null,
+        blockedIPs: []
+      };
+    } catch (error) {
+      console.error('Erro ao obter dados de segurança do usuário:', error);
+      return {
+        failedLoginAttempts: 0,
+        lastFailedLoginTime: null,
+        isLockedOut: false,
+        lockoutEndTime: null,
+        blockedIPs: []
+      };
+    }
+  }
+
+  // Atualizar dados de segurança do usuário
+  private async updateUserSecurityData(userId: string, data: Partial<UserSecurityData>): Promise<void> {
+    try {
+      await setDoc(doc(db, 'user_security_data', userId), data, { merge: true });
+    } catch (error) {
+      console.error('Erro ao atualizar dados de segurança do usuário:', error);
+    }
+  }
+
+  // Bloquear um IP
+  async blockIP(ipAddress: string, reason: string): Promise<void> {
+    try {
+      const policyRef = doc(db, 'security_policies', 'default');
+      await updateDoc(policyRef, {
+        blockedIPs: arrayUnion(ipAddress)
+      });
+      await this.logSecurityEvent({
+        userId: 'system',
+        type: 'security_violation',
+        severity: 'high',
+        description: `IP bloqueado: ${ipAddress} - ${reason}`,
+        ipAddress: ipAddress,
+        userAgent: navigator.userAgent
+      });
+    } catch (error) {
+      console.error('Erro ao bloquear IP:', error);
+    }
+  }
+
   // Verificar tentativas de login suspeitas
   async checkSuspiciousLogin(userId: string, ipAddress: string): Promise<{
     allowed: boolean;
@@ -91,44 +158,81 @@ class SecurityService {
   }> {
     try {
       const policy = await this.getSecurityPolicy();
-      
-      // Verificar IP bloqueado
+      const userSecurityData = await this.getUserSecurityData(userId);
+
+      // Verificar IP bloqueado globalmente
       if (policy.blockedIPs.includes(ipAddress)) {
         await this.logSecurityEvent({
           userId,
           type: 'login_attempt',
           severity: 'high',
-          description: 'Tentativa de login de IP bloqueado',
+          description: 'Tentativa de login de IP globalmente bloqueado',
           ipAddress,
           userAgent: navigator.userAgent
         });
-        
         return { allowed: false, reason: 'IP bloqueado' };
       }
 
+      // Verificar se o IP está bloqueado para este usuário específico
+      if (userSecurityData.blockedIPs.includes(ipAddress)) {
+        await this.logSecurityEvent({
+          userId,
+          type: 'login_attempt',
+          severity: 'high',
+          description: 'Tentativa de login de IP bloqueado para este usuário',
+          ipAddress,
+          userAgent: navigator.userAgent
+        });
+        return { allowed: false, reason: 'IP bloqueado' };
+      }
+
+      // Verificar se o usuário está bloqueado
+      if (userSecurityData.isLockedOut && userSecurityData.lockoutEndTime && userSecurityData.lockoutEndTime.toDate() > new Date()) {
+        await this.logSecurityEvent({
+          userId,
+          type: 'login_attempt',
+          severity: 'high',
+          description: 'Tentativa de login de conta bloqueada',
+          ipAddress,
+          userAgent: navigator.userAgent
+        });
+        return { allowed: false, reason: `Conta bloqueada. Tente novamente em ${userSecurityData.lockoutEndTime.toDate().toLocaleTimeString()}` };
+      }
+
       // Verificar tentativas recentes
-      const recentAttempts = await this.getRecentLoginAttempts(userId, ipAddress);
-      
+      const recentAttempts = userSecurityData.failedLoginAttempts;
+      const lastFailedLoginTime = userSecurityData.lastFailedLoginTime?.toDate();
+      const lockoutDuration = policy.lockoutDurationMs;
+
       if (recentAttempts >= policy.maxLoginAttempts) {
+        // Bloquear IP automaticamente após muitas tentativas
+        await this.blockIP(ipAddress, 'Muitas tentativas de login falharam');
+        await this.updateUserSecurityData(userId, {
+          isLockedOut: true,
+          lockoutEndTime: new Date(Date.now() + lockoutDuration),
+          failedLoginAttempts: recentAttempts + 1,
+          lastFailedLoginTime: serverTimestamp()
+        });
+
         await this.logSecurityEvent({
           userId,
           type: 'suspicious_activity',
           severity: 'high',
-          description: 'Muitas tentativas de login falharam',
+          description: 'Muitas tentativas de login falharam. Usuário bloqueado.',
           ipAddress,
           userAgent: navigator.userAgent,
-          metadata: { attempts: recentAttempts }
+          metadata: { attempts: recentAttempts + 1 }
         });
-        
-        return { 
-          allowed: false, 
-          reason: 'Muitas tentativas falharam. Tente novamente em 30 minutos.' 
+
+        return {
+          allowed: false,
+          reason: 'Muitas tentativas falharam. Sua conta foi temporariamente bloqueada.'
         };
       }
 
-      return { 
-        allowed: true, 
-        remainingAttempts: policy.maxLoginAttempts - recentAttempts 
+      return {
+        allowed: true,
+        remainingAttempts: policy.maxLoginAttempts - recentAttempts
       };
     } catch (error) {
       console.error('Erro ao verificar login suspeito:', error);
@@ -203,26 +307,26 @@ class SecurityService {
       // Implementar criptografia AES-256
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(data);
-      
+
       const key = await crypto.subtle.generateKey(
         { name: 'AES-GCM', length: 256 },
         false,
         ['encrypt']
       );
-      
+
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      
+
       const encrypted = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
         dataBuffer
       );
-      
+
       // Combinar IV e dados criptografados
       const combined = new Uint8Array(iv.length + encrypted.byteLength);
       combined.set(iv, 0);
       combined.set(new Uint8Array(encrypted), iv.length);
-      
+
       return btoa(String.fromCharCode(...Array.from(combined)));
     } catch (error) {
       console.error('Erro ao criptografar dados:', error);
@@ -235,11 +339,11 @@ class SecurityService {
     try {
       const encoder = new TextEncoder();
       const data = encoder.encode(originalData);
-      
+
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      
+
       return hashHex === hash;
     } catch (error) {
       console.error('Erro ao verificar integridade:', error);
@@ -258,7 +362,7 @@ class SecurityService {
       // Verificar múltiplos IPs em pouco tempo
       const recentEvents = await this.getRecentSecurityEvents(userId);
       const uniqueIPs = new Set(recentEvents.map(e => e.ipAddress));
-      
+
       if (uniqueIPs.size > 3) {
         await this.logSecurityEvent({
           userId,
@@ -326,48 +430,53 @@ class SecurityService {
     try {
       const policyDoc = await getDoc(doc(db, 'security_policies', 'default'));
       if (policyDoc.exists()) {
+        // Merge com os padrões para garantir que todos os campos estejam presentes
         return { ...this.defaultPolicy, ...policyDoc.data() };
       }
       return this.defaultPolicy;
-    } catch {
+    } catch (error) {
+      console.error('Erro ao obter política de segurança:', error);
       return this.defaultPolicy;
     }
   }
 
+  // Obter tentativas de login recentes para um usuário específico
   private async getRecentLoginAttempts(userId: string, ipAddress: string): Promise<number> {
     try {
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-      
+      const policy = await this.getSecurityPolicy();
+      const lockoutDuration = policy.lockoutDurationMs;
+      const lockoutStartTime = new Date(Date.now() - lockoutDuration);
+
       const q = query(
         collection(db, 'security_events'),
         where('userId', '==', userId),
         where('type', '==', 'login_attempt'),
         where('ipAddress', '==', ipAddress),
+        where('timestamp', '>=', lockoutStartTime),
         orderBy('timestamp', 'desc'),
-        limit(10)
+        limit(policy.maxLoginAttempts + 1) // Pega um a mais para verificar o limite
       );
-      
+
       const snapshot = await getDocs(q);
-      return snapshot.docs.filter(doc => {
-        const timestamp = doc.data().timestamp?.toDate();
-        return timestamp && timestamp > thirtyMinutesAgo;
-      }).length;
-    } catch {
+      return snapshot.docs.length;
+    } catch (error) {
+      console.error('Erro ao obter tentativas de login recentes:', error);
       return 0;
     }
   }
 
+  // Obter eventos de segurança recentes para um usuário
   private async getRecentSecurityEvents(userId: string): Promise<SecurityEvent[]> {
     try {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      
+
       const q = query(
         collection(db, 'security_events'),
         where('userId', '==', userId),
         orderBy('timestamp', 'desc'),
         limit(20)
       );
-      
+
       const snapshot = await getDocs(q);
       return snapshot.docs
         .map(doc => doc.data() as SecurityEvent)
@@ -375,16 +484,18 @@ class SecurityService {
           const timestamp = event.timestamp?.toDate();
           return timestamp && timestamp > oneHourAgo;
         });
-    } catch {
+    } catch (error) {
+      console.error('Erro ao obter eventos de segurança recentes:', error);
       return [];
     }
   }
 
+  // Enviar alerta de segurança
   private async sendSecurityAlert(event: Omit<SecurityEvent, 'id' | 'timestamp'>): Promise<void> {
     try {
       // Implementar notificação para administradores
       console.warn('ALERTA DE SEGURANÇA CRÍTICO:', event);
-      
+
       // Em produção, integrar com sistema de notificações
       // await emailService.sendSecurityAlert(event);
       // await slackService.sendAlert(event);
@@ -401,15 +512,15 @@ export function useSecurity() {
   const checkSecurity = async (userId: string, ipAddress: string) => {
     return await securityService.checkSuspiciousLogin(userId, ipAddress);
   };
-  
+
   const validatePassword = (password: string) => {
     return securityService.validatePassword(password);
   };
-  
+
   const logEvent = async (event: Omit<SecurityEvent, 'id' | 'timestamp'>) => {
     await securityService.logSecurityEvent(event);
   };
-  
+
   return {
     checkSecurity,
     validatePassword,
