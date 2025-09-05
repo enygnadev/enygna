@@ -8,7 +8,19 @@ service cloud.firestore {
       return request.auth != null && request.auth.token != null && (
         (request.auth.token.bootstrapAdmin == true) ||
         (request.auth.token.role == 'superadmin') ||
-        (request.auth.token.role == 'adminmaster')
+        (request.auth.token.role == 'adminmaster') ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.bootstrapAdmin == true
+        ) ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin'
+        ) ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'adminmaster'
+        )
       );
     }
     
@@ -102,11 +114,14 @@ service cloud.firestore {
       // leitura por admin (exceto superadmin de terceiros)
       allow read: if isAdmin() && resource.data.role != 'superadmin';
       
-      // permitir leitura básica para verificação de perfil durante auth
+      // permitir leitura para o próprio usuário sempre
       allow read: if isAuthenticated() && userId == request.auth.uid;
       
-      // permitir acesso inicial para super admins
-      allow read: if isSuperAdmin();
+      // acesso especial para contas de desenvolvimento
+      allow read, write: if isAuthenticated() && (
+        request.auth.token.email == 'enygnadev@gmail.com' ||
+        request.auth.token.email == 'enygna@enygna.com'
+      );
     }
 
     // ===== EMPRESAS - CRIAÇÃO SEGURA E DONO EXPLÍCITO =====

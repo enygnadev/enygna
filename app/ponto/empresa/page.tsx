@@ -31,7 +31,8 @@ import {
   Timestamp,
   serverTimestamp,
   writeBatch,
-  where // Added import for 'where'
+  where, // Added import for 'where'
+  FieldValue // Import FieldValue
 } from "firebase/firestore";
 import {
   format,
@@ -47,6 +48,7 @@ import ScheduleImporter from "@/components/ScheduleImporter";
 import PayrollExporter from "@/components/PayrollExporter";
 import ElectronicSignature from "@/components/ElectronicSignature";
 import Tutorial from "@/components/Tutorial"; // Import Tutorial component
+import { isSuperAdmin, hasAdminAccess, canAccessSystem, getUserEmpresaId } from '@/src/lib/securityHelpers'; // Import security helpers
 
 /** =============================================================
  * ÍCONES INLINE (sem libs externas)
@@ -242,24 +244,22 @@ interface UserData {
   displayName: string;
   role: 'colaborador' | 'admin' | 'gestor' | 'superadmin' | 'adminmaster';
   tipo: 'empresa' | 'colaborador';
-  empresaId: string;
-  sistemasAtivos: string[];
+  empresaId?: string;
+  sistemasAtivos: any;
   permissions: {
-    canAccessSystems: string[];
+    canAccessSystems: any;
     admin: boolean;
   };
   claims?: {
+    bootstrapAdmin?: boolean;
     role?: string;
     empresaId?: string;
-    bootstrapAdmin?: boolean;
-    permissions?: {
-      canAccessSystems?: string[];
-      admin?: boolean;
-      bootstrapAdmin?: boolean;
-    };
+    permissions?: any;
   };
   createdAt: any;
   lastLogin: any;
+  effectiveHourlyRate?: number | null;
+  monthlySalary?: number | null;
 }
 
 type S = {
@@ -325,7 +325,7 @@ function EmpresaDashboard() {
     monthlySalary?: number;
     dailyRate?: number;
     workingDaysPerMonth?: number;
-    paymentType?: "hourly" | "monthly" | "daily";
+    paymentType?: "hourly" | "daily" | "monthly";
     role?: UserData["role"];
   }>({
     email: "",
@@ -504,27 +504,28 @@ function EmpresaDashboard() {
           let userHasAccess = false;
           if (userData) {
             // Admins (superadmin, adminmaster, bootstrapAdmin) sempre têm acesso
-            if (userData.role === 'superadmin' || userData.role === 'adminmaster' || userData.claims?.bootstrapAdmin) {
+            if (isSuperAdmin(userData) || userData.role === 'adminmaster' || userData.claims?.bootstrapAdmin) {
               userHasAccess = true;
             }
             // Verificar permissões específicas do sistema de ponto
-            if (!userHasAccess && userData.claims?.permissions?.canAccessSystems?.includes('ponto')) {
+            if (!userHasAccess && canAccessSystem(userData, 'ponto')) {
               userHasAccess = true;
             }
             // Para colaboradores, o acesso é implícito se o sistema está ativo na empresa
-            if (userData.role === 'colaborador' && userData.empresaId) {
+            const userEmpresaId = getUserEmpresaId(userData); // Usa o helper para obter o ID da empresa
+            if (userData.role === 'colaborador' && userEmpresaId) {
               try {
-                const empresaDoc = await getDoc(doc(db, "empresas", userData.empresaId));
+                const empresaDoc = await getDoc(doc(db, "empresas", userEmpresaId));
                 if (empresaDoc.exists()) {
                   const empresaData = empresaDoc.data() as any;
                   if ((empresaData.sistemasAtivos || []).includes('ponto')) {
                     userHasAccess = true;
                   } else {
-                    console.log(`Sistema de ponto não ativo para a empresa: ${userData.empresaId}`);
+                    console.log(`Sistema de ponto não ativo para a empresa: ${userEmpresaId}`);
                   }
                 }
               } catch (empresaError) {
-                console.error(`Erro ao verificar sistema ativo para empresa ${userData.empresaId}:`, empresaError);
+                console.error(`Erro ao verificar sistema ativo para empresa ${userEmpresaId}:`, empresaError);
               }
             }
           }
@@ -2423,7 +2424,7 @@ function EmpresaDashboard() {
       )}
 
       {/* TABELA DE COLABORADORES */}
-      {activeTab === "users" && ["superadmin", "admin", "gestor"].includes(meRole || "") && (
+      {activeTab === "users" && hasAdminAccess(meRole) && (
         <div className="card" style={{ marginTop: 14, padding: 16 }}>
           <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
             <button
@@ -2785,7 +2786,7 @@ function EmpresaDashboard() {
       )}
 
       {/* FAB (adicionar colaborador) - Responsivo */}
-      {activeTab === "users" && ["superadmin", "admin", "gestor"].includes(meRole || "") && (
+      {activeTab === "users" && hasAdminAccess(meRole) && (
         <div style={{
           position: "fixed",
           right: "clamp(16px, 4vw, 22px)",

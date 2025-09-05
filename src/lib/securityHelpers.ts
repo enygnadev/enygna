@@ -106,3 +106,63 @@ export async function getUserProfile(user: User): Promise<SessionProfile> {
     };
   }
 }
+export interface AuthClaims {
+  bootstrapAdmin?: boolean;
+  role?: 'superadmin' | 'admin' | 'gestor' | 'colaborador' | 'adminmaster';
+  empresaId?: string;
+  company?: string;
+  permissions?: any;
+  sistemasAtivos?: string[];
+  canAccessSystems?: string[];
+  isEmpresa?: boolean;
+  tipo?: string;
+  email_verified?: boolean;
+}
+
+export interface SecureUser {
+  uid: string;
+  email?: string;
+  role?: string;
+  empresaId?: string;
+  claims: AuthClaims;
+}
+
+export function isSuperAdmin(user: any): boolean {
+  if (!user) return false;
+  
+  // Verificar claims do token
+  if (user.claims?.bootstrapAdmin === true) return true;
+  if (user.claims?.role === 'superadmin') return true;
+  if (user.claims?.role === 'adminmaster') return true;
+  
+  // Verificar dados do documento
+  if (user.bootstrapAdmin === true) return true;
+  if (user.role === 'superadmin') return true;
+  if (user.role === 'adminmaster') return true;
+  
+  // Verificar emails específicos de desenvolvimento
+  if (user.email === 'enygnadev@gmail.com') return true;
+  if (user.email === 'enygna@enygna.com') return true;
+  
+  return false;
+}
+
+export function hasAdminAccess(user: any): boolean {
+  if (isSuperAdmin(user)) return true;
+  
+  const role = user.role || user.claims?.role;
+  return ['admin', 'gestor'].includes(role);
+}
+
+export function canAccessSystem(user: any, system: string): boolean {
+  if (isSuperAdmin(user) || hasAdminAccess(user)) return true;
+  
+  const sistemasAtivos = user.sistemasAtivos || user.claims?.sistemasAtivos || [];
+  const canAccessSystems = user.canAccessSystems || user.claims?.canAccessSystems || [];
+  
+  return sistemasAtivos.includes(system) || canAccessSystems.includes(system);
+}
+
+export function getUserEmpresaId(user: any): string | null {
+  return user.empresaId || user.claims?.empresaId || user.claims?.company || null;
+}
