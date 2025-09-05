@@ -710,7 +710,6 @@ export default function AdminMasterPage() {
   const [createEmpresaPlano, setCreateEmpresaPlano] = useState('free');
   const [createEmpresaSistemas, setCreateEmpresaSistemas] = useState<string[]>([]);
   const [createAdminName, setCreateAdminName] = useState('');
-  const [createAdminPassword, setCreateAdminPassword] = useState('');
   const [createEmpresaLoading, setCreateEmpresaLoading] = useState(false);
   const [createEmpresaStatus, setCreateEmpresaStatus] = useState<{ success: boolean, message: string } | null>(null);
 
@@ -5492,7 +5491,7 @@ export default function AdminMasterPage() {
             </h3>
 
             {/* Placeholder para o componente PlanControlPanel */}
-            <PlanControlPanel />
+            <PlanControlPanel userId={user?.uid || ''} isAdmin={true} />
 
             <div style={{
               marginTop: '2rem',

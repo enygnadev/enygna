@@ -96,7 +96,7 @@ function ChamadosPage() {
     );
 
     // Aplicar filtros se disponível empresaId
-    const empresaId = userProfile?.empresaId || userProfile?.company;
+    const empresaId = userProfile?.empresaId;
     if (empresaId) {
       q = query(
         collection(db, 'tickets'),
@@ -563,7 +563,7 @@ function ChamadosPage() {
               try {
                 const ticketData = {
                   ...ticket,
-                  empresaId: userProfile?.empresaId || userProfile?.company,
+                  empresaId: userProfile?.empresaId,
                   createdBy: user?.uid,
                   createdAt: Date.now(),
                   updatedAt: Date.now(),
