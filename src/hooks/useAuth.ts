@@ -300,6 +300,22 @@ export const useAuthData = (): AuthContextType => {
     return profile.claims.permissions[system] === true;
   };
 
+  const hasEmpresaAccess = (empresaId: string): boolean => {
+    if (!profile) return false;
+    
+    // Superadmin tem acesso a tudo
+    if (profile.role === 'superadmin' || profile.role === 'adminmaster') return true;
+    
+    // Verificar se a empresa do usuário corresponde
+    const userEmpresaId = profile.empresaId || profile.claims?.empresaId || profile.claims?.company;
+    return userEmpresaId === empresaId;
+  };
+
+  const getEmpresaId = (): string | null => {
+    if (!profile) return null;
+    return profile.empresaId || profile.claims?.empresaId || profile.claims?.company || null;
+  };
+
   const isRole = (role: string | string[]): boolean => {
     if (!profile) return false;
     const roles = Array.isArray(role) ? role : [role];
@@ -338,5 +354,7 @@ export const useAuthData = (): AuthContextType => {
     isRole,
     signOut,
     refreshUserData,
+    hasEmpresaAccess,
+    getEmpresaId,
   };
 };

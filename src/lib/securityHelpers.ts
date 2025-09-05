@@ -143,6 +143,50 @@ export function canAccessSystem(claims: AuthClaims | null, system: string): bool
           claims?.permissions?.[system] === true) === true;
 }
 
+export function validateEmpresaAccess(userClaims: AuthClaims | null, empresaId: string): boolean {
+  if (!userClaims || !empresaId) return false;
+  
+  // Superadmin tem acesso a tudo
+  if (isSuperAdmin(userClaims)) return true;
+  
+  // Verificar se a empresa do usuário corresponde à empresa solicitada
+  const userEmpresaId = userClaims.empresaId || userClaims.company;
+  return userEmpresaId === empresaId;
+}
+
+export function createSecureQuery(baseQuery: any, userClaims: AuthClaims | null, empresaId?: string) {
+  if (!userClaims) {
+    throw new Error('Usuário não autenticado');
+  }
+  
+  // Superadmin pode acessar qualquer empresa
+  if (isSuperAdmin(userClaims)) {
+    return empresaId ? baseQuery.where('empresaId', '==', empresaId) : baseQuery;
+  }
+  
+  // Usuários regulares só podem acessar dados da própria empresa
+  const userEmpresaId = userClaims.empresaId || userClaims.company;
+  if (!userEmpresaId) {
+    throw new Error('Empresa não identificada para o usuário');
+  }
+  
+  return baseQuery.where('empresaId', '==', userEmpresaId);
+}
+
+export function sanitizeDataForEmpresa(data: any, userClaims: AuthClaims | null, empresaId: string): any {
+  if (!validateEmpresaAccess(userClaims, empresaId)) {
+    throw new Error('Acesso negado: dados de outra empresa');
+  }
+  
+  // Adicionar empresaId aos dados se não existir
+  return {
+    ...data,
+    empresaId: empresaId,
+    updatedAt: new Date(),
+    updatedBy: userClaims?.sub || 'system'
+  };
+}
+
 export function getUserEmpresaId(claims: UserClaims | null): string | null {
   return claims?.empresaId || claims?.company || null;
 }

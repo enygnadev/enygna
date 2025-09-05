@@ -91,6 +91,17 @@ service cloud.firestore {
       );
     }
 
+    // Helper function to check if the user has any of the specified roles
+    function hasRole(roles) {
+      return request.auth != null && request.auth.token != null && roles.hasAny([request.auth.token.role]);
+    }
+
+    // Helper function to check if the user belongs to a company
+    function belongsToCompany(empresaId) {
+      return request.auth != null && request.auth.token != null && 
+             (request.auth.token.empresaId == empresaId || request.auth.token.company == empresaId);
+    }
+
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
       allow read, write: if isSuperAdmin(); 
@@ -397,5 +408,82 @@ service cloud.firestore {
 
     // Regras específicas para subcoleções - sem wildcards permissivos
     // Todas as subcoleções devem ter regras explícitas definidas acima
+    
+    // Permitir leitura e escrita para usuários autenticados em sua própria empresa
+    match /users/{userId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == userId ||
+         hasRole(['admin', 'superadmin', 'adminmaster']) ||
+         belongsToCompany(resource.data.empresaId));
+    }
+
+    // Regras específicas para isolamento de dados da empresa
+    match /empresas/{empresaId} {
+      allow read: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.auth.token.empresaId == empresaId);
+
+      allow write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         (request.auth.token.empresaId == empresaId && hasRole(['admin', 'gestor'])));
+    }
+
+    // Logs de auditoria da empresa - apenas leitura para admins da empresa
+    match /empresa_audit_logs/{logId} {
+      allow read: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         (resource.data.empresaId == request.auth.token.empresaId && hasRole(['admin', 'gestor'])));
+
+      allow create: if request.auth != null && 
+        request.resource.data.empresaId == request.auth.token.empresaId;
+    }
+
+    // Dados de ponto isolados por empresa
+    match /ponto-registros/{registroId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
+
+    // Dados de chamados isolados por empresa
+    match /chamados/{chamadoId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
+
+    // Dados de CRM isolados por empresa
+    match /crm-clientes/{clienteId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
+
+    // Dados de frota isolados por empresa
+    match /frota-veiculos/{veiculoId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
+
+    // Dados financeiros isolados por empresa
+    match /financeiro-documentos/{documentoId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
+
+    // Documentos isolados por empresa
+    match /documentos/{documentoId} {
+      allow read, write: if request.auth != null && 
+        (hasRole(['superadmin', 'adminmaster']) ||
+         request.resource.data.empresaId == request.auth.token.empresaId ||
+         resource.data.empresaId == request.auth.token.empresaId);
+    }
   }
 }
