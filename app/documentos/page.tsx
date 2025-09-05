@@ -96,6 +96,8 @@ export default function DocumentosPage() {
   const [activeTab, setActiveTab] = useState<'generator' | 'chat' | 'ocr' | 'templates' | 'history' | 'empresas'>('generator');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<'checking' | 'ready' | 'building'>('checking');
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [generatedContent, setGeneratedContent] = useState<string>('');
@@ -166,7 +168,8 @@ export default function DocumentosPage() {
               const hasDocumentosAccess = userDataFromDB.sistemasAtivos?.includes('documentos') ||
                                         userDataFromDB.permissions?.canAccessSystems?.includes('documentos') ||
                                         userDataFromDB.role === 'superadmin' ||
-                                        userDataFromDB.role === 'adminmaster';
+                                        userData.role === 'adminmaster';
+
 
               if (!hasDocumentosAccess) {
                 console.error('❌ Usuário sem acesso ao sistema de documentos');
@@ -201,37 +204,67 @@ export default function DocumentosPage() {
 
                 // Carregar templates com fallback para templates locais
                 try {
-                  let templatesQuery;
+                  console.log('🔧 Carregando templates...');
 
-                  // Se tem empresaId, buscar templates da empresa
-                  if (userDataFromDB.empresaId) {
-                    templatesQuery = firestoreModule.query(
-                      firestoreModule.collection(firebase.db, 'document_templates'),
-                      firestoreModule.where('empresaId', '==', userDataFromDB.empresaId),
-                      firestoreModule.orderBy('name', 'asc')
+                  // Tentar query com índice primeiro
+                  let templatesData: any[] = [];
+                  let useLocalTemplates = false;
+
+                  try {
+                    const templatesQuery = query(
+                      collection(firestoreModule.db, 'document_templates'),
+                      where('empresaId', '==', userDataFromDB.empresaId),
+                      orderBy('name')
                     );
-                  } else {
-                    // Templates globais
-                    templatesQuery = firestoreModule.query(
-                      firestoreModule.collection(firebase.db, 'document_templates'),
-                      firestoreModule.orderBy('name', 'asc')
-                    );
+
+                    console.log('📋 Query de templates criada');
+
+                    if (!getDocs || !query || !where || !orderBy || !collection) {
+                      console.error('Módulos do Firestore não carregados');
+                      useLocalTemplates = true;
+                    } else {
+                      const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
+                      templatesData = templatesSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                      }));
+                    }
+                  } catch (indexError: any) {
+                    console.warn('Índice ainda sendo criado, usando query alternativa:', indexError.message);
+
+                    // Fallback: carregar todos os templates e filtrar no cliente
+                    try {
+                      const allTemplatesQuery = query(
+                        collection(firestoreModule.db, 'document_templates')
+                      );
+
+                      const allTemplatesSnapshot = await firestoreModule.getDocs(allTemplatesQuery);
+                      const allTemplates = allTemplatesSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                      }));
+
+                      // Filtrar e ordenar no cliente
+                      templatesData = allTemplates
+                        .filter((template: any) => template.empresaId === userDataFromDB.empresaId)
+                        .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+
+                      console.log('✅ Templates carregados com query alternativa');
+                    } catch (fallbackError) {
+                      console.error('Erro mesmo com query alternativa:', fallbackError);
+                      useLocalTemplates = true;
+                    }
                   }
 
-                  const templatesSnapshot = await firestoreModule.getDocs(templatesQuery);
-                  const templatesData = templatesSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                  }));
-
-                  // Se não há templates no Firestore, usar templates locais
-                  if (templatesData.length === 0) {
+                  // Se não há templates no Firestore ou erro, usar templates locais
+                  if (useLocalTemplates || templatesData.length === 0) {
+                    console.log('📝 Usando templates locais como fallback');
                     setTemplates(getLocalTemplates());
                   } else {
                     setTemplates(templatesData as DocumentTemplate[]);
                   }
                 } catch (error) {
-                  console.error('Erro ao carregar templates:', error);
+                  console.error('Erro geral ao carregar templates:', error);
                   setTemplates(getLocalTemplates());
                 }
 
