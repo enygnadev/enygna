@@ -11,11 +11,24 @@ import { ptBR } from 'date-fns/locale';
 import SystemStatus from '@/src/components/SystemStatus';
 import { useChamadosSessionProfile, canCreateTickets, canManageTickets } from '@/src/lib/chamadosAuth';
 import { auth } from '@/src/lib/firebase';
-import { useAuth } from '@/src/hooks/useAuth';
+import { useAuth, AuthContext, useAuthData } from '@/src/hooks/useAuth';
 import TicketForm from '@/src/components/TicketForm';
 import EmpresaManager from '@/src/components/EmpresaManager';
 
-export default function ChamadosPage() {
+// Force dynamic rendering to prevent SSR issues
+export const dynamic = 'force-dynamic';
+
+// AuthProvider wrapper component
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authData = useAuthData();
+  return (
+    <AuthContext.Provider value={authData}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function ChamadosPage() {
   const router = useRouter();
   const { loading: authLoading, profile } = useChamadosSessionProfile();
   const { user, userData, loading: generalAuthLoading, hasAccess } = useAuth();
@@ -567,5 +580,13 @@ export default function ChamadosPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function ChamadosPageWrapper() {
+  return (
+    <AuthProvider>
+      <ChamadosPage />
+    </AuthProvider>
   );
 }
