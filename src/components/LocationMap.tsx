@@ -411,6 +411,20 @@ export default function LocationMap({
     setLeafletMap(null);
   }, []);
 
+  // Cleanup effect para prevenir vazamentos de memória
+  React.useEffect(() => {
+    return () => {
+      if (leafletMap) {
+        try {
+          leafletMap.remove();
+        } catch (error) {
+          // Ignora erros de cleanup
+          console.warn('Erro ao limpar mapa:', error);
+        }
+      }
+    };
+  }, [leafletMap]);
+
   // UI de ajuda para permissão negada/pendente
   const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
 
@@ -556,17 +570,3 @@ export default function LocationMap({
     </div>
   );
 }
-
-// Cleanup effect para prevenir vazamentos de memória
-React.useEffect(() => {
-  return () => {
-    if (leafletMap) {
-      try {
-        leafletMap.remove();
-      } catch (error) {
-        // Ignora erros de cleanup
-        console.warn('Erro ao limpar mapa:', error);
-      }
-    }
-  };
-}, [leafletMap]);
