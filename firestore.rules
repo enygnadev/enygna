@@ -96,7 +96,9 @@ service cloud.firestore {
       // criar apenas o próprio perfil
       allow create: if isAuthenticated() && 
         request.auth.uid == userId && 
-        hasRequiredFields(['email']);
+        hasRequiredFields(['email']) &&
+        request.auth.token.email_verified == true &&
+        request.resource.data.email == request.auth.token.email;
       
       // leitura por admin (exceto superadmin de terceiros)
       allow read: if isAdmin() && resource.data.role != 'superadmin';
@@ -123,7 +125,9 @@ service cloud.firestore {
         (empresaId == request.auth.uid &&
          request.resource.data.email == request.auth.token.email &&
          request.auth.token.email_verified == true &&
-         hasRequiredFields(['nome','email']))
+         hasRequiredFields(['nome','email']) &&
+         request.resource.data.nome.size() > 0 &&
+         request.resource.data.nome.size() <= 100)
         // ou criação por admin/gestor
         || isAdmin()
       );

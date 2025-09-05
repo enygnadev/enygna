@@ -358,6 +358,23 @@ function EmpresaDashboard() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserName, setNewUserName] = useState("");
+
+  // Input sanitization functions
+  const sanitizeInput = (input: string): string => {
+    return input.trim().replace(/[<>\"'&]/g, '');
+  };
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 254;
+  };
+
+  const validatePassword = (password: string): boolean => {
+    return password.length >= 8 && 
+           /[A-Z]/.test(password) && 
+           /[a-z]/.test(password) && 
+           /[0-9]/.test(password);
+  };
   const [newUserWorkDays, setNewUserWorkDays] = useState(22);
   const [newUserSalaryType, setNewUserSalaryType] = useState<'hourly' | 'daily' | 'monthly'>('monthly');
   const [newUserHourlyRate, setNewUserHourlyRate] = useState('');
@@ -730,16 +747,26 @@ function EmpresaDashboard() {
       alert("Erro: ID da empresa não definido.");
       return;
     }
-    if (!newUserEmail.trim()) {
-      alert("Email é obrigatório");
+
+    // Sanitize and validate inputs
+    const sanitizedEmail = sanitizeInput(newUserEmail);
+    const sanitizedName = sanitizeInput(newUserName);
+    const sanitizedPassword = newUserPassword;
+
+    if (!sanitizedEmail || !validateEmail(sanitizedEmail)) {
+      alert("Email inválido");
       return;
     }
-    if (!newUserPassword.trim() || newUserPassword.length < 6) {
-      alert("Senha é obrigatória e deve ter no mínimo 6 caracteres");
+    if (!sanitizedPassword || !validatePassword(sanitizedPassword)) {
+      alert("Senha deve ter no mínimo 8 caracteres, incluindo maiúscula, minúscula e número");
       return;
     }
-    if (!newUserName.trim()) {
-      alert("Nome é obrigatório");
+    if (!sanitizedName || sanitizedName.length < 2) {
+      alert("Nome deve ter pelo menos 2 caracteres");
+      return;
+    }
+    if (sanitizedName.length > 100) {
+      alert("Nome não pode exceder 100 caracteres");
       return;
     }
 

@@ -10,6 +10,24 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
+// Rate limiting
+const RATE_LIMIT_KEY = 'admin_creation_attempts';
+const MAX_ATTEMPTS = 3;
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+function isRateLimited(): boolean {
+  const attempts = JSON.parse(localStorage.getItem(RATE_LIMIT_KEY) || '[]');
+  const now = Date.now();
+  const recentAttempts = attempts.filter((time: number) => now - time < RATE_LIMIT_WINDOW);
+  return recentAttempts.length >= MAX_ATTEMPTS;
+}
+
+function recordAttempt(): void {
+  const attempts = JSON.parse(localStorage.getItem(RATE_LIMIT_KEY) || '[]');
+  attempts.push(Date.now());
+  localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(attempts.slice(-MAX_ATTEMPTS)));
+}
+
 const ADMIN_EMAIL = "enygna@enygna.com";
 const ADMIN_PASSWORD = "enygna123";
 const ADMIN_DISPLAY_NAME = "ENYGNA Admin";
@@ -59,6 +77,21 @@ export default function CreateAdminOpenPage() {
       return;
     }
 
+    // Security checks
+    if (isRateLimited()) {
+      setStatus("❌ Muitas tentativas. Tente novamente em 15 minutos.");
+      return;
+    }
+
+    // Validate environment
+    if (window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1' && 
+        !window.location.hostname.includes('replit')) {
+      setStatus("❌ Esta funcionalidade só está disponível em ambiente de desenvolvimento.");
+      return;
+    }
+
+    recordAttempt();
     setLoading(true);
     setStatus("Criando/garantindo admin padrão…");
 
