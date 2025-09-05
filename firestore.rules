@@ -71,6 +71,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.token != null && (
         request.auth.token.empresaId == empresaId || 
         request.auth.token.company == empresaId ||
+        isEmpresaUser() ||
         // Verificar se o email do usuário corresponde ao email da empresa
         (resource != null && resource.data != null && resource.data.empresaId == empresaId) ||
         // Para novos documentos, verificar se o empresaId está sendo definido corretamente
@@ -80,6 +81,16 @@ service cloud.firestore {
 
     function hasRole(roles) {
       return request.auth != null && request.auth.token != null && roles.hasAny([request.auth.token.role]);
+    }
+
+    function isEmpresaUser() {
+      return request.auth != null && request.auth.token != null && (
+        request.auth.token.role == 'empresa' ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'empresa'
+        )
+      );
     }
 
 
@@ -100,18 +111,18 @@ service cloud.firestore {
     // ===== COLEÇÃO DE USUÁRIOS =====
     match /users/{userId} {
       allow read: if isAuthenticated() && (
-        isSuperAdmin() || isAdmin() || 
+        isSuperAdmin() || isAdmin() || isEmpresaUser() ||
         request.auth.uid == userId ||
         sameCompany(resource.data.empresaId)
       );
 
       allow update: if isAuthenticated() && (
-        isSuperAdmin() || isAdmin() || 
+        isSuperAdmin() || isAdmin() || isEmpresaUser() ||
         request.auth.uid == userId
       );
 
       allow create: if isAuthenticated() && (
-        isSuperAdmin() || isAdmin() ||
+        isSuperAdmin() || isAdmin() || isEmpresaUser() ||
         // Empresa pode criar usuários para sua empresa
         (request.resource.data.empresaId != null && sameCompany(request.resource.data.empresaId))
       );
@@ -200,14 +211,14 @@ service cloud.firestore {
 
     match /documentos_empresas/{empresaId} {
       allow read, write: if isSuperAdmin();
-      allow read: if isAuthenticated() && sameCompany(empresaId);
+      allow read: if isAuthenticated() && (sameCompany(empresaId) || isEmpresaUser());
       allow write, create: if isAuthenticated() && 
-        sameCompany(empresaId) &&
-        request.resource.data.empresaId == empresaId;
+        (sameCompany(empresaId) || isEmpresaUser()) &&
+        (request.resource.data.empresaId == empresaId || request.resource.data.empresaId == request.auth.token.empresaId);
 
       match /{subcollection}/{document} {
         allow read, write, create: if isSuperAdmin();
-        allow read, write, create: if isAuthenticated() && sameCompany(empresaId);
+        allow read, write, create: if isAuthenticated() && (sameCompany(empresaId) || isEmpresaUser());
       }
     }
 
@@ -416,53 +427,59 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
 
-    // Dados de sistemas isolados por empresa - mais permissivos
+    // Dados de sistemas isolados por empresa - permitir acesso empresa
     match /ponto-registros/{registroId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
 
     match /chamados/{chamadoId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
 
     match /crm-clientes/{clienteId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
 
     match /frota-veiculos/{veiculoId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
 
     match /financeiro-documentos/{documentoId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
 
     match /documentos/{documentoId} {
       allow read, write: if request.auth != null && 
-        (hasRole(['superadmin', 'adminmaster']) ||
+        (hasRole(['superadmin', 'adminmaster']) || isEmpresaUser() ||
          request.resource.data.empresaId == request.auth.token.empresaId ||
          resource.data.empresaId == request.auth.token.empresaId ||
-         isAuthenticated());
+         sameCompany(request.resource.data.empresaId) ||
+         sameCompany(resource.data.empresaId));
     }
   }
 }
