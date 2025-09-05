@@ -35,57 +35,95 @@ export default function SistemasPage() {
 
   // Função para verificar acesso aos sistemas
   const hasAccess = (sistema: string): boolean => {
-    if (!user || !userData) return false;
+    if (!user || !userData) {
+      console.log('❌ hasAccess: Usuário ou dados não disponíveis');
+      return false;
+    }
+
+    console.log(`🔍 Verificando acesso ao sistema: ${sistema}`);
+    console.log('📊 Dados para verificação:', {
+      sistemasAtivos: userData.sistemasAtivos,
+      claimsSistemas: userData.claims?.sistemasAtivos,
+      canAccessSystems: userData.claims?.permissions?.canAccessSystems,
+      role: userData.role,
+      empresaId: userData.empresaId
+    });
 
     // Admins sempre têm acesso
     if (isSuperAdmin(userData)) {
+      console.log('👑 Super admin detectado - acesso total');
       return true;
     }
 
     // Verificar sistemas ativos do usuário (priorizar dados do Firestore)
     if (userData.sistemasAtivos?.includes(sistema)) {
+      console.log(`✅ Sistema ${sistema} encontrado em sistemasAtivos`);
       return true;
     }
 
     // Verificar claims do token
     if (userData.claims?.sistemasAtivos?.includes(sistema)) {
+      console.log(`✅ Sistema ${sistema} encontrado em claims.sistemasAtivos`);
       return true;
     }
 
     // Verificar permissões específicas
     if (userData.claims?.permissions?.canAccessSystems?.includes(sistema)) {
+      console.log(`✅ Sistema ${sistema} encontrado em permissions.canAccessSystems`);
       return true;
     }
 
-    // NOVA VERIFICAÇÃO: Se o usuário tem empresaId, buscar sistemas da empresa
-    if (userData.empresaId || userData.claims?.empresaId) {
-      // Para esta verificação em tempo real, assumimos que se o usuário está 
-      // associado a uma empresa, ele tem acesso aos sistemas da empresa
-      // Esta é uma verificação de fallback que será confirmada pelo useSystemAccess
-      return true; // Permitir acesso temporário enquanto carrega os dados corretos
-    }
-
-    // Verificar se é admin com acesso geral
-    if (['admin', 'gestor'].includes(userData.role || '') && userData.empresaId) {
+    // Verificar se é admin/gestor com acesso geral
+    if (['admin', 'gestor', 'empresa'].includes(userData.role || '') && userData.empresaId) {
+      console.log(`👔 Role ${userData.role} com empresaId - assumindo acesso`);
       return true;
     }
 
+    // NOVA VERIFICAÇÃO: Mapear sistemas equivalentes
+    const sistemasMapeados: { [key: string]: string[] } = {
+      'vendas': ['crm', 'vendas'],
+      'crm': ['crm', 'vendas']
+    };
+
+    if (sistemasMapeados[sistema]) {
+      for (const sistemaEquivalente of sistemasMapeados[sistema]) {
+        if (userData.sistemasAtivos?.includes(sistemaEquivalente) ||
+            userData.claims?.sistemasAtivos?.includes(sistemaEquivalente) ||
+            userData.claims?.permissions?.canAccessSystems?.includes(sistemaEquivalente)) {
+          console.log(`✅ Sistema ${sistema} mapeado para ${sistemaEquivalente} - acesso liberado`);
+          return true;
+        }
+      }
+    }
+
+    console.log(`❌ Sem acesso ao sistema ${sistema}`);
     return false;
   };
 
   // Debug para verificar o que está acontecendo
   useEffect(() => {
     if (!loading && user) {
-      console.log('Debug sistemas completo:', {
-        userEmail: user.email,
-        userId: user.uid,
-        userData: userData,
-        sistemasAtivos: userData?.sistemasAtivos || [],
-        hasAccessPonto: hasAccess('ponto'),
-        hasAccessChamados: hasAccess('chamados'),
-        hasAccessCrm: hasAccess('crm'),
-        loading
+      console.log('🔍 === DEBUG SISTEMAS COMPLETO ===');
+      console.log('👤 User:', {
+        email: user.email,
+        uid: user.uid
       });
+      console.log('📊 UserData completo:', userData);
+      console.log('🎯 Sistemas configurados na empresa:', userData?.sistemasAtivos || []);
+      console.log('🔐 Claims do usuário:', userData?.claims);
+      
+      // Testar acesso a cada sistema
+      const sistemasParaTestar = ['ponto', 'chamados', 'frota', 'financeiro', 'documentos', 'crm'];
+      console.log('🧪 Testando acesso aos sistemas:');
+      sistemasParaTestar.forEach(sistema => {
+        const temAcesso = hasAccess(sistema);
+        console.log(`  ${sistema}: ${temAcesso ? '✅ SIM' : '❌ NÃO'}`);
+      });
+      
+      console.log('🏢 Empresa ID:', userData?.empresaId);
+      console.log('👔 Role:', userData?.role);
+      console.log('⏱️ Loading:', loading);
+      console.log('=================================');
     }
   }, [loading, user, userData]);
 
@@ -154,21 +192,26 @@ export default function SistemasPage() {
 
 
   const handleSystemSelect = (systemId: string) => {
+    console.log('🎯 Sistema selecionado:', systemId);
+    console.log('👤 Usuário logado:', !!user);
+    console.log('📊 Dados do usuário:', userData);
+    
     // Se não está logado, redirecionar diretamente para o sistema /auth
     if (!user) {
+      console.log('🔒 Usuário não logado, redirecionando para auth');
       // Redirecionar diretamente para o auth do sistema específico
-      if (systemId === 'ponto') {
-        window.location.href = '/ponto/auth';
-      } else if (systemId === 'chamados') {
-        window.location.href = '/chamados/auth';
-      } else if (systemId === 'documentos') {
-        window.location.href = '/documentos/auth';
-      } else if (systemId === 'frota') {
-        window.location.href = '/frota/auth';
-      } else if (systemId === 'financeiro') {
-        window.location.href = '/financeiro/auth';
-      } else if (systemId === 'vendas') {
-        window.location.href = '/crm/auth';
+      const systemRoutes: { [key: string]: string } = {
+        'ponto': '/ponto/auth',
+        'chamados': '/chamados/auth',
+        'documentos': '/documentos/auth',
+        'frota': '/frota/auth',
+        'financeiro': '/financeiro/auth',
+        'vendas': '/crm/auth',
+        'crm': '/crm/auth'
+      };
+
+      if (systemRoutes[systemId]) {
+        window.location.href = systemRoutes[systemId];
       } else {
         // Para sistemas que não têm /auth ainda, ir para login principal
         sessionStorage.setItem('redirectAfterLogin', `/sistemas?target=${systemId}`);
@@ -180,32 +223,45 @@ export default function SistemasPage() {
     // Se está logado, verificar acesso
     if (user && userData) {
       const hasSystemAccess = hasAccess(systemId);
+      console.log(`🔍 Acesso ao sistema ${systemId}:`, hasSystemAccess);
+      console.log('📋 Sistemas ativos do usuário:', userData.sistemasAtivos);
       
       if (hasSystemAccess) {
-        // Tem acesso, redirecionar para o sistema
-        if (systemId === 'ponto') {
-          window.location.href = '/ponto/auth';
-        } else if (systemId === 'chamados') {
-          window.location.href = '/chamados/auth';
-        } else if (systemId === 'documentos') {
-          window.location.href = '/documentos/auth';
-        } else if (systemId === 'frota') {
-          window.location.href = '/frota/auth';
-        } else if (systemId === 'financeiro') {
-          window.location.href = '/financeiro/auth';
-        } else if (systemId === 'vendas') {
-          window.location.href = '/crm/auth';
+        console.log(`✅ Acesso liberado para ${systemId}, redirecionando...`);
+        
+        // Definir rotas para todos os sistemas
+        const systemRoutes: { [key: string]: string } = {
+          'ponto': '/ponto/auth',
+          'chamados': '/chamados/auth',
+          'documentos': '/documentos/auth',
+          'frota': '/frota/auth',
+          'financeiro': '/financeiro/auth',
+          'vendas': '/crm/auth',
+          'crm': '/crm/auth'
+        };
+
+        // Verificar se o sistema tem rota definida
+        if (systemRoutes[systemId]) {
+          console.log(`🚀 Redirecionando para: ${systemRoutes[systemId]}`);
+          window.location.href = systemRoutes[systemId];
+        } else {
+          console.log(`⚠️ Sistema ${systemId} não tem rota definida`);
+          alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} está sendo configurado. Tente novamente em alguns instantes.`);
         }
       } else if (['vendas', 'estoque', 'rh'].includes(systemId)) {
         // Sistema em desenvolvimento
+        console.log(`🚧 Sistema ${systemId} em desenvolvimento`);
         alert(`Sistema ${todosOsSistemas.find(s => s.key === systemId)?.name} será implementado em breve!`);
       } else {
         // Sem acesso - redirecionar para contato
+        console.log(`🚫 Sem acesso ao sistema ${systemId}`);
         const sistemaNome = todosOsSistemas.find(s => s.key === systemId)?.name;
         if (confirm(`Você não tem acesso ao ${sistemaNome}. Deseja entrar em contato para solicitar acesso?`)) {
           window.location.href = `/contato?sistema=${systemId}`;
         }
       }
+    } else {
+      console.log('⏳ Aguardando dados do usuário...');
     }
   };
 
