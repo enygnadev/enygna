@@ -2855,16 +2855,6 @@ export default function AdminMasterPage() {
           onSkip={handleTutorialSkip}
         />
       )}
-      {showTutorial && (</old_str>
-    }}>
-      {showTutorial && (
-        <Tutorial
-          steps={adminTutorialSteps}
-          tutorialKey="admin-dashboard"
-          onComplete={handleTutorialComplete}
-          onSkip={handleTutorialSkip}
-        />
-      )}
 
       {/* Header Premium */}
       <div className="admin-header" style={{
@@ -3426,14 +3416,7 @@ export default function AdminMasterPage() {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   🏢 Gestão Total de Empresas
                 </h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -3629,7 +3612,7 @@ export default function AdminMasterPage() {
                               onClick={() => deleteCompany(company.id)}
                               style={{
                                 padding: '0.5rem',
-                                background: 'linear-gradient(45deg, #dc2626, #991b1b)',
+                                background: 'linear-gradient(45deg, #dc2626, #b91c1c)',
                                 border: 'none',
                                 borderRadius: '8px',
                                 color: 'white',
