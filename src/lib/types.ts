@@ -52,7 +52,7 @@ export interface UserData {
   // Acessos e permissões
   bootstrapAdmin?: boolean;
   sistemasAtivos?: string[];
-  permissions: UserPermissions;
+  permissions?: UserPermissions;
 
   // Campos específicos para colaboradores
   monthlySalary?: number;

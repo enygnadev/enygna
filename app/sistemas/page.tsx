@@ -7,7 +7,7 @@ import ThemeSelector from '@/src/components/ThemeSelector';
 import { homeTutorialSteps } from '@/src/lib/tutorialSteps';
 import { themeManager } from '@/src/lib/themes';
 import { useAuthData } from '@/src/hooks/useAuth';
-import { UserData, UserPermissions } from '@/src/lib/types';
+
 
 
 
@@ -32,7 +32,7 @@ export default function SistemasPage() {
     }
 
     // Verificar permissões específicas
-    if (userData.permissions?.canAccessSystems?.includes(sistema)) {
+    if (userData.permissions && userData.permissions.canAccessSystems && userData.permissions.canAccessSystems.includes(sistema)) {
       return true;
     }
 
@@ -176,7 +176,7 @@ export default function SistemasPage() {
     }
   };
 
-  const empresaId = userData?.empresaId;
+  
 
   return (
       <div className="container" style={{
