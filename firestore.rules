@@ -105,15 +105,7 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny([systemName]);
     }
 
-    function belongsToUserCompany(resourceCompanyId) {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resourceCompanyId;
-    }
-
-    function canAccessTicketSystem() {
-      return hasSystemAccess('chamados');
-    }
+    
 
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
@@ -493,22 +485,8 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       allow read, write: if isSuperAdmin();
 
-      // Regra simples para usuários com acesso ao sistema de chamados
-      allow read, create, update: if isAuthenticated() && (
-        // SuperAdmins e Admins sempre têm acesso
-        isSuperAdmin() ||
-        isAdmin() ||
-        isEmpresaUser() ||
-        // Verificar acesso direto do usuário
-        (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          (
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['chamados']) ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.canAccessSystems.hasAny(['chamados']) ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superadmin', 'adminmaster', 'gestor', 'empresa']
-          )
-        )
-      );
+      // Permitir acesso para usuários autenticados com verificações simples
+      allow read, create, update: if isAuthenticated();
 
       // Apenas admins podem deletar tickets
       allow delete: if isAuthenticated() && (
@@ -519,18 +497,7 @@ service cloud.firestore {
       // Subcoleções de tickets (comentários, auditoria, etc.)
       match /{subcollection}/{document} {
         allow read, write: if isSuperAdmin();
-        allow read, write, create: if isAuthenticated() && (
-          isSuperAdmin() ||
-          isAdmin() ||
-          isEmpresaUser() ||
-          (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            (
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['chamados']) ||
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.canAccessSystems.hasAny(['chamados'])
-            )
-          )
-        );
+        allow read, write, create: if isAuthenticated();
       }
     }
 
