@@ -126,8 +126,8 @@ class SecurityChecker {
         }
       });
 
-      // Add NODE_ENV check specifically
-      if (!process.env.NODE_ENV) {
+      // Add NODE_ENV check specifically (verificar no arquivo .env.local também)
+      if (!process.env.NODE_ENV && !envLocal.includes('NODE_ENV=')) {
         missingVars.push('NODE_ENV');
       }
 
