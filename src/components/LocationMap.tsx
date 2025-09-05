@@ -120,9 +120,6 @@ export default function LocationMap({
   autoRecenter = true,
 }: Props) {
   const [leafletMap, setLeafletMap] = React.useState<any>(null);
-  const [mapKey, setMapKey] = React.useState<string>(() => `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-  const mapContainerRef = React.useRef<HTMLDivElement>(null);
-  const [isMapReady, setIsMapReady] = React.useState(false);
 
   // Âncora: se não vier compareTo, fixamos a primeira coordenada recebida via props
   const firstLatRef = React.useRef<number>(lat);
@@ -133,42 +130,10 @@ export default function LocationMap({
     label: label || 'Âncora',
   };
 
-  // Estado da posição "atual" mostrada no mapa
+  // Estado da posição “atual” mostrada no mapa
   const [pos, setPos] = React.useState<LatLng>({ lat, lng, acc: accuracy, label });
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
   const [source, setSource] = React.useState<'gps' | 'firestore' | 'props' | 'poll'>('props');
-
-  // Força nova instância do mapa se as coordenadas mudarem drasticamente
-  React.useEffect(() => {
-    const currentLat = pos.lat;
-    const currentLng = pos.lng;
-    const initialLat = firstLatRef.current;
-    const initialLng = firstLngRef.current;
-
-    // Se a mudança de posição for muito grande (mais de 1km), reinicia o mapa
-    const distance = distanceMeters(
-      { lat: currentLat, lng: currentLng },
-      { lat: initialLat, lng: initialLng }
-    );
-
-    if (distance > 1000 && isMapReady) {
-      setIsMapReady(false);
-      if (leafletMap) {
-        try {
-          leafletMap.remove();
-        } catch (error) {
-          console.warn('Erro ao remover mapa anterior:', error);
-        }
-      }
-      setLeafletMap(null);
-      const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      setMapKey(newKey);
-      firstLatRef.current = currentLat;
-      firstLngRef.current = currentLng;
-      // Aguardar um pouco antes de permitir nova criação
-      setTimeout(() => setIsMapReady(true), 100);
-    }
-  }, [pos.lat, pos.lng, isMapReady, leafletMap]);
   const [perm, setPerm] = React.useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
   // --- Permissão de geolocalização (Permissions API) ---
@@ -416,33 +381,6 @@ export default function LocationMap({
     } catch {}
   }, [leafletMap, pos.lat, pos.lng]);
 
-  const forceMapRecreation = React.useCallback(() => {
-    const newKey = `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setMapKey(newKey);
-    setLeafletMap(null);
-  }, []);
-
-  // Cleanup effect para prevenir vazamentos de memória
-  React.useEffect(() => {
-    return () => {
-      if (leafletMap) {
-        try {
-          setIsMapReady(false);
-          leafletMap.remove();
-          setLeafletMap(null);
-        } catch (error) {
-          // Ignora erros de cleanup
-          console.warn('Erro ao limpar mapa:', error);
-        }
-      }
-    };
-  }, [leafletMap]);
-
-  // Inicializar estado do mapa
-  React.useEffect(() => {
-    setIsMapReady(true);
-  }, []);
-
   // UI de ajuda para permissão negada/pendente
   const showPermHint = perm === 'denied' || perm === 'prompt' || perm === 'unknown';
 
@@ -527,24 +465,13 @@ export default function LocationMap({
         </div>
       )}
 
-      <div ref={mapContainerRef} key={mapKey}>
-        {isMapReady !== false && (
-          <MapContainer
-            center={[pos.lat, pos.lng]}
-            zoom={16}
-            scrollWheelZoom
-            style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
-            whenCreated={(map) => {
-              setLeafletMap(map);
-              setIsMapReady(true);
-              // Garante que o mapa seja invalidated após criação
-              setTimeout(() => {
-                if (map) {
-                  map.invalidateSize();
-                }
-              }, 100);
-            }}
-          >
+      <MapContainer
+        center={[pos.lat, pos.lng]}
+        zoom={16}
+        scrollWheelZoom
+        style={{ height: 300, width: '100%', borderRadius: 12, overflow: 'hidden' }}
+        whenCreated={setLeafletMap}
+      >
         {/* OSM tiles — string literal (sem erro TS2304) */}
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -585,9 +512,7 @@ export default function LocationMap({
             options={{ color: '#3b82f6', opacity: 0.4 }}
           />
         )}
-          </MapContainer>
-        )}
-      </div>
+      </MapContainer>
     </div>
   );
 }
