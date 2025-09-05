@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { auth, db } from '@/src/lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import ThemeSelector from '@/src/components/ThemeSelector';
 
@@ -12,25 +13,93 @@ export default function DocumentosAuthPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nome, setNome] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
+  // Verificar se usuário já está logado e tem acesso
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setLoading(false);
-      } else {
-        setLoading(false);
+        console.log('👤 Usuário já logado, verificando acesso ao sistema documentos...');
+        
+        try {
+          // Verificar se tem acesso ao sistema documentos
+          const hasDocumentosAccess = await checkDocumentosAccess(user);
+          
+          if (hasDocumentosAccess) {
+            console.log('✅ Usuário já tem acesso ao sistema documentos, redirecionando...');
+            router.push('/documentos');
+            return;
+          } else {
+            console.log('❌ Usuário logado mas sem acesso ao sistema documentos');
+            await auth.signOut(); // Deslogar se não tem acesso
+          }
+        } catch (error) {
+          console.error('Erro ao verificar acesso:', error);
+        }
       }
+      
+      setCheckingAuth(false);
     });
 
     return () => unsubscribe();
   }, [router]);
+
+  const checkDocumentosAccess = async (user: any): Promise<boolean> => {
+    try {
+      // 1. Verificar documento do usuário
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Verificar se tem acesso ao sistema documentos
+        if (userData.sistemasAtivos?.includes('documentos') || 
+            userData.permissions?.documentos ||
+            userData.permissions?.canAccessSystems?.includes('documentos')) {
+          return true;
+        }
+      }
+
+      // 2. Verificar se é empresa com sistema documentos ativo
+      const empresasQuery = query(collection(db, 'empresas'), where('email', '==', user.email));
+      const empresasSnapshot = await getDocs(empresasQuery);
+
+      for (const empresaDoc of empresasSnapshot.docs) {
+        const empresaData = empresaDoc.data();
+        if (empresaData.ativo && 
+            empresaData.sistemasAtivos && 
+            empresaData.sistemasAtivos.includes('documentos')) {
+          return true;
+        }
+      }
+
+      // 3. Verificar se é colaborador em empresa com documentos ativo
+      const todasEmpresas = await getDocs(collection(db, 'empresas'));
+      for (const empresaDoc of todasEmpresas.docs) {
+        const empresaData = empresaDoc.data();
+        
+        if (empresaData.ativo && empresaData.sistemasAtivos?.includes('documentos')) {
+          const colaboradoresRef = collection(db, 'empresas', empresaDoc.id, 'colaboradores');
+          const colaboradorQuery = query(colaboradoresRef, where('email', '==', user.email));
+          const colaboradorSnapshot = await getDocs(colaboradorQuery);
+          
+          if (!colaboradorSnapshot.empty) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Erro ao verificar acesso ao documentos:', error);
+      return false;
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,128 +112,24 @@ export default function DocumentosAuthPage() {
     setError(null);
 
     try {
+      console.log('🔐 Fazendo login para sistema documentos...');
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Verificar se já existe no documentos_users
-      const existingUserRef = doc(db, 'documentos_users', user.uid);
-      const existingUserDoc = await getDoc(existingUserRef);
-
-      if (existingUserDoc.exists() && existingUserDoc.data()?.isActive) {
-        // Usuário já existe e está ativo - atualizar último login e redirecionar
-        await setDoc(existingUserRef, {
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-
+      // Verificar acesso após login
+      const hasAccess = await checkDocumentosAccess(user);
+      
+      if (hasAccess) {
+        console.log('✅ Login realizado com sucesso, redirecionando para /documentos');
         router.push('/documentos');
-        return;
+      } else {
+        setError('Este email não tem acesso ao sistema de documentos. Entre em contato com o administrador.');
+        await auth.signOut();
       }
-
-      // Verificar se existe na coleção users principal
-      const mainUserRef = doc(db, 'users', user.uid);
-      const mainUserDoc = await getDoc(mainUserRef);
-
-      if (mainUserDoc.exists()) {
-        const userData = mainUserDoc.data();
-        // Verificar se tem acesso ao sistema de documentos
-        if (userData.permissions?.documentos || userData.sistema === 'documentos' || userData.sistema === 'universal') {
-          // Criar ou atualizar entrada no documentos_users
-          await setDoc(existingUserRef, {
-            uid: user.uid,
-            email: user.email,
-            nome: userData.displayName || user.displayName || email.split('@')[0],
-            role: userData.role || 'colaborador',
-            empresaId: userData.empresaId,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            sistema: 'documentos',
-            permissions: userData.permissions || { documentos: true }
-          }, { merge: true });
-
-          router.push('/documentos');
-          return;
-        }
-      }
-
-      // 2. Verificar se é empresa com sistema documentos ativo
-      const empresasCollection = collection(db, 'empresas');
-      const empresasSnapshot = await getDocs(empresasCollection);
-
-      for (const empresaDoc of empresasSnapshot.docs) {
-        const empresaData = empresaDoc.data();
-
-        // Verificar se é esta empresa e se tem documentos ativo
-        if (empresaData.email === email && 
-            empresaData.ativo && 
-            empresaData.sistemasAtivos && 
-            empresaData.sistemasAtivos.includes('documentos')) {
-
-          // É empresa com documentos ativo - criar/atualizar perfil
-          await setDoc(doc(db, 'documentos_users', user.uid), {
-            uid: user.uid,
-            email: user.email,
-            nome: empresaData.nome,
-            role: 'empresa',
-            empresaId: empresaDoc.id,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            sistema: 'documentos'
-          }, { merge: true });
-
-          console.log('Empresa logada no sistema de documentos:', empresaData.nome);
-          router.push('/documentos');
-          return;
-        }
-      }
-
-      // 3. Verificar se é colaborador em alguma empresa com documentos ativo
-      const todasEmpresas = await getDocs(collection(db, 'empresas'));
-      let colaboradorEmpresaId = null;
-      let colaboradorData = null;
-
-      for (const empresaDoc of todasEmpresas.docs) {
-        const empresaData = empresaDoc.data();
-
-        // Verificar se a empresa tem documentos ativo
-        if (empresaData.ativo && empresaData.sistemasAtivos && empresaData.sistemasAtivos.includes('documentos')) {
-          // Verificar se é colaborador nesta empresa
-          const colaboradoresRef = collection(db, 'empresas', empresaDoc.id, 'colaboradores');
-          const colaboradorQuery = query(colaboradoresRef, where('email', '==', email));
-          const colaboradorSnapshot = await getDocs(colaboradorQuery);
-
-          if (!colaboradorSnapshot.empty) {
-            colaboradorEmpresaId = empresaDoc.id;
-            colaboradorData = colaboradorSnapshot.docs[0].data();
-            break;
-          }
-        }
-      }
-
-      if (colaboradorEmpresaId && colaboradorData) {
-        // É colaborador - criar/atualizar perfil no documentos_users
-        await setDoc(doc(db, 'documentos_users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          nome: colaboradorData.nome || nome || email.split('@')[0],
-          role: 'colaborador',
-          empresaId: colaboradorEmpresaId,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-
-        router.push('/documentos');
-        return;
-      }
-
-      // 4. Se chegou até aqui, não tem acesso ao sistema de documentos
-      setError('Este email não tem acesso ao sistema de documentos. Entre em contato com o administrador.');
-      await auth.signOut();
 
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      console.error('❌ Erro no login:', error);
+      
       if (error.code === 'auth/user-not-found') {
         setError('Usuário não encontrado');
       } else if (error.code === 'auth/wrong-password') {
@@ -173,118 +138,10 @@ export default function DocumentosAuthPage() {
         setError('Email inválido');
       } else if (error.code === 'auth/invalid-credential') {
         setError('Credenciais inválidas');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError('Muitas tentativas de login. Tente novamente mais tarde.');
       } else {
         setError('Erro ao fazer login. Tente novamente.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password || !nome) {
-      setError('Preencha todos os campos');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Verificar se o email já está cadastrado
-      const existingUsers = await getDocs(
-        query(
-          collection(db, 'documentos_users'),
-          where('email', '==', email)
-        )
-      );
-
-      if (!existingUsers.empty) {
-        setError('Este email já está cadastrado. Faça login.');
-        setLoading(false);
-        return;
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Criar perfil na coleção 'users'
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: user.email,
-        displayName: nome,
-        role: 'colaborador',
-        sistema: 'documentos',
-        permissions: {
-          documentos: true
-        },
-        createdAt: new Date().toISOString(),
-        empresaId: null // Empresa será definida posteriormente se necessário
-      });
-
-      // Buscar empresas que tenham documentos ativo
-      const empresasCollection = collection(db, 'empresas');
-      const empresasQuery = query(
-        empresasCollection,
-        where('ativo', '==', true)
-      );
-      const empresasSnapshot = await getDocs(empresasQuery);
-
-      // Filtrar empresas que têm sistema documentos ativo
-      const empresasComDocumentos = empresasSnapshot.docs.filter(doc => {
-        const data = doc.data();
-        return data.sistemasAtivos && data.sistemasAtivos.includes('documentos');
-      });
-
-      if (empresasComDocumentos.length === 0) {
-        setError('Nenhuma empresa com sistema de documentos encontrada. Entre em contato com o administrador.');
-        await auth.signOut();
-        return;
-      }
-
-      // Por padrão, registrar como colaborador na primeira empresa encontrada
-      const primeiraEmpresa = empresasComDocumentos[0];
-
-      // Criar perfil na coleção de documentos
-      const userData = {
-        uid: user.uid,
-        email: user.email,
-        nome: nome,
-        role: 'colaborador',
-        empresaId: primeiraEmpresa.id,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        createdBy: 'self-registration',
-        lastLogin: new Date().toISOString()
-      };
-
-      await setDoc(doc(db, 'documentos_users', user.uid), userData);
-
-      // Adicionar como colaborador na empresa
-      await setDoc(doc(db, 'empresas', primeiraEmpresa.id, 'colaboradores', user.uid), {
-        email: user.email,
-        nome: nome,
-        role: 'colaborador',
-        sistema: 'documentos',
-        ativo: true,
-        criadoEm: new Date().toISOString()
-      });
-
-      // Sucesso - redirecionar
-      router.push('/documentos');
-
-    } catch (error: any) {
-      console.error('Erro no cadastro:', error);
-
-      if (error.code === 'auth/email-already-in-use') {
-        setError('Este email já possui uma conta. Faça login ou use outro email.');
-      } else if (error.code === 'auth/weak-password') {
-        setError('A senha deve ter pelo menos 6 caracteres.');
-      } else if (error.code === 'auth/invalid-email') {
-        setError('Email inválido.');
-      } else {
-        setError('Erro ao criar conta. Tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -305,11 +162,43 @@ export default function DocumentosAuthPage() {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetSuccess(true);
     } catch (error: any) {
-      setError('Erro ao enviar email de recuperação');
+      console.error('Erro ao enviar email de recuperação:', error);
+      setError('Erro ao enviar email de recuperação. Verifique se o email está correto.');
     } finally {
       setResetLoading(false);
     }
   };
+
+  // Mostrar loading enquanto verifica autenticação
+  if (checkingAuth) {
+    return (
+      <div className="container" style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid rgba(255,255,255,0.3)',
+            borderTop: '4px solid var(--color-primary)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 1rem'
+          }} />
+          <p>Verificando acesso...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   if (showForgotPassword) {
     return (
@@ -336,8 +225,19 @@ export default function DocumentosAuthPage() {
 
             {resetSuccess ? (
               <div style={{ textAlign: 'center' }}>
-                <p style={{ color: 'var(--color-success)', marginBottom: '1rem' }}>
-                  Email de recuperação enviado!
+                <div style={{ 
+                  background: 'rgba(34, 197, 94, 0.1)', 
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  marginBottom: '1rem'
+                }}>
+                  <p style={{ color: 'var(--color-success)', margin: 0 }}>
+                    ✅ Email de recuperação enviado com sucesso!
+                  </p>
+                </div>
+                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
+                  Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
                 </p>
                 <button
                   className="button button-outline"
@@ -366,8 +266,15 @@ export default function DocumentosAuthPage() {
                   </div>
 
                   {error && (
-                    <div className="alert alert-error">
-                      {error}
+                    <div style={{ 
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '8px',
+                      padding: '1rem'
+                    }}>
+                      <p style={{ color: 'var(--color-error)', margin: 0 }}>
+                        ❌ {error}
+                      </p>
                     </div>
                   )}
 
@@ -375,7 +282,10 @@ export default function DocumentosAuthPage() {
                     <button
                       type="button"
                       className="button button-ghost"
-                      onClick={() => setShowForgotPassword(false)}
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setError(null);
+                      }}
                     >
                       Cancelar
                     </button>
@@ -409,26 +319,9 @@ export default function DocumentosAuthPage() {
           justify-content: center;
         }
 
-        .tab-buttons {
-          display: flex;
-          border-radius: var(--radius);
-          overflow: hidden;
-          margin-bottom: 2rem;
-          border: 1px solid var(--color-border);
-        }
-
-        .tab-button {
-          flex: 1;
-          padding: 1rem;
-          background: var(--color-surface);
-          border: none;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-          background: var(--color-primary);
-          color: white;
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
 
@@ -457,8 +350,8 @@ export default function DocumentosAuthPage() {
         <div className="card" style={{ padding: '2rem' }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📄</div>
-            <h1>Gerador de Documentos</h1>
-            <p>Sistema independente de geração de documentos</p>
+            <h1 style={{ marginBottom: '0.5rem' }}>Gerador de Documentos</h1>
+            <p style={{ opacity: 0.8 }}>Entre com seu email e senha</p>
           </div>
 
           <form onSubmit={handleLogin}>
@@ -472,18 +365,7 @@ export default function DocumentosAuthPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   required
-                />
-              </div>
-
-              <div>
-                <label>Nome</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome completo"
-                  required
+                  autoComplete="email"
                 />
               </div>
 
@@ -496,12 +378,20 @@ export default function DocumentosAuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                 />
               </div>
 
               {error && (
-                <div className="alert alert-error">
-                  {error}
+                <div style={{ 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '1rem'
+                }}>
+                  <p style={{ color: 'var(--color-error)', margin: 0 }}>
+                    ❌ {error}
+                  </p>
                 </div>
               )}
 
@@ -509,19 +399,76 @@ export default function DocumentosAuthPage() {
                 type="submit"
                 className="button button-primary"
                 disabled={loading}
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTop: '2px solid white',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    Entrando...
+                  </div>
+                ) : (
+                  '🚀 Entrar no Sistema'
+                )}
               </button>
 
               <button
                 type="button"
                 className="button button-ghost"
-                onClick={() => setShowForgotPassword(true)}
+                onClick={() => {
+                  setShowForgotPassword(true);
+                  setError(null);
+                }}
               >
                 Esqueci minha senha
               </button>
             </div>
           </form>
+
+          {/* Informações de Segurança */}
+          <div style={{ 
+            textAlign: 'center', 
+            paddingTop: 'var(--gap-lg)', 
+            borderTop: '1px solid var(--color-border)',
+            marginTop: 'var(--gap-lg)'
+          }}>
+            <div style={{ marginBottom: 'var(--gap-md)' }}>
+              <p style={{ fontSize: '0.9rem', opacity: 0.8, marginBottom: '0.5rem' }}>
+                🔐 Acesso seguro ao sistema de documentos
+              </p>
+              <div style={{ 
+                display: 'flex', 
+                gap: '0.5rem', 
+                justifyContent: 'center', 
+                flexWrap: 'wrap',
+                fontSize: '0.8rem'
+              }}>
+                <span className="tag" style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
+                  ✅ Criptografia End-to-End
+                </span>
+                <span className="tag" style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)' }}>
+                  🛡️ Proteção LGPD
+                </span>
+                <span className="tag" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                  🔒 Login Seguro
+                </span>
+              </div>
+            </div>
+            
+            <p style={{ fontSize: '0.8rem', opacity: 0.7, lineHeight: 1.4 }}>
+              Apenas usuários autorizados podem acessar o sistema.<br />
+              Se você é empresa ou colaborador cadastrado, use suas credenciais de acesso.
+            </p>
+          </div>
         </div>
       </div>
     </div>
