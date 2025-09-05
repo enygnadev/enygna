@@ -117,6 +117,10 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resourceCompanyId;
     }
 
+    function canAccessTicketSystem() {
+      return hasSystemAccess('chamados');
+    }
+
     // ===== SUPERADMINS - ACESSO TOTAL =====
     match /{document=**} { 
       allow read, write: if isSuperAdmin(); 
@@ -495,46 +499,29 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       allow read, write: if isSuperAdmin();
 
-      // Usuários podem ler tickets da sua empresa (verificação mais flexível)
+      // Usuários podem ler tickets da sua empresa
       allow read: if isAuthenticated() && (
         isEmpresaUser() ||
         isAdmin() ||
-        (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['chamados']) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == resource.data.empresaId
-        ) ||
+        (canAccessTicketSystem() && belongsToUserCompany(resource.data.empresaId)) ||
         sameCompany(resource.data.empresaId)
       );
 
-      // Usuários podem criar tickets para sua empresa (verificação mais flexível)
+      // Usuários podem criar tickets para sua empresa
       allow create: if isAuthenticated() && (
         isEmpresaUser() ||
         isAdmin() ||
-        (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['chamados']) &&
-          (
-            request.resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId ||
-            sameCompany(request.resource.data.empresaId)
-          ) &&
-          request.resource.data.createdBy == request.auth.uid
-        )
+        (canAccessTicketSystem() && belongsToUserCompany(request.resource.data.empresaId) && 
+         request.resource.data.createdBy == request.auth.uid)
       );
 
       // Usuários podem editar seus próprios tickets ou admins podem editar todos da empresa
       allow update: if isAuthenticated() && (
         isEmpresaUser() ||
         isAdmin() ||
-        (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sistemasAtivos.hasAny(['chamados']) &&
-          (
-            resource.data.createdBy == request.auth.uid ||
-            isAdmin() ||
-            sameCompany(resource.data.empresaId)
-          )
-        )
+        (canAccessTicketSystem() && 
+         (resource.data.createdBy == request.auth.uid || 
+          belongsToUserCompany(resource.data.empresaId)))
       );
 
       // Apenas admins podem deletar tickets
@@ -549,7 +536,7 @@ service cloud.firestore {
         allow read, write, create: if isAuthenticated() && (
           isEmpresaUser() ||
           isAdmin() ||
-          exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          canAccessTicketSystem()
         );
       }
     }
